@@ -9,30 +9,43 @@ import androidx.compose.ui.Modifier
 
 @Composable
 fun PreferenceSwitchWithContainer(
+
     title: String,
+
     isChecked: Boolean,
+
     onCheckedChange: (Boolean) -> Unit,
+
     modifier: Modifier = Modifier
+
 ) {
+
 
     ListItem(
 
         headlineContent = {
+
             Text(
                 text = title
             )
+
         },
 
 
         trailingContent = {
 
             Switch(
+
                 checked = isChecked,
+
                 onCheckedChange = onCheckedChange
+
             )
+
         },
 
 
         modifier = modifier
+
     )
 }

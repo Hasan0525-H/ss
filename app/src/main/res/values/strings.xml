@@ -152,6 +152,7 @@
         Theme Settings
     </string>
 
+
     <string name="theme_description">
         Customize application appearance.
     </string>
@@ -160,6 +161,7 @@
     <string name="about">
         About
     </string>
+
 
     <string name="about_description">
         Application information.
@@ -229,6 +231,16 @@
     </string>
 
 
+    <string name="temperature_setting">
+        Temperature
+    </string>
+
+
+    <string name="temperature_setting_description">
+        Controls creativity of generated responses.
+    </string>
+
+
     <string name="reset">
         Reset
     </string>
@@ -246,6 +258,37 @@
 
     <string name="system_prompt">
         System Prompt
+    </string>
+
+
+    <string name="invalid_api_url">
+        Invalid API URL
+    </string>
+
+
+
+    <!-- About -->
+
+    <string name="feedback">
+        Feedback
+    </string>
+
+
+    <string name="feedback_description">
+        Send feedback or report issues.
+    </string>
+
+
+    <string name="feedback_icon">
+        Feedback Icon
+    </string>
+
+
+
+    <!-- License -->
+
+    <string name="license">
+        License
     </string>
 
 

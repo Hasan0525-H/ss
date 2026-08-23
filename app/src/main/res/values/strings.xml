@@ -212,7 +212,6 @@
         Version Icon
     </string>
 
-
     <string name="license">
         License
     </string>
@@ -225,7 +224,6 @@
         License Icon
     </string>
 
-
     <string name="github">
         GitHub
     </string>
@@ -237,7 +235,6 @@
     <string name="github_link">
         https://github.com/
     </string>
-
 
     <string name="feedback">
         Feedback
@@ -254,7 +251,6 @@
     <string name="feedback_link">
         mailto:support@example.com
     </string>
-
 
     <string name="bug_report">
         Bug Report
@@ -284,6 +280,14 @@
 
     <string name="arrow_icon">
         Arrow Icon
+    </string>
+
+
+
+    <!-- Dialog -->
+
+    <string name="this_operation_can_t_be_undone">
+        This operation cannot be undone.
     </string>
 
 

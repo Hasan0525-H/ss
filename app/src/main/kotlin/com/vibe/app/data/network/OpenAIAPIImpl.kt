@@ -1,6 +1,5 @@
 package com.vibe.app.data.network
 
-import com.vibe.app.data.ModelConstants
 import com.vibe.app.data.dto.openai.request.ChatCompletionRequest
 import com.vibe.app.data.dto.openai.request.ResponsesRequest
 import com.vibe.app.data.dto.openai.response.ChatCompletionChunk
@@ -16,6 +15,7 @@ import com.vibe.app.feature.diagnostic.ModelRequestDiagnosticContext
 import io.ktor.client.call.body
 import io.ktor.client.request.accept
 import io.ktor.client.request.bearerAuth
+import io.ktor.client.request.header
 import io.ktor.client.request.preparePost
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsChannel
@@ -36,7 +36,12 @@ class OpenAIAPIImpl @Inject constructor(
 ) : OpenAIAPI {
 
     private var token: String? = null
-    private var apiUrl: String = ModelConstants.OPENAI_API_URL
+
+    private var apiUrl: String =
+        "https://openrouter.ai/api"
+
+    private var providerType: String =
+        "OPEN_ROUTER"
 
     override fun setToken(token: String?) {
         this.token = token
@@ -46,522 +51,583 @@ class OpenAIAPIImpl @Inject constructor(
         this.apiUrl = url
     }
 
-    override fun streamQwenChatCompletion(
+    fun setProvider(
+        type: String,
+        customUrl: String? = null
+    ) {
+        providerType = type
+
+        apiUrl = when (type) {
+            "OPEN_ROUTER" ->
+                "https://openrouter.ai/api"
+
+            "CUSTOM" ->
+                customUrl ?: "https://api.openai.com"
+
+            else ->
+                "https://openrouter.ai/api"
+        }
+    }
+
+    private fun buildEndpoint(
+        path: String
+    ): String {
+        return if (apiUrl.endsWith("/")) {
+            "${apiUrl.removeSuffix("/")}$path"
+        } else {
+            "$apiUrl$path"
+        }
+    }
+
+    private fun applyProviderHeaders(
+        request: io.ktor.client.request.HttpRequestBuilder
+    ) {
+        if (providerType == "OPEN_ROUTER") {
+            request.header(
+                "HTTP-Referer",
+                "https://vibe.app"
+            )
+
+            request.header(
+                "X-Title",
+                "Vibe App"
+            )
+        }
+    }
+        override fun streamQwenChatCompletion(
         request: QwenChatCompletionRequest,
         diagnosticContext: ModelRequestDiagnosticContext?,
         trace: ModelExecutionTrace?,
     ): Flow<ChatCompletionChunk> = flow {
-        val endpoint = if (apiUrl.endsWith("/")) "${apiUrl}v1/chat/completions" else "$apiUrl/v1/chat/completions"
-        val requestBody = NetworkClient.json.encodeToJsonElement(request).toString()
+
+        val endpoint = buildEndpoint("/v1/chat/completions")
+
+        val requestBody =
+            NetworkClient.json.encodeToJsonElement(request).toString()
+
         val requestStartedAt = System.currentTimeMillis()
+
         trace?.markRequestStarted(requestStartedAt)
+
         diagnosticContext?.let {
             diagnosticLogger.logModelRequest(
                 context = it,
                 endpointUrl = endpoint,
                 requestBodyBytesApprox = requestBody.toByteArray().size,
-                startedAt = requestStartedAt,
+                startedAt = requestStartedAt
             )
         }
-        logOpenAiRequest(endpoint, requestBody)
 
         try {
-            val startTime = requestStartedAt
-            networkClient().preparePost(endpoint) {
-                contentType(ContentType.Application.Json)
-                setBody(requestBody)
-                accept(ContentType.Text.EventStream)
-                token?.let { bearerAuth(it) }
-            }.execute { response ->
-                trace?.markFirstByte(response.status.value)
-                NetworkLogcatLogger.logResponse(
-                    method = "POST",
-                    url = endpoint,
-                    statusCode = response.status.value,
-                    statusText = response.status.description,
-                    headers = response.headers.entries().associate { it.key to it.value },
-                    bodyContentType = response.headers[HttpHeaders.ContentType],
-                    durationMillis = System.currentTimeMillis() - startTime,
-                    streamedBody = response.status.isSuccess(),
-                )
 
-                if (!response.status.isSuccess()) {
-                    val errorBody = response.body<String>()
-                    trace?.updateStatusCode(response.status.value)
-                    emit(
-                        ChatCompletionChunk(
-                            error = ErrorDetail(
-                                message = errorBody,
-                                type = "http_error",
-                                code = response.status.value.toString(),
-                            ),
-                        ),
-                    )
-                    return@execute
-                }
+            networkClient()
+                .preparePost(endpoint) {
 
-                val channel = response.bodyAsChannel()
-                val eventLines = mutableListOf<String>()
-                while (!channel.isClosedForRead) {
-                    val line = channel.readUTF8Line() ?: break
-                    if (line.isBlank()) {
-                        val shouldStop = handleChatCompletionSseEvent(endpoint, eventLines) { emit(it) }
-                        eventLines.clear()
-                        if (shouldStop) break
-                        continue
+                    contentType(ContentType.Application.Json)
+
+                    setBody(requestBody)
+
+                    accept(ContentType.Text.EventStream)
+
+                    token?.let {
+                        bearerAuth(it)
                     }
-                    eventLines += line
+
+                    applyProviderHeaders(this)
+
+                }
+                .execute { response ->
+
+                    trace?.markFirstByte(response.status.value)
+
+                    if (!response.status.isSuccess()) {
+
+                        val errorBody =
+                            response.body<String>()
+
+                        emit(
+                            ChatCompletionChunk(
+                                error = ErrorDetail(
+                                    message = errorBody,
+                                    type = "http_error",
+                                    code = response.status.value.toString()
+                                )
+                            )
+                        )
+
+                        return@execute
+                    }
+
+
+                    val channel =
+                        response.bodyAsChannel()
+
+                    val eventLines =
+                        mutableListOf<String>()
+
+
+                    while (!channel.isClosedForRead) {
+
+                        val line =
+                            channel.readUTF8Line()
+                                ?: break
+
+
+                        if (line.isBlank()) {
+
+                            val shouldStop =
+                                handleChatCompletionSseEvent(
+                                    endpoint,
+                                    eventLines
+                                ) {
+                                    emit(it)
+                                }
+
+
+                            eventLines.clear()
+
+
+                            if (shouldStop) {
+                                break
+                            }
+
+                        } else {
+
+                            eventLines += line
+
+                        }
+                    }
+
+
+                    if (eventLines.isNotEmpty()) {
+
+                        handleChatCompletionSseEvent(
+                            endpoint,
+                            eventLines
+                        ) {
+                            emit(it)
+                        }
+
+                    }
+
                 }
 
-                if (eventLines.isNotEmpty()) {
-                    handleChatCompletionSseEvent(endpoint, eventLines) { emit(it) }
-                }
-            }
+
         } catch (e: Exception) {
-            NetworkLogcatLogger.logNetworkError("POST", endpoint, e)
-            val errorMessage = when (e) {
-                is java.net.UnknownHostException -> "Network error: Unable to resolve host."
-                is java.nio.channels.UnresolvedAddressException -> "Network error: Unable to resolve address."
-                is java.net.ConnectException -> "Network error: Connection refused."
-                is java.net.SocketTimeoutException -> "Network error: Connection timed out."
-                is javax.net.ssl.SSLException -> "Network error: SSL/TLS connection failed."
-                else -> e.message ?: "Unknown network error"
-            }
+
+
             emit(
                 ChatCompletionChunk(
-                    error = ErrorDetail(message = errorMessage, type = "network_error"),
-                ),
+                    error = ErrorDetail(
+                        message = e.message
+                            ?: "Unknown network error",
+                        type = "network_error"
+                    )
+                )
             )
+
         }
+
     }
+
 
     override suspend fun completeQwenChatCompletion(
         request: QwenChatCompletionRequest,
         diagnosticContext: ModelRequestDiagnosticContext?,
         trace: ModelExecutionTrace?,
     ): QwenChatCompletionResponse {
-        val endpoint = if (apiUrl.endsWith("/")) "${apiUrl}v1/chat/completions" else "$apiUrl/v1/chat/completions"
-        val requestBody = NetworkClient.json.encodeToJsonElement(request).toString()
-        val requestStartedAt = System.currentTimeMillis()
-        trace?.markRequestStarted(requestStartedAt)
-        diagnosticContext?.let {
-            diagnosticLogger.logModelRequest(
-                context = it,
-                endpointUrl = endpoint,
-                requestBodyBytesApprox = requestBody.toByteArray().size,
-                startedAt = requestStartedAt,
-            )
-        }
 
-        NetworkLogcatLogger.logRequest(
-            method = "POST",
-            url = endpoint,
-            commonHeaders = buildMap {
-                put("Accept", ContentType.Application.Json.toString())
-                if (token != null) {
-                    put(HttpHeaders.Authorization, "Bearer $token")
-                }
-            },
-            bodyContentType = ContentType.Application.Json.toString(),
-            body = requestBody,
-        )
+        val endpoint =
+            buildEndpoint("/v1/chat/completions")
+
+
+        val requestBody =
+            NetworkClient.json
+                .encodeToJsonElement(request)
+                .toString()
+
 
         return try {
-            val startTime = requestStartedAt
-            networkClient().preparePost(endpoint) {
-                contentType(ContentType.Application.Json)
-                accept(ContentType.Application.Json)
-                setBody(requestBody)
-                token?.let { bearerAuth(it) }
-            }.execute { response ->
-                trace?.markFirstByte(response.status.value)
-                val rawBody = response.body<String>()
-                NetworkLogcatLogger.logResponse(
-                    method = "POST",
-                    url = endpoint,
-                    statusCode = response.status.value,
-                    statusText = response.status.description,
-                    headers = response.headers.entries().associate { it.key to it.value },
-                    bodyContentType = response.headers[HttpHeaders.ContentType],
-                    body = rawBody,
-                    durationMillis = System.currentTimeMillis() - startTime,
+
+
+            networkClient()
+                .preparePost(endpoint) {
+
+                    contentType(
+                        ContentType.Application.Json
+                    )
+
+                    accept(
+                        ContentType.Application.Json
+                    )
+
+                    setBody(requestBody)
+
+
+                    token?.let {
+                        bearerAuth(it)
+                    }
+
+
+                    applyProviderHeaders(this)
+
+                }
+                .execute { response ->
+
+
+                    val rawBody =
+                        response.body<String>()
+
+
+                    if (!response.status.isSuccess()) {
+
+                        return@execute QwenChatCompletionResponse(
+
+                            error =
+                            com.vibe.app.data.dto.qwen.response.QwenErrorDetail(
+                                message = rawBody,
+                                code = response.status.value.toString()
+                            )
+
+                        )
+
+                    }
+
+
+                    NetworkClient.json
+                        .decodeFromString<QwenChatCompletionResponse>(
+                            rawBody
+                        )
+
+                }
+
+
+        } catch (e: Exception) {
+
+
+            QwenChatCompletionResponse(
+
+                error =
+                com.vibe.app.data.dto.qwen.response.QwenErrorDetail(
+
+                    message =
+                    e.message ?: "Unknown error",
+
+                    code =
+                    "network_error"
+
                 )
 
-                if (!response.status.isSuccess()) {
-                    trace?.updateStatusCode(response.status.value)
-                    return@execute QwenChatCompletionResponse(
-                        error = com.vibe.app.data.dto.qwen.response.QwenErrorDetail(
-                            message = rawBody,
-                            code = response.status.value.toString(),
-                        ),
-                    )
-                }
+            )
 
-                return@execute try {
-                    NetworkClient.json.decodeFromString<QwenChatCompletionResponse>(rawBody)
-                } catch (e: Exception) {
-                    QwenChatCompletionResponse(
-                        error = com.vibe.app.data.dto.qwen.response.QwenErrorDetail(
-                            message = "Failed to decode Qwen chat completion: ${e.message}\n$rawBody",
-                            code = "decode_error",
-                        ),
-                    )
-                }
-            }
-        } catch (e: io.ktor.client.plugins.ClientRequestException) {
-            val errorBody = e.response.body<String>()
-            trace?.updateStatusCode(e.response.status.value)
-            NetworkLogcatLogger.logResponse(
-                method = "POST",
-                url = endpoint,
-                statusCode = e.response.status.value,
-                statusText = e.response.status.description,
-                headers = e.response.headers.entries().associate { it.key to it.value },
-                bodyContentType = e.response.headers[HttpHeaders.ContentType],
-                body = errorBody,
-            )
-            QwenChatCompletionResponse(
-                error = com.vibe.app.data.dto.qwen.response.QwenErrorDetail(
-                    message = errorBody,
-                    code = e.response.status.value.toString(),
-                ),
-            )
-        } catch (e: io.ktor.client.plugins.ServerResponseException) {
-            val errorBody = e.response.body<String>()
-            trace?.updateStatusCode(e.response.status.value)
-            NetworkLogcatLogger.logResponse(
-                method = "POST",
-                url = endpoint,
-                statusCode = e.response.status.value,
-                statusText = e.response.status.description,
-                headers = e.response.headers.entries().associate { it.key to it.value },
-                bodyContentType = e.response.headers[HttpHeaders.ContentType],
-                body = errorBody,
-            )
-            QwenChatCompletionResponse(
-                error = com.vibe.app.data.dto.qwen.response.QwenErrorDetail(
-                    message = errorBody,
-                    code = e.response.status.value.toString(),
-                ),
-            )
-        } catch (e: Exception) {
-            NetworkLogcatLogger.logNetworkError("POST", endpoint, e)
-            QwenChatCompletionResponse(
-                error = com.vibe.app.data.dto.qwen.response.QwenErrorDetail(
-                    message = e.message ?: "Unknown network error",
-                    code = "network_error",
-                ),
-            )
         }
-    }
 
-    override fun streamChatCompletion(
+    }
+       override fun streamChatCompletion(
         request: ChatCompletionRequest,
         diagnosticContext: ModelRequestDiagnosticContext?,
         trace: ModelExecutionTrace?,
     ): Flow<ChatCompletionChunk> = flow {
-        val endpoint = if (apiUrl.endsWith("/")) "${apiUrl}v1/chat/completions" else "$apiUrl/v1/chat/completions"
-        val requestBody = NetworkClient.openAIJson.encodeToJsonElement(request).toString()
-        val requestStartedAt = System.currentTimeMillis()
-        trace?.markRequestStarted(requestStartedAt)
-        diagnosticContext?.let {
-            diagnosticLogger.logModelRequest(
-                context = it,
-                endpointUrl = endpoint,
-                requestBodyBytesApprox = requestBody.toByteArray().size,
-                startedAt = requestStartedAt,
-            )
-        }
-        logOpenAiRequest(endpoint, requestBody)
+
+        val endpoint =
+            buildEndpoint("/v1/chat/completions")
+
+
+        val requestBody =
+            NetworkClient.openAIJson
+                .encodeToJsonElement(request)
+                .toString()
+
 
         try {
-            val startTime = requestStartedAt
-            networkClient().preparePost(endpoint) {
-                contentType(ContentType.Application.Json)
-                setBody(requestBody)
-                accept(ContentType.Text.EventStream)
-                token?.let { bearerAuth(it) }
-            }.execute { response ->
-                trace?.markFirstByte(response.status.value)
-                NetworkLogcatLogger.logResponse(
-                    method = "POST",
-                    url = endpoint,
-                    statusCode = response.status.value,
-                    statusText = response.status.description,
-                    headers = response.headers.entries().associate { it.key to it.value },
-                    bodyContentType = response.headers[HttpHeaders.ContentType],
-                    durationMillis = System.currentTimeMillis() - startTime,
-                    streamedBody = response.status.isSuccess(),
-                )
 
-                if (!response.status.isSuccess()) {
-                    val errorBody = response.body<String>()
-                    trace?.updateStatusCode(response.status.value)
-                    NetworkLogcatLogger.logResponse(
-                        method = "POST",
-                        url = endpoint,
-                        statusCode = response.status.value,
-                        statusText = response.status.description,
-                        headers = response.headers.entries().associate { it.key to it.value },
-                        bodyContentType = response.headers[HttpHeaders.ContentType],
-                        body = errorBody,
+            networkClient()
+                .preparePost(endpoint) {
+
+                    contentType(
+                        ContentType.Application.Json
                     )
 
-                    val errorMessage = try {
-                        val errorResponse = NetworkClient.openAIJson.decodeFromString<OpenAIErrorResponse>(errorBody)
-                        errorResponse.error.message
-                    } catch (_: Exception) {
-                        "HTTP ${response.status.value}: $errorBody"
+                    setBody(requestBody)
+
+                    accept(
+                        ContentType.Text.EventStream
+                    )
+
+
+                    token?.let {
+                        bearerAuth(it)
                     }
 
-                    emit(
-                        ChatCompletionChunk(
-                            error = ErrorDetail(
-                                message = errorMessage,
-                                type = "http_error",
-                                code = response.status.value.toString()
+
+                    applyProviderHeaders(this)
+
+                }
+                .execute { response ->
+
+
+                    if (!response.status.isSuccess()) {
+
+                        val errorBody =
+                            response.body<String>()
+
+
+                        emit(
+                            ChatCompletionChunk(
+                                error = ErrorDetail(
+                                    message = errorBody,
+                                    type = "http_error",
+                                    code =
+                                    response.status.value.toString()
+                                )
                             )
                         )
-                    )
-                    return@execute
-                }
 
-                // Success - read SSE stream
-                val channel = response.bodyAsChannel()
-                val eventLines = mutableListOf<String>()
-                while (!channel.isClosedForRead) {
-                    val line = channel.readUTF8Line() ?: break
-                    if (line.isBlank()) {
-                        val shouldStop = handleChatCompletionSseEvent(endpoint, eventLines) { emit(it) }
-                        eventLines.clear()
-                        if (shouldStop) break
-                        continue
+                        return@execute
+
                     }
-                    eventLines += line
+
+
+                    val channel =
+                        response.bodyAsChannel()
+
+
+                    val eventLines =
+                        mutableListOf<String>()
+
+
+                    while (!channel.isClosedForRead) {
+
+                        val line =
+                            channel.readUTF8Line()
+                                ?: break
+
+
+                        if (line.isBlank()) {
+
+
+                            val stop =
+                                handleChatCompletionSseEvent(
+                                    endpoint,
+                                    eventLines
+                                ) {
+
+                                    emit(it)
+
+                                }
+
+
+                            eventLines.clear()
+
+
+                            if (stop) break
+
+
+                        } else {
+
+                            eventLines += line
+
+                        }
+
+                    }
+
+
+                    if (eventLines.isNotEmpty()) {
+
+                        handleChatCompletionSseEvent(
+                            endpoint,
+                            eventLines
+                        ) {
+
+                            emit(it)
+
+                        }
+
+                    }
+
+
                 }
 
-                if (eventLines.isNotEmpty()) {
-                    handleChatCompletionSseEvent(endpoint, eventLines) { emit(it) }
-                }
-            }
+
         } catch (e: Exception) {
-            NetworkLogcatLogger.logNetworkError("POST", endpoint, e)
-            val errorMessage = when (e) {
-                is java.net.UnknownHostException -> "Network error: Unable to resolve host."
-                is java.nio.channels.UnresolvedAddressException -> "Network error: Unable to resolve address. Check your internet connection."
-                is java.net.ConnectException -> "Network error: Connection refused. Check the API URL."
-                is java.net.SocketTimeoutException -> "Network error: Connection timed out."
-                is javax.net.ssl.SSLException -> "Network error: SSL/TLS connection failed."
-                else -> e.message ?: "Unknown network error"
-            }
+
+
             emit(
                 ChatCompletionChunk(
                     error = ErrorDetail(
-                        message = errorMessage,
+                        message =
+                        e.message ?: "Unknown error",
                         type = "network_error"
                     )
                 )
             )
+
         }
+
     }
+
+
 
     override fun streamResponses(
         request: ResponsesRequest,
         diagnosticContext: ModelRequestDiagnosticContext?,
         trace: ModelExecutionTrace?,
     ): Flow<ResponsesStreamEvent> = flow {
-        val endpoint = if (apiUrl.endsWith("/")) "${apiUrl}v1/responses" else "$apiUrl/v1/responses"
-        val requestBody = NetworkClient.openAIJson.encodeToJsonElement(request).toString()
-        val requestStartedAt = System.currentTimeMillis()
-        trace?.markRequestStarted(requestStartedAt)
-        diagnosticContext?.let {
-            diagnosticLogger.logModelRequest(
-                context = it,
-                endpointUrl = endpoint,
-                requestBodyBytesApprox = requestBody.toByteArray().size,
-                startedAt = requestStartedAt,
-            )
-        }
-        logOpenAiRequest(endpoint, requestBody)
+
+
+        val endpoint =
+            buildEndpoint("/v1/responses")
+
+
+        val requestBody =
+            NetworkClient.openAIJson
+                .encodeToJsonElement(request)
+                .toString()
+
 
         try {
-            val startTime = requestStartedAt
-            networkClient().preparePost(endpoint) {
-                contentType(ContentType.Application.Json)
-                setBody(requestBody)
-                accept(ContentType.Text.EventStream)
-                token?.let { bearerAuth(it) }
-            }.execute { response ->
-                trace?.markFirstByte(response.status.value)
-                NetworkLogcatLogger.logResponse(
-                    method = "POST",
-                    url = endpoint,
-                    statusCode = response.status.value,
-                    statusText = response.status.description,
-                    headers = response.headers.entries().associate { it.key to it.value },
-                    bodyContentType = response.headers[HttpHeaders.ContentType],
-                    durationMillis = System.currentTimeMillis() - startTime,
-                    streamedBody = response.status.isSuccess(),
-                )
 
-                if (!response.status.isSuccess()) {
-                    val errorBody = response.body<String>()
-                    trace?.updateStatusCode(response.status.value)
-                    NetworkLogcatLogger.logResponse(
-                        method = "POST",
-                        url = endpoint,
-                        statusCode = response.status.value,
-                        statusText = response.status.description,
-                        headers = response.headers.entries().associate { it.key to it.value },
-                        bodyContentType = response.headers[HttpHeaders.ContentType],
-                        body = errorBody,
+
+            networkClient()
+                .preparePost(endpoint) {
+
+
+                    contentType(
+                        ContentType.Application.Json
                     )
 
-                    val errorMessage = try {
-                        val errorResponse = NetworkClient.openAIJson.decodeFromString<OpenAIErrorResponse>(errorBody)
-                        errorResponse.error.message
-                    } catch (_: Exception) {
-                        "HTTP ${response.status.value}: $errorBody"
+
+                    setBody(requestBody)
+
+
+                    accept(
+                        ContentType.Text.EventStream
+                    )
+
+
+                    token?.let {
+
+                        bearerAuth(it)
+
                     }
 
-                    emit(ResponseErrorEvent(message = errorMessage, code = response.status.value.toString()))
-                    return@execute
-                }
 
-                // Success - read SSE stream
-                val channel = response.bodyAsChannel()
-                val eventLines = mutableListOf<String>()
-                while (!channel.isClosedForRead) {
-                    val line = channel.readUTF8Line() ?: break
-                    if (line.isBlank()) {
-                        val shouldStop = handleResponsesSseEvent(endpoint, eventLines) { emit(it) }
-                        eventLines.clear()
-                        if (shouldStop) break
-                        continue
+                    applyProviderHeaders(this)
+
+
+                }
+                .execute { response ->
+
+
+
+                    if (!response.status.isSuccess()) {
+
+
+                        val error =
+                            response.body<String>()
+
+
+                        emit(
+                            ResponseErrorEvent(
+                                message = error,
+                                code =
+                                response.status.value.toString()
+                            )
+                        )
+
+
+                        return@execute
+
                     }
-                    eventLines += line
+
+
+
+                    val channel =
+                        response.bodyAsChannel()
+
+
+
+                    val eventLines =
+                        mutableListOf<String>()
+
+
+
+                    while (!channel.isClosedForRead) {
+
+
+                        val line =
+                            channel.readUTF8Line()
+                                ?: break
+
+
+
+                        if (line.isBlank()) {
+
+
+                            val stop =
+                                handleResponsesSseEvent(
+                                    endpoint,
+                                    eventLines
+                                ) {
+
+                                    emit(it)
+
+                                }
+
+
+
+                            eventLines.clear()
+
+
+
+                            if (stop) break
+
+
+
+                        } else {
+
+
+                            eventLines += line
+
+
+                        }
+
+
+                    }
+
+
+
+                    if (eventLines.isNotEmpty()) {
+
+
+                        handleResponsesSseEvent(
+                            endpoint,
+                            eventLines
+                        ) {
+
+                            emit(it)
+
+                        }
+
+
+                    }
+
+
                 }
 
-                if (eventLines.isNotEmpty()) {
-                    handleResponsesSseEvent(endpoint, eventLines) { emit(it) }
-                }
-            }
+
         } catch (e: Exception) {
-            NetworkLogcatLogger.logNetworkError("POST", endpoint, e)
-            val errorMessage = when (e) {
-                is java.net.UnknownHostException -> "Network error: Unable to resolve host."
-                is java.nio.channels.UnresolvedAddressException -> "Network error: Unable to resolve address. Check your internet connection."
-                is java.net.ConnectException -> "Network error: Connection refused. Check the API URL."
-                is java.net.SocketTimeoutException -> "Network error: Connection timed out."
-                is javax.net.ssl.SSLException -> "Network error: SSL/TLS connection failed."
-                else -> e.message ?: "Unknown network error"
-            }
+
+
             emit(
                 ResponseErrorEvent(
-                    message = errorMessage,
+                    message =
+                    e.message ?: "Unknown error",
                     code = "network_error"
                 )
             )
-        }
-    }
 
-    private fun logOpenAiRequest(
-        endpoint: String,
-        requestBody: String,
-    ) {
-        NetworkLogcatLogger.logRequest(
-            method = "POST",
-            url = endpoint,
-            commonHeaders = buildMap {
-                put("Accept", ContentType.Text.EventStream.toString())
-                if (token != null) {
-                    put(HttpHeaders.Authorization, "Bearer $token")
-                }
-            },
-            bodyContentType = ContentType.Application.Json.toString(),
-            body = requestBody,
-        )
-    }
 
-    private suspend fun handleChatCompletionSseEvent(
-        endpoint: String,
-        lines: List<String>,
-        emitEvent: suspend (ChatCompletionChunk) -> Unit,
-    ): Boolean {
-        if (lines.isEmpty()) {
-            return false
         }
 
-        val block = lines.joinToString("\n")
-        NetworkLogcatLogger.logSseEvent(endpoint, block)
-
-        val data = lines
-            .filter { it.startsWith("data:") }
-            .joinToString("\n") { it.removePrefix("data:").trimStart() }
-            .trim()
-
-        if (data.isBlank()) {
-            return false
-        }
-
-        if (data == "[DONE]") {
-            return true
-        }
-
-        try {
-            emitEvent(NetworkClient.openAIJson.decodeFromString(data))
-        } catch (e: Exception) {
-            NetworkLogcatLogger.logDecodeFailure(endpoint, data, e)
-        }
-
-        return false
-    }
-
-    private suspend fun handleResponsesSseEvent(
-        endpoint: String,
-        lines: List<String>,
-        emitEvent: suspend (ResponsesStreamEvent) -> Unit,
-    ): Boolean {
-        if (lines.isEmpty()) {
-            return false
-        }
-
-        val block = lines.joinToString("\n")
-        NetworkLogcatLogger.logSseEvent(endpoint, block)
-
-        val data = lines
-            .filter { it.startsWith("data:") }
-            .joinToString("\n") { it.removePrefix("data:").trimStart() }
-            .trim()
-
-        if (data.isBlank()) {
-            return false
-        }
-
-        if (data == "[DONE]") {
-            return true
-        }
-
-        try {
-            emitEvent(NetworkClient.openAIJson.decodeFromString(data))
-        } catch (e: Exception) {
-            NetworkLogcatLogger.logDecodeFailure(endpoint, data, e)
-            emitEvent(UnknownEvent)
-        }
-
-        return false
-    }
-}
-
-@Serializable
-private data class OpenAIErrorResponse(
-    val error: OpenAIError
-)
-
-@Serializable
-private data class OpenAIError(
-    val message: String,
-    val type: String? = null,
-    val param: String? = null,
-    val code: String? = null
-)
+    } 

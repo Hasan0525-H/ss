@@ -1,6 +1,7 @@
 package com.vibe.app.presentation.ui.setting
 
 import android.content.ClipData
+import android.content.Context
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -34,110 +35,419 @@ import com.vibe.app.R
 import com.vibe.app.presentation.common.SettingItem
 import kotlinx.coroutines.launch
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AboutScreen(
     onNavigationClick: () -> Unit,
     onNavigationToLicense: () -> Unit
 ) {
+
     val scrollState = rememberScrollState()
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+
+    val scrollBehavior =
+        TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+
+
     val context = LocalContext.current
-    val version = context.packageManager.getPackageInfo(context.packageName, 0).versionName
-    val clipboardManager = LocalClipboard.current
-    val uriHandler = LocalUriHandler.current
-    val githubLink = stringResource(R.string.github_link)
-    val bugReportLink = stringResource(R.string.bug_report_link)
-    val feedbackLink = stringResource(R.string.feedback_link)
-    val scope = rememberCoroutineScope()
+
+
+    val version =
+        getAppVersion(context)
+
+
+    val clipboardManager =
+        LocalClipboard.current
+
+
+    val uriHandler =
+        LocalUriHandler.current
+
+
+    val githubLink =
+        stringResource(R.string.github_link)
+
+
+    val bugReportLink =
+        stringResource(R.string.bug_report_link)
+
+
+    val feedbackLink =
+        stringResource(R.string.feedback_link)
+
+
+    val scope =
+        rememberCoroutineScope()
+
+
 
     Scaffold(
-        modifier = Modifier
-            .nestedScroll(scrollBehavior.nestedScrollConnection),
+
+        modifier =
+            Modifier.nestedScroll(
+                scrollBehavior.nestedScrollConnection
+            ),
+
+
         topBar = {
+
             AboutTopAppBar(
-                scrollBehavior = scrollBehavior,
-                navigationOnClick = onNavigationClick
+
+                scrollBehavior =
+                    scrollBehavior,
+
+                navigationOnClick =
+                    onNavigationClick
+
             )
+
         }
+
+
     ) { innerPadding ->
+
+
         Column(
-            modifier = Modifier
-                .padding(innerPadding)
-                .verticalScroll(scrollState)
+
+            modifier =
+                Modifier
+                    .padding(innerPadding)
+                    .verticalScroll(scrollState)
+
         ) {
+
+
+
             SettingItem(
-                modifier = Modifier.height(64.dp),
-                title = stringResource(R.string.version),
-                description = "v$version",
-                onItemClick = { scope.launch { clipboardManager.setClipEntry(ClipEntry(ClipData.newPlainText("v$version", "v$version"))) } },
-                showTrailingIcon = false,
-                showLeadingIcon = true,
+
+                modifier =
+                    Modifier.height(64.dp),
+
+
+                title =
+                    stringResource(
+                        R.string.version
+                    ),
+
+
+                description =
+                    "v$version",
+
+
+                onItemClick = {
+
+                    scope.launch {
+
+                        clipboardManager.setClipEntry(
+
+                            ClipEntry(
+
+                                ClipData.newPlainText(
+                                    "version",
+                                    "v$version"
+                                )
+
+                            )
+
+                        )
+
+                    }
+
+                },
+
+
+                showTrailingIcon =
+                    false,
+
+
+                showLeadingIcon =
+                    true,
+
+
                 leadingIcon = {
+
                     Icon(
-                        ImageVector.vectorResource(id = R.drawable.ic_info),
-                        contentDescription = stringResource(R.string.version_icon)
+
+                        imageVector =
+                            ImageVector.vectorResource(
+                                R.drawable.ic_info
+                            ),
+
+
+                        contentDescription =
+                            stringResource(
+                                R.string.version_icon
+                            )
+
                     )
+
                 }
+
             )
+
+
+
+
+
             SettingItem(
-                modifier = Modifier.height(64.dp),
-                title = stringResource(R.string.license),
-                description = stringResource(R.string.license_description),
-                onItemClick = onNavigationToLicense,
-                showTrailingIcon = true,
-                showLeadingIcon = true,
+
+                modifier =
+                    Modifier.height(64.dp),
+
+
+                title =
+                    stringResource(
+                        R.string.license
+                    ),
+
+
+                description =
+                    stringResource(
+                        R.string.license_description
+                    ),
+
+
+                onItemClick =
+                    onNavigationToLicense,
+
+
+                showTrailingIcon =
+                    true,
+
+
+                showLeadingIcon =
+                    true,
+
+
                 leadingIcon = {
+
                     Icon(
-                        ImageVector.vectorResource(id = R.drawable.ic_license),
-                        contentDescription = stringResource(R.string.license_icon)
+
+                        imageVector =
+                            ImageVector.vectorResource(
+                                R.drawable.ic_license
+                            ),
+
+
+                        contentDescription =
+                            stringResource(
+                                R.string.license_icon
+                            )
+
                     )
+
                 }
+
             )
+
+
+
+
+
             SettingItem(
-                modifier = Modifier.height(64.dp),
-                title = stringResource(R.string.github),
-                onItemClick = { uriHandler.openUri(githubLink) },
-                showTrailingIcon = false,
-                showLeadingIcon = true,
-                leadingIcon = {
-                    Icon(
-                        ImageVector.vectorResource(id = R.drawable.ic_github),
-                        contentDescription = stringResource(R.string.github_icon)
+
+                modifier =
+                    Modifier.height(64.dp),
+
+
+                title =
+                    stringResource(
+                        R.string.github
+                    ),
+
+
+                onItemClick = {
+
+                    uriHandler.openUri(
+                        githubLink
                     )
+
+                },
+
+
+                showTrailingIcon =
+                    false,
+
+
+                showLeadingIcon =
+                    true,
+
+
+                leadingIcon = {
+
+                    Icon(
+
+                        imageVector =
+                            ImageVector.vectorResource(
+                                R.drawable.ic_github
+                            ),
+
+
+                        contentDescription =
+                            stringResource(
+                                R.string.github_icon
+                            )
+
+                    )
+
                 }
+
             )
+
+
+
+
+
             SettingItem(
-                modifier = Modifier.height(64.dp),
-                title = stringResource(R.string.bug_report),
-                description = stringResource(R.string.bug_report_description),
-                onItemClick = { uriHandler.openUri(bugReportLink) },
-                showTrailingIcon = false,
-                showLeadingIcon = true,
-                leadingIcon = {
-                    Icon(
-                        ImageVector.vectorResource(id = R.drawable.ic_bug_report),
-                        contentDescription = stringResource(R.string.bug_report_icon)
+
+                modifier =
+                    Modifier.height(64.dp),
+
+
+                title =
+                    stringResource(
+                        R.string.bug_report
+                    ),
+
+
+                description =
+                    stringResource(
+                        R.string.bug_report_description
+                    ),
+
+
+                onItemClick = {
+
+                    uriHandler.openUri(
+                        bugReportLink
                     )
+
+                },
+
+
+                showTrailingIcon =
+                    false,
+
+
+                showLeadingIcon =
+                    true,
+
+
+                leadingIcon = {
+
+                    Icon(
+
+                        imageVector =
+                            ImageVector.vectorResource(
+                                R.drawable.ic_bug_report
+                            ),
+
+
+                        contentDescription =
+                            stringResource(
+                                R.string.bug_report_icon
+                            )
+
+                    )
+
                 }
+
             )
+
+
+
+
+
             SettingItem(
-                modifier = Modifier.height(64.dp),
-                title = stringResource(R.string.feedback),
-                description = stringResource(R.string.feedback_description),
-                onItemClick = { uriHandler.openUri(feedbackLink) },
-                showTrailingIcon = false,
-                showLeadingIcon = true,
-                leadingIcon = {
-                    Icon(
-                        ImageVector.vectorResource(id = R.drawable.ic_feedback),
-                        contentDescription = stringResource(R.string.feedback_icon)
+
+                modifier =
+                    Modifier.height(64.dp),
+
+
+                title =
+                    stringResource(
+                        R.string.feedback
+                    ),
+
+
+                description =
+                    stringResource(
+                        R.string.feedback_description
+                    ),
+
+
+                onItemClick = {
+
+                    uriHandler.openUri(
+                        feedbackLink
                     )
+
+                },
+
+
+                showTrailingIcon =
+                    false,
+
+
+                showLeadingIcon =
+                    true,
+
+
+                leadingIcon = {
+
+                    Icon(
+
+                        imageVector =
+                            ImageVector.vectorResource(
+                                R.drawable.ic_feedback
+                            ),
+
+
+                        contentDescription =
+                            stringResource(
+                                R.string.feedback_icon
+                            )
+
+                    )
+
                 }
+
             )
+
         }
+
     }
+
 }
+
+
+
+private fun getAppVersion(
+    context: Context
+): String {
+
+    return try {
+
+        context.packageManager
+            .getPackageInfo(
+                context.packageName,
+                0
+            )
+            .versionName ?: "Unknown"
+
+    } catch (
+        e: Exception
+    ) {
+
+        "Unknown"
+
+    }
+
+}
+
+
+
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -145,27 +455,85 @@ fun AboutTopAppBar(
     scrollBehavior: TopAppBarScrollBehavior,
     navigationOnClick: () -> Unit
 ) {
+
+
     LargeTopAppBar(
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.background,
-            titleContentColor = MaterialTheme.colorScheme.onBackground
-        ),
+
+        colors =
+            TopAppBarDefaults.topAppBarColors(
+
+                containerColor =
+                    MaterialTheme.colorScheme.background,
+
+
+                titleContentColor =
+                    MaterialTheme.colorScheme.onBackground
+
+            ),
+
+
         title = {
+
             Text(
-                modifier = Modifier.padding(4.dp),
-                text = stringResource(R.string.about),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+
+                modifier =
+                    Modifier.padding(4.dp),
+
+
+                text =
+                    stringResource(
+                        R.string.about
+                    ),
+
+
+                maxLines =
+                    1,
+
+
+                overflow =
+                    TextOverflow.Ellipsis
+
             )
+
         },
+
+
         navigationIcon = {
+
+
             IconButton(
-                modifier = Modifier.padding(4.dp),
-                onClick = navigationOnClick
+
+                modifier =
+                    Modifier.padding(4.dp),
+
+
+                onClick =
+                    navigationOnClick
+
             ) {
-                Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.go_back))
+
+
+                Icon(
+
+                    imageVector =
+                        Icons.AutoMirrored.Filled.ArrowBack,
+
+
+                    contentDescription =
+                        stringResource(
+                            R.string.go_back
+                        )
+
+                )
+
             }
+
         },
-        scrollBehavior = scrollBehavior
+
+
+        scrollBehavior =
+            scrollBehavior
+
     )
+
 }

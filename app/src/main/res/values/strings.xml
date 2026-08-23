@@ -174,7 +174,9 @@
     <string name="finish">
         Finish
     </string>
-        <!-- Settings Screen -->
+
+
+    <!-- Settings Screen -->
 
     <string name="theme_settings">
         Theme Settings
@@ -345,9 +347,7 @@
     <string name="bug_report_link">
         https://github.com/issues
     </string>
-
-
-    <!-- Home Screen -->
+       <!-- Home Screen -->
 
     <string name="projects">
         Projects
@@ -386,6 +386,71 @@
     </string>
 
 
+
+    <!-- Chat Snapshot -->
+
+    <string name="snapshot_time_minutes_ago">
+        %1$d minutes ago
+    </string>
+
+    <string name="snapshot_time_hours_ago">
+        %1$d hours ago
+    </string>
+
+
+
+    <!-- Turn Undo -->
+
+    <string name="turn_undo_bar_label">
+        Undo last turn
+    </string>
+
+    <string name="turn_undo_button">
+        Undo
+    </string>
+
+
+
+    <!-- Diagnostics -->
+
+    <string name="diagnostic_events">
+        Events
+    </string>
+
+    <string name="diagnostic_summary">
+        Summary
+    </string>
+
+    <string name="diagnostic_context_size">
+        Context Size
+    </string>
+
+    <string name="diagnostic_compaction">
+        Compaction
+    </string>
+
+    <string name="diagnostic_total_events">
+        Total Events
+    </string>
+
+    <string name="diagnostic_errors">
+        Errors
+    </string>
+
+    <string name="diagnostic_warnings">
+        Warnings
+    </string>
+
+    <string name="diagnostic_log_size">
+        Log Size
+    </string>
+
+    <string name="diagnostic_event_copied">
+        Event copied
+    </string>
+
+
+
     <!-- Common -->
 
     <string name="save">
@@ -405,11 +470,13 @@
     </string>
 
 
+
     <!-- Dialog -->
 
     <string name="this_operation_can_t_be_undone">
         This operation cannot be undone.
     </string>
+
 
 
     <!-- Settings -->
@@ -435,6 +502,7 @@
     </string>
 
 
+
     <!-- Theme -->
 
     <string name="on">
@@ -449,4 +517,4 @@
         System Default
     </string>
 
-</resources>
+</resources> 

@@ -70,20 +70,26 @@ fun PlatformSettingScreen(
     val context = LocalContext.current
 
 
+    val switchedHint =
+        stringResource(
+            R.string.switched_platform_hint
+        )
+
+
     LaunchedEffect(Unit) {
 
         settingViewModel.switchedPlatformEvent.collect { name ->
 
             Toast.makeText(
                 context,
-                stringResource(R.string.switched_platform_hint)
-                    .format(name),
+                switchedHint.format(name),
                 Toast.LENGTH_SHORT
             ).show()
 
         }
 
     }
+
 
 
     LaunchedEffect(isDeleted) {
@@ -209,7 +215,9 @@ fun PlatformSettingScreen(
 
                     description =
                         if (platformData.token.isNullOrBlank())
-                            stringResource(R.string.not_set)
+                            stringResource(
+                                R.string.not_set
+                            )
                         else
                             "Configured",
 

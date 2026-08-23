@@ -132,7 +132,10 @@ class OpenAIAPIImpl @Inject constructor(
     ) {
 
 
-        if(providerType == "OPEN_ROUTER") {
+        if (
+            providerType == "OPEN_ROUTER" ||
+            providerType == "OPENROUTER"
+        ) {
 
 
             request.header(
@@ -149,10 +152,7 @@ class OpenAIAPIImpl @Inject constructor(
         }
 
     }
-
-
-
-    override fun streamQwenChatCompletion(
+        override fun streamQwenChatCompletion(
         request: QwenChatCompletionRequest,
         diagnosticContext: ModelRequestDiagnosticContext?,
         trace: ModelExecutionTrace?,
@@ -205,10 +205,11 @@ class OpenAIAPIImpl @Inject constructor(
 
 
                 }
-                  .execute { response ->
+                .execute { response ->
 
 
                     if (!response.status.isSuccess()) {
+
 
                         emit(
 
@@ -467,7 +468,6 @@ class OpenAIAPIImpl @Inject constructor(
                 .toString()
 
 
-
         try {
 
 
@@ -549,10 +549,13 @@ class OpenAIAPIImpl @Inject constructor(
                 .toString()
 
 
+
         try {
+
 
             networkClient()
                 .preparePost(endpoint) {
+
 
                     contentType(
                         ContentType.Application.Json
@@ -580,6 +583,7 @@ class OpenAIAPIImpl @Inject constructor(
 
                 }
 
+
         } catch (e: Exception) {
 
 
@@ -602,4 +606,5 @@ class OpenAIAPIImpl @Inject constructor(
 
     }
 
-}              
+
+}

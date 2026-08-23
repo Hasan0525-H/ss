@@ -1,31 +1,38 @@
 package com.vibe.app.presentation.ui.components
 
-import androidx.compose.material3.*
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+
 
 @Composable
 fun PreferenceSwitchWithContainer(
     title: String,
-    description: String,
-    checked: Boolean,
+    isChecked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
 
     ListItem(
+
         headlineContent = {
-            Text(title)
+            Text(
+                text = title
+            )
         },
-        supportingContent = {
-            Text(description)
-        },
+
+
         trailingContent = {
+
             Switch(
-                checked = checked,
+                checked = isChecked,
                 onCheckedChange = onCheckedChange
             )
         },
+
+
         modifier = modifier
     )
 }

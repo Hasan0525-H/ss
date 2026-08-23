@@ -3,7 +3,6 @@ package com.vibe.app.presentation.ui.setup
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,44 +33,32 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.vibe.app.R
 import com.vibe.app.data.model.ClientType
 
+
 data class PlatformTypeInfo(
     val clientType: ClientType,
     val titleResId: Int,
     val descriptionResId: Int
 )
 
+
+
 private val platformTypes = listOf(
+
     PlatformTypeInfo(
-        clientType = ClientType.OPENAI,
-        titleResId = R.string.openai,
-        descriptionResId = R.string.openai_description
+        clientType = ClientType.OPEN_ROUTER,
+        titleResId = R.string.openrouter,
+        descriptionResId = R.string.openrouter_description
     ),
+
     PlatformTypeInfo(
-        clientType = ClientType.ANTHROPIC,
-        titleResId = R.string.anthropic,
-        descriptionResId = R.string.anthropic_description
-    ),
-    PlatformTypeInfo(
-        clientType = ClientType.QWEN,
-        titleResId = R.string.alibaba,
-        descriptionResId = R.string.qwen_description
-    ),
-    PlatformTypeInfo(
-        clientType = ClientType.KIMI,
-        titleResId = R.string.kimi,
-        descriptionResId = R.string.kimi_description
-    ),
-    PlatformTypeInfo(
-        clientType = ClientType.MINIMAX,
-        titleResId = R.string.minimax,
-        descriptionResId = R.string.minimax_description
-    ),
-    PlatformTypeInfo(
-        clientType = ClientType.DEEPSEEK,
-        titleResId = R.string.deepseek,
-        descriptionResId = R.string.deepseek_description
+        clientType = ClientType.CUSTOM,
+        titleResId = R.string.custom_api,
+        descriptionResId = R.string.custom_api_description
     )
+
 )
+
+
 
 @Composable
 fun SetupPlatformTypeScreen(
@@ -79,63 +67,135 @@ fun SetupPlatformTypeScreen(
     onPlatformTypeSelected: () -> Unit,
     onBackAction: () -> Unit
 ) {
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        topBar = { SetupAppBar(onBackAction) }
+        topBar = {
+            SetupAppBar(onBackAction)
+        }
+
     ) { innerPadding ->
+
+
         Column(
+
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
+
         ) {
-            // Header
+
+
             PlatformTypeHeader()
 
-            // Platform type list
+
+
             LazyColumn(
+
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+
+                verticalArrangement =
+                    Arrangement.spacedBy(12.dp)
+
             ) {
+
+
                 items(platformTypes) { platformTypeInfo ->
+
+
                     PlatformTypeCard(
+
                         platformTypeInfo = platformTypeInfo,
+
                         onClick = {
-                            setupViewModel.selectClientType(platformTypeInfo.clientType)
+
+                            setupViewModel.selectClientType(
+                                platformTypeInfo.clientType
+                            )
+
                             onPlatformTypeSelected()
+
                         }
+
                     )
+
                 }
+
+
                 item {
-                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Spacer(
+                        modifier = Modifier.height(16.dp)
+                    )
+
                 }
+
             }
+
         }
+
     }
+
 }
 
+
+
 @Composable
-private fun PlatformTypeHeader(modifier: Modifier = Modifier) {
+private fun PlatformTypeHeader(
+    modifier: Modifier = Modifier
+) {
+
     Column(
+
         modifier = modifier
             .fillMaxWidth()
             .padding(20.dp)
+
     ) {
+
+
         Text(
+
             modifier = Modifier
                 .padding(4.dp)
-                .semantics { heading() },
-            text = stringResource(R.string.choose_platform_type),
-            style = MaterialTheme.typography.headlineMedium
+                .semantics {
+                    heading()
+                },
+
+            text =
+                stringResource(
+                    R.string.choose_platform_type
+                ),
+
+            style =
+                MaterialTheme.typography.headlineMedium
+
         )
+
+
+
         Text(
-            modifier = Modifier.padding(4.dp),
-            text = stringResource(R.string.choose_platform_type_description),
-            style = MaterialTheme.typography.bodyLarge
+
+            modifier =
+                Modifier.padding(4.dp),
+
+            text =
+                stringResource(
+                    R.string.choose_platform_type_description
+                ),
+
+            style =
+                MaterialTheme.typography.bodyLarge
+
         )
+
     }
+
 }
+
+
 
 @Composable
 private fun PlatformTypeCard(
@@ -143,44 +203,122 @@ private fun PlatformTypeCard(
     platformTypeInfo: PlatformTypeInfo,
     onClick: () -> Unit
 ) {
+
+
     Card(
+
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        ),
-        shape = RoundedCornerShape(16.dp)
+            .clickable(
+                onClick = onClick
+            ),
+
+
+        colors =
+            CardDefaults.cardColors(
+                containerColor =
+                    MaterialTheme.colorScheme.surfaceContainerLow
+            ),
+
+
+        shape =
+            RoundedCornerShape(16.dp)
+
     ) {
+
+
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically
+
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+
+
+            verticalAlignment =
+                Alignment.CenterVertically
+
         ) {
-            // Platform info
-            Column(modifier = Modifier.weight(1f)) {
+
+
+
+            Column(
+
+                modifier =
+                    Modifier.weight(1f)
+
+            ) {
+
+
                 Text(
-                    text = stringResource(platformTypeInfo.titleResId),
-                    style = MaterialTheme.typography.titleMedium
+
+                    text =
+                        stringResource(
+                            platformTypeInfo.titleResId
+                        ),
+
+                    style =
+                        MaterialTheme.typography.titleMedium
+
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+
+
+
+                Spacer(
+                    modifier =
+                        Modifier.height(4.dp)
+                )
+
+
+
                 Text(
-                    text = stringResource(platformTypeInfo.descriptionResId),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+
+                    text =
+                        stringResource(
+                            platformTypeInfo.descriptionResId
+                        ),
+
+                    style =
+                        MaterialTheme.typography.bodyMedium,
+
+
+                    color =
+                        MaterialTheme.colorScheme.onSurfaceVariant
+
                 )
+
             }
 
-            Spacer(modifier = Modifier.width(16.dp))
 
-            // Arrow icon
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(24.dp)
+
+            Spacer(
+                modifier =
+                    Modifier.width(16.dp)
             )
+
+
+
+            Icon(
+
+                imageVector =
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+
+
+                contentDescription =
+                    null,
+
+
+                tint =
+                    MaterialTheme.colorScheme.onSurfaceVariant,
+
+
+                modifier =
+                    Modifier.size(24.dp)
+
+            )
+
         }
+
     }
+
 }

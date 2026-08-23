@@ -3,6 +3,7 @@ package com.vibe.app.data.database.entity
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverter
 
@@ -20,11 +21,15 @@ class ProjectBuildStatusConverter {
 
     @TypeConverter
     fun toStatus(value: String): ProjectBuildStatus =
-        runCatching { ProjectBuildStatus.valueOf(value) }.getOrDefault(ProjectBuildStatus.READY)
+        runCatching { ProjectBuildStatus.valueOf(value) }
+            .getOrDefault(ProjectBuildStatus.READY)
 }
 
 @Entity(
     tableName = "projects",
+    indices = [
+        Index(value = ["chat_id"])
+    ],
     foreignKeys = [
         ForeignKey(
             entity = ChatRoomV2::class,

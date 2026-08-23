@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-
 <resources>
 
     <string name="app_name">VibeApp</string>
@@ -347,7 +346,8 @@
     <string name="bug_report_link">
         https://github.com/issues
     </string>
-       <!-- Home Screen -->
+
+    <!-- Home Screen -->
 
     <string name="projects">
         Projects
@@ -386,7 +386,6 @@
     </string>
 
 
-
     <!-- Chat Snapshot -->
 
     <string name="snapshot_time_minutes_ago">
@@ -397,6 +396,30 @@
         %1$d hours ago
     </string>
 
+
+    <!-- Added Missing Tool/Snapshot References -->
+    <string name="tool_name_run_build_pipeline">Run Build Pipeline</string>
+    <string name="tool_name_search_icon">Search Icon</string>
+    <string name="tool_name_search_ui_pattern">Search UI Pattern</string>
+    <string name="tool_name_update_project_icon">Update Project Icon</string>
+    <string name="tool_name_update_project_intent">Update Project Intent</string>
+    <string name="tool_name_web_search">Web Search</string>
+    <string name="tool_name_write_project_file">Write Project File</string>
+    <string name="project_memo_title">Project Memo</string>
+    <string name="snapshot_history_title">Snapshot History</string>
+    <string name="snapshot_history_empty">No snapshots found</string>
+    <string name="snapshot_history_restore">Restore Snapshot</string>
+    <string name="snapshot_time_just_now">Just now</string>
+    <string name="snapshot_history_manual_label">Manual Snapshot</string>
+    <string name="history_auto_supporting">Auto-saved history</string>
+    <string name="clear_chat_history">Clear chat history</string>
+    <string name="copy_text">Copy text</string>
+    <string name="supported_image_formats">Supported image formats</string>
+    <string name="notification_channel_result">Notification Channel Result</string>
+    <string name="notification_single">Single Notification</string>
+    <string name="notification_multiple">Multiple Notifications</string>
+    <string name="notification_ongoing_single">Ongoing Notification (Single)</string>
+    <string name="notification_ongoing_multiple">Ongoing Notification (Multiple)</string>
 
 
     <!-- Turn Undo -->
@@ -517,4 +540,4 @@
         System Default
     </string>
 
-</resources> 
+</resources>

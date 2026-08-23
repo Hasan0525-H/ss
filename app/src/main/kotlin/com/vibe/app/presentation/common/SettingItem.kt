@@ -16,71 +16,140 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.vibe.app.R
 
+
 @Composable
 fun SettingItem(
-    modifier: Modifier = Modifier,
-    title: String,
-    description: String? = null,
-    enabled: Boolean = true,
-    onItemClick: () -> Unit,
-    showTrailingIcon: Boolean,
-    showLeadingIcon: Boolean,
-    leadingIcon: @Composable () -> Unit? = {}
-) {
-    val clickableModifier = if (enabled) {
-        modifier
-            .fillMaxWidth()
-            .clickable(onClick = onItemClick)
-            .padding(horizontal = 8.dp)
-    } else {
-        modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp)
-    }
-    val colors = ListItemDefaults.colors()
 
-    if (showLeadingIcon) {
-        ListItem(
-            modifier = clickableModifier,
-            headlineContent = { Text(title, overflow = TextOverflow.Ellipsis) },
-            supportingContent = {
-                description?.let { Text(it, overflow = TextOverflow.Ellipsis) }
-            },
-            leadingContent = { leadingIcon() },
-            trailingContent = {
-                if (showTrailingIcon) {
-                    Icon(
-                        ImageVector.vectorResource(id = R.drawable.ic_round_arrow_right),
-                        contentDescription = stringResource(R.string.arrow_icon)
-                    )
-                }
-            },
-            colors = ListItemDefaults.colors(
-                headlineColor = if (enabled) colors.headlineColor else colors.disabledHeadlineColor,
-                supportingColor = if (enabled) colors.supportingTextColor else colors.disabledHeadlineColor,
-                trailingIconColor = if (enabled) colors.trailingIconColor else colors.disabledTrailingIconColor
+    modifier: Modifier = Modifier,
+
+    title: String,
+
+    description: String? = null,
+
+    enabled: Boolean = true,
+
+    onItemClick: () -> Unit,
+
+    showTrailingIcon: Boolean = true,
+
+    showLeadingIcon: Boolean = false,
+
+    leadingIcon: @Composable () -> Unit = {}
+
+) {
+
+
+    val clickableModifier =
+        if (enabled) {
+
+            modifier
+                .fillMaxWidth()
+                .clickable(
+                    onClick = onItemClick
+                )
+                .padding(horizontal = 8.dp)
+
+        } else {
+
+            modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp)
+
+        }
+
+
+
+    val colors =
+        ListItemDefaults.colors()
+
+
+
+    ListItem(
+
+        modifier = clickableModifier,
+
+
+        headlineContent = {
+
+            Text(
+                text = title,
+                overflow = TextOverflow.Ellipsis
             )
-        )
-    } else {
-        ListItem(
-            modifier = clickableModifier,
-            headlineContent = { Text(title) },
-            supportingContent = {
-                description?.let { Text(it) }
-            },
-            trailingContent = {
-                if (showTrailingIcon) {
-                    Icon(
-                        ImageVector.vectorResource(id = R.drawable.ic_round_arrow_right),
-                        contentDescription = stringResource(R.string.arrow_icon)
-                    )
-                }
-            },
-            colors = ListItemDefaults.colors(
-                headlineColor = if (enabled) colors.headlineColor else colors.disabledHeadlineColor,
-                supportingColor = if (enabled) colors.supportingTextColor else colors.disabledHeadlineColor,
-                trailingIconColor = if (enabled) colors.trailingIconColor else colors.disabledTrailingIconColor
+
+        },
+
+
+        supportingContent = {
+
+            description?.let {
+
+                Text(
+                    text = it,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+            }
+
+        },
+
+
+        leadingContent = {
+
+            if (showLeadingIcon) {
+                leadingIcon()
+            }
+
+        },
+
+
+        trailingContent = {
+
+            if (showTrailingIcon) {
+
+                Icon(
+
+                    imageVector =
+                        ImageVector.vectorResource(
+                            id = R.drawable.ic_round_arrow_right
+                        ),
+
+                    contentDescription =
+                        stringResource(
+                            R.string.arrow_icon
+                        )
+
+                )
+
+            }
+
+        },
+
+
+        colors =
+            ListItemDefaults.colors(
+
+                headlineColor =
+                    if (enabled)
+                        colors.headlineColor
+                    else
+                        colors.disabledHeadlineColor,
+
+
+                supportingColor =
+                    if (enabled)
+                        colors.supportingTextColor
+                    else
+                        colors.disabledHeadlineColor,
+
+
+                trailingIconColor =
+                    if (enabled)
+                        colors.trailingIconColor
+                    else
+                        colors.disabledTrailingIconColor
+
             )
-        )
-    }
+
+    )
+
 }

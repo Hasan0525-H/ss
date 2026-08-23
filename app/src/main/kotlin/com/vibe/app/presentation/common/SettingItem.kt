@@ -39,23 +39,19 @@ fun SettingItem(
 ) {
 
 
-    val clickableModifier =
-        if (enabled) {
-
-            modifier
-                .fillMaxWidth()
-                .clickable(
-                    onClick = onItemClick
-                )
-                .padding(horizontal = 8.dp)
-
-        } else {
-
-            modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp)
-
-        }
+    val itemModifier =
+        modifier
+            .fillMaxWidth()
+            .then(
+                if (enabled) {
+                    Modifier.clickable(
+                        onClick = onItemClick
+                    )
+                } else {
+                    Modifier
+                }
+            )
+            .padding(horizontal = 8.dp)
 
 
 
@@ -66,7 +62,7 @@ fun SettingItem(
 
     ListItem(
 
-        modifier = clickableModifier,
+        modifier = itemModifier,
 
 
         headlineContent = {
@@ -93,13 +89,14 @@ fun SettingItem(
         },
 
 
-        leadingContent = {
-
+        leadingContent =
             if (showLeadingIcon) {
-                leadingIcon()
-            }
-
-        },
+                {
+                    leadingIcon()
+                }
+            } else {
+                null
+            },
 
 
         trailingContent = {
@@ -125,30 +122,29 @@ fun SettingItem(
         },
 
 
-        colors =
-            ListItemDefaults.colors(
+        colors = ListItemDefaults.colors(
 
-                headlineColor =
-                    if (enabled)
-                        colors.headlineColor
-                    else
-                        colors.disabledHeadlineColor,
-
-
-                supportingColor =
-                    if (enabled)
-                        colors.supportingTextColor
-                    else
-                        colors.disabledHeadlineColor,
+            headlineColor =
+                if (enabled)
+                    colors.headlineColor
+                else
+                    colors.disabledHeadlineColor,
 
 
-                trailingIconColor =
-                    if (enabled)
-                        colors.trailingIconColor
-                    else
-                        colors.disabledTrailingIconColor
+            supportingColor =
+                if (enabled)
+                    colors.supportingTextColor
+                else
+                    colors.disabledHeadlineColor,
 
-            )
+
+            trailingIconColor =
+                if (enabled)
+                    colors.trailingIconColor
+                else
+                    colors.disabledTrailingIconColor
+
+        )
 
     )
 

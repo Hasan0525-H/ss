@@ -36,10 +36,15 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
 
 
     private val json = Json {
+
         ignoreUnknownKeys = true
+
         isLenient = true
+
         explicitNulls = false
+
     }
+
 
 
     override suspend fun streamTurn(
@@ -68,6 +73,7 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
             ModelExecutionTrace()
 
 
+
         val effectiveToolChoice =
             request.toQwenToolChoice()
 
@@ -75,6 +81,7 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
 
         val messages =
             buildMessages(request)
+
 
 
         trace.markRequestPrepared()
@@ -137,7 +144,6 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                 }
 
 
-
         data class ToolCallAccumulator(
             var id: String = "",
             var name: String = "",
@@ -151,11 +157,9 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
 
         var finishReason: String? = null
 
+
         var streamError: String? = null
-
-
-
-        openAIAPI.streamQwenChatCompletion(
+                openAIAPI.streamQwenChatCompletion(
 
             QwenChatCompletionRequest(
 
@@ -182,8 +186,10 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                                         name =
                                             tool.name,
 
+
                                         description =
                                             tool.description,
+
 
                                         parameters =
                                             tool.inputSchema
@@ -209,7 +215,6 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
             trace = trace
 
         ).collect { chunk ->
-                   ).collect { chunk ->
 
 
             if (chunk.error != null) {
@@ -243,7 +248,7 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
 
 
 
-            choice.delta.content
+            choice.delta?.content
                 ?.takeIf {
                     it.isNotEmpty()
                 }
@@ -261,7 +266,7 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
 
 
 
-            choice.delta.reasoningContent
+            choice.delta?.reasoningContent
                 ?.takeIf {
                     it.isNotEmpty()
                 }
@@ -277,33 +282,45 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
 
 
 
-            choice.delta.toolCalls
+            choice.delta?.toolCalls
                 ?.forEach { deltaToolCall ->
+
 
                     val acc =
                         toolCallAccumulators.getOrPut(
                             deltaToolCall.index
                         ) {
+
                             ToolCallAccumulator()
+
                         }
 
 
+
                     deltaToolCall.id?.let {
+
                         acc.id = it
+
                     }
+
 
 
                     deltaToolCall.function
                         ?.name
                         ?.let {
+
                             acc.name = it
+
                         }
+
 
 
                     deltaToolCall.function
                         ?.arguments
                         ?.let {
+
                             acc.arguments.append(it)
+
                         }
 
                 }
@@ -416,6 +433,7 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
 
         if (requestContext != null) {
 
+
             diagnosticLogger.logModelResponse(
                 requestContext,
                 trace,
@@ -444,7 +462,6 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
         request: AgentModelRequest
     ): List<QwenChatMessage> {
 
-
         val messages =
             mutableListOf<QwenChatMessage>()
 
@@ -467,7 +484,9 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                         it.isNotBlank()
                     }
                     ?.let {
+
                         append(it)
+
                     }
 
 
@@ -514,7 +533,6 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
         request.fullConversation
             .forEach { item ->
 
-
                 when(item.role) {
 
 
@@ -532,7 +550,6 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                         )
 
 
-
                     AgentMessageRole.ASSISTANT ->
 
                         messages += QwenChatMessage(
@@ -542,41 +559,9 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                             content =
                                 qwenTextContent(
                                     item.text
-                                ),
-
-
-                            toolCalls =
-                                item.toolCalls
-                                    ?.map { toolCall ->
-
-                                        QwenToolCall(
-
-                                            id =
-                                                toolCall.id,
-
-
-                                            function =
-                                                QwenFunctionCall(
-
-                                                    name =
-                                                        toolCall.name,
-
-
-                                                    arguments =
-                                                        toolCall.arguments
-                                                            .toString()
-
-                                                )
-
-                                        )
-
-                                    }
-                                    ?.takeIf {
-                                        it.isNotEmpty()
-                                    }
+                                )
 
                         )
-
 
 
                     AgentMessageRole.TOOL ->
@@ -591,12 +576,10 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                                         ?: item.text.orEmpty()
                                 ),
 
-
                             toolCallId =
                                 item.toolCallId
 
                         )
-
 
 
                     AgentMessageRole.SYSTEM -> Unit
@@ -604,7 +587,6 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                 }
 
             }
-
 
 
         return messages
@@ -630,161 +612,3 @@ Do NOT assume you already know the file contents — always use tools to read an
     }
 
 }
-
-
-
-internal fun AgentModelRequest.toQwenToolChoice(): String? {
-
-    if (tools.isEmpty()) return null
-
-
-    return when (policy.toolChoiceMode) {
-
-        AgentToolChoiceMode.NONE ->
-            "none"
-
-
-        AgentToolChoiceMode.AUTO,
-        AgentToolChoiceMode.REQUIRED ->
-            "auto"
-
-    }
-
-}
-
-
-
-private fun String.toQwenChatCompletionsBaseUrl(): String {
-
-    val trimmed =
-        trimEnd('/')
-
-
-    return when {
-
-        "/api/v2/apps/protocols/compatible-mode" in trimmed ->
-
-            trimmed.replace(
-                "/api/v2/apps/protocols/compatible-mode",
-                "/compatible-mode/v1"
-            )
-
-
-        trimmed.endsWith(
-            "/compatible-mode/v1"
-        ) ->
-            trimmed
-
-
-        else ->
-            trimmed
-
-    }
-
-}
-
-
-
-private fun kotlinx.serialization.json.JsonElement
-    .toQwenChatToolSchema():
-    kotlinx.serialization.json.JsonElement {
-
-
-    val schemaObject =
-        if (this is kotlinx.serialization.json.JsonObject)
-            this
-        else
-            buildJsonObject {}
-
-
-    val properties =
-        schemaObject["properties"]?.jsonObject
-            ?: buildJsonObject {}
-
-
-    val required =
-        schemaObject["required"]
-
-
-
-    return buildJsonObject {
-
-
-        put(
-            "type",
-            JsonPrimitive("object")
-        )
-
-
-        put(
-            "properties",
-            properties
-        )
-
-
-        if (required != null) {
-
-            put(
-                "required",
-                required
-            )
-
-        }
-
-
-        put(
-            "additionalProperties",
-            JsonPrimitive(false)
-        )
-
-    }
-
-}
-
-
-
-private fun QwenToolCall.toAgentToolCall(
-    json: Json
-): AgentToolCall {
-
-
-    val arguments =
-        runCatching {
-
-            json.parseToJsonElement(
-                function.arguments
-            )
-
-        }.getOrElse {
-
-            buildJsonObject {
-
-                put(
-                    "raw",
-                    JsonPrimitive(
-                        function.arguments
-                    )
-                )
-
-            }
-
-        }
-
-
-
-    return AgentToolCall(
-
-        id =
-            id,
-
-
-        name =
-            function.name,
-
-
-        arguments =
-            arguments
-
-    )
-
-}  

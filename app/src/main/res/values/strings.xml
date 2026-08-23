@@ -37,6 +37,7 @@
     <string name="enable_api">Enable API</string>
 
 
+
     <!-- API -->
 
     <string name="api_key">API Key</string>
@@ -151,7 +152,6 @@
         Theme Settings
     </string>
 
-
     <string name="theme_description">
         Customize application appearance.
     </string>
@@ -160,7 +160,6 @@
     <string name="about">
         About
     </string>
-
 
     <string name="about_description">
         Application information.
@@ -214,6 +213,39 @@
 
     <string name="debug_log_description">
         View application debug information.
+    </string>
+
+
+
+    <!-- Platform Settings -->
+
+    <string name="top_p_setting">
+        Top P
+    </string>
+
+
+    <string name="top_p_setting_description">
+        Controls nucleus sampling value.
+    </string>
+
+
+    <string name="reset">
+        Reset
+    </string>
+
+
+    <string name="system_prompt_setting">
+        System Prompt
+    </string>
+
+
+    <string name="system_prompt_description">
+        Configure the default system prompt.
+    </string>
+
+
+    <string name="system_prompt">
+        System Prompt
     </string>
 
 

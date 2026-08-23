@@ -1,3 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+
 <resources>
 
     <string name="app_name">VibeApp</string>
@@ -23,7 +25,6 @@
     <string name="custom_api_description">
         Use a custom compatible API endpoint.
     </string>
-
 
 
     <!-- Existing -->
@@ -69,7 +70,6 @@
     </string>
 
 
-
     <!-- API -->
 
     <string name="api_key">
@@ -99,7 +99,6 @@
     <string name="model">
         Model
     </string>
-
 
 
     <!-- Setup Wizard -->
@@ -234,7 +233,6 @@
     </string>
 
 
-
     <!-- Platform Settings -->
 
     <string name="platform_settings">
@@ -280,7 +278,6 @@
     <string name="invalid_api_url">
         Invalid API URL
     </string>
-
 
 
     <!-- About -->
@@ -348,7 +345,9 @@
     <string name="bug_report_link">
         https://github.com/issues
     </string>
-        <!-- Home Screen -->
+
+
+    <!-- Home Screen -->
 
     <string name="projects">
         Projects
@@ -387,7 +386,6 @@
     </string>
 
 
-
     <!-- Common -->
 
     <string name="save">
@@ -407,13 +405,11 @@
     </string>
 
 
-
     <!-- Dialog -->
 
     <string name="this_operation_can_t_be_undone">
         This operation cannot be undone.
     </string>
-
 
 
     <!-- Settings -->
@@ -439,7 +435,6 @@
     </string>
 
 
-
     <!-- Theme -->
 
     <string name="on">
@@ -453,6 +448,5 @@
     <string name="system_default">
         System Default
     </string>
-
 
 </resources>

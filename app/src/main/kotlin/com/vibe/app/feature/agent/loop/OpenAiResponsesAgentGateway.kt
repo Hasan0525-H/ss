@@ -1,7 +1,6 @@
 package com.vibe.app.feature.agent.loop
 
 import android.content.Context
-import dagger.hilt.android.qualifiers.ApplicationContext
 import com.vibe.app.data.dto.openai.request.ResponseContentPart
 import com.vibe.app.data.dto.openai.request.ResponseInputContent
 import com.vibe.app.data.dto.openai.request.ResponseInputItem
@@ -31,16 +30,17 @@ import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 
+
 @Singleton
 class OpenAiResponsesAgentGateway @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @androidx.hilt.work.HiltWorker.ApplicationContext private val context: Context,
     private val openAIAPI: OpenAIAPI,
     private val diagnosticLogger: ChatDiagnosticLogger,
 ) : AgentModelGateway {
+
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -48,158 +48,523 @@ class OpenAiResponsesAgentGateway @Inject constructor(
         explicitNulls = false
     }
 
-    override suspend fun streamTurn(request: AgentModelRequest): Flow<AgentModelEvent> = flow {
-        openAIAPI.setToken(request.platform.token)
-        openAIAPI.setAPIUrl(request.platform.apiUrl)
-        val trace = ModelExecutionTrace()
 
-        val responseRequest = ResponsesRequest(
-            model = request.platform.model,
-            input = request.conversation.map(::toResponseInputItem),
-            previousResponseId = request.previousResponseId,
-            stream = true,
-            instructions = request.instructions,
-            tools = request.tools.takeIf { it.isNotEmpty() }?.map { tool ->
-                ResponseTool(
-                    name = tool.name,
-                    description = tool.description,
-                    parameters = tool.inputSchema.takeUnless { it.isEmptyJsonObject() },
-                    strict = null,
-                )
-            },
-            toolChoice = request.policy.toolChoiceMode.name.lowercase(),
+    override suspend fun streamTurn(
+        request: AgentModelRequest
+    ): Flow<AgentModelEvent> = flow {
+
+
+        openAIAPI.setToken(
+            request.platform.token
         )
-        trace.markRequestPrepared()
-        val requestContext = request.diagnosticContext?.copy(platformUid = request.platform.uid)?.let { diagnosticContext ->
-            ModelRequestDiagnosticContext(
-                diagnosticContext = diagnosticContext,
-                providerType = request.platform.compatibleType.toDiagnosticProviderType(),
-                apiFamily = "responses",
-                model = request.platform.model,
+
+
+        openAIAPI.setAPIUrl(
+            request.platform.apiUrl
+        )
+
+
+        openAIAPI.setProvider(
+            type = request.platform.compatibleType.name,
+            customUrl = request.platform.apiUrl
+        )
+
+
+        val trace =
+            ModelExecutionTrace()
+
+
+
+        val responseRequest =
+            ResponsesRequest(
+
+                model =
+                    request.platform.model,
+
+
+                input =
+                    request.conversation.map(
+                        ::toResponseInputItem
+                    ),
+
+
+                previousResponseId =
+                    request.previousResponseId,
+
+
                 stream = true,
-                reasoningEnabled = request.platform.reasoning,
-                estimatedContextTokens = request.estimateContextTokensForDiagnostics(),
-                messageCount = request.conversation.size,
-                toolCount = request.tools.size.takeIf { it > 0 },
-                toolChoiceMode = request.policy.toolChoiceMode.name.lowercase(),
-                systemPromptPresent = !request.instructions.isNullOrBlank(),
-                systemPromptChars = request.instructions?.length?.takeIf { it > 0 },
+
+
+                instructions =
+                    request.instructions,
+
+
+                tools =
+                    request.tools
+                        .takeIf {
+                            it.isNotEmpty()
+                        }
+                        ?.map {
+
+                            ResponseTool(
+
+                                name =
+                                    it.name,
+
+
+                                description =
+                                    it.description,
+
+
+                                parameters =
+                                    it.inputSchema
+                                        .takeUnless {
+                                            it.isEmptyJsonObject()
+                                        },
+
+
+                                strict = null
+
+                            )
+
+                        },
+
+
+                toolChoice =
+                    request.policy.toolChoiceMode
+                        .name
+                        .lowercase()
+
             )
-        }
 
-        var lastResponseId: String? = request.previousResponseId
 
-        openAIAPI.streamResponses(responseRequest, requestContext, trace).collect { event ->
-            when (event) {
+
+        trace.markRequestPrepared()
+
+
+
+        val requestContext =
+            request.diagnosticContext
+                ?.copy(
+                    platformUid =
+                        request.platform.uid
+                )
+                ?.let {
+
+
+                    ModelRequestDiagnosticContext(
+
+                        diagnosticContext = it,
+
+
+                        providerType =
+                            request.platform.compatibleType
+                                .toDiagnosticProviderType(),
+
+
+                        apiFamily =
+                            "responses",
+
+
+                        model =
+                            request.platform.model,
+
+
+                        stream = true,
+
+
+                        reasoningEnabled =
+                            request.platform.reasoning,
+
+
+                        estimatedContextTokens =
+                            request.estimateContextTokensForDiagnostics(),
+
+
+                        messageCount =
+                            request.conversation.size,
+
+
+                        toolCount =
+                            request.tools.size
+                                .takeIf {
+                                    it > 0
+                                },
+
+
+                        toolChoiceMode =
+                            request.policy.toolChoiceMode
+                                .name
+                                .lowercase(),
+
+
+                        systemPromptPresent =
+                            !request.instructions.isNullOrBlank(),
+
+
+                        systemPromptChars =
+                            request.instructions
+                                ?.length
+                                ?.takeIf {
+                                    it > 0
+                                }
+
+                    )
+
+                }
+
+
+
+        var lastResponseId: String? =
+            request.previousResponseId
+
+
+
+        openAIAPI.streamResponses(
+            responseRequest,
+            requestContext,
+            trace
+        ).collect { event ->
+
+
+            when(event) {
+
+
                 is ReasoningSummaryTextDeltaEvent -> {
-                    trace.markThinking(event.delta)
-                    emit(AgentModelEvent.ThinkingDelta(event.delta))
+
+                    trace.markThinking(
+                        event.delta
+                    )
+
+                    emit(
+                        AgentModelEvent.ThinkingDelta(
+                            event.delta
+                        )
+                    )
+
                 }
+
+
+
                 is OutputTextDeltaEvent -> {
-                    trace.markOutput(event.delta)
-                    emit(AgentModelEvent.OutputDelta(event.delta))
+
+                    trace.markOutput(
+                        event.delta
+                    )
+
+                    emit(
+                        AgentModelEvent.OutputDelta(
+                            event.delta
+                        )
+                    )
+
                 }
-                is ResponseCreatedEvent -> lastResponseId = event.response.id
+
+
+
+                is ResponseCreatedEvent -> {
+
+                    lastResponseId =
+                        event.response.id
+
+                }
+
+
+
                 is ResponseCompletedEvent -> {
-                    lastResponseId = event.response.id
+
+                    lastResponseId =
+                        event.response.id
+
+
                     trace.markCompleted()
-                    emit(AgentModelEvent.Completed(responseId = lastResponseId))
+
+
+                    emit(
+                        AgentModelEvent.Completed(
+                            responseId = lastResponseId
+                        )
+                    )
+
                 }
+
+
 
                 is OutputItemDoneEvent -> {
-                    event.toToolCallOrNull(json)?.let {
-                        trace.markToolCall()
-                        emit(AgentModelEvent.ToolCallReady(it))
-                    }
+
+                    event.toToolCallOrNull(json)
+                        ?.let {
+
+                            trace.markToolCall()
+
+
+                            emit(
+                                AgentModelEvent.ToolCallReady(
+                                    it
+                                )
+                            )
+
+                        }
+
                 }
+
+
 
                 is ResponseFailedEvent -> {
-                    trace.markFailed("provider_error", event.response.error?.message)
+
+                    trace.markFailed(
+                        "provider_error",
+                        event.response.error?.message
+                    )
+
+
                     emit(
                         AgentModelEvent.Failed(
-                            event.response.error?.message ?: "OpenAI Responses request failed",
-                        ),
+                            event.response.error?.message
+                                ?: "Responses request failed"
+                        )
                     )
+
                 }
+
+
 
                 is ResponseErrorEvent -> {
+
                     trace.markFailed(
-                        errorKind = if (event.code == "network_error") "network_error" else "provider_error",
-                        errorMessage = event.message,
+                        if (event.code == "network_error")
+                            "network_error"
+                        else
+                            "provider_error",
+                        event.message
                     )
-                    emit(AgentModelEvent.Failed(event.message))
+
+
+                    emit(
+                        AgentModelEvent.Failed(
+                            event.message
+                        )
+                    )
+
                 }
+
+
                 else -> Unit
+
             }
+
         }
-        if (requestContext != null) {
-            diagnosticLogger.logModelResponse(requestContext, trace, trace.errorKind == null)
-            diagnosticLogger.logLatencyBreakdown(requestContext, trace)
+
+
+
+        requestContext?.let {
+
+            diagnosticLogger.logModelResponse(
+                it,
+                trace,
+                trace.errorKind == null
+            )
+
+
+            diagnosticLogger.logLatencyBreakdown(
+                it,
+                trace
+            )
+
         }
+
+
     }
 
-    private fun toResponseInputItem(item: AgentConversationItem): ResponseInputItem {
-        return when (item.role) {
-            AgentMessageRole.USER -> ResponseInputItem.message(
-                role = "user",
-                content = buildUserContent(item),
-            )
 
-            AgentMessageRole.ASSISTANT -> ResponseInputItem.message(
-                role = "assistant",
-                content = ResponseInputContent.text(item.text.orEmpty()),
-            )
 
-            AgentMessageRole.TOOL -> ResponseInputItem.functionCallOutput(
-                callId = requireNotNull(item.toolCallId) { "Tool call id is required for tool outputs" },
-                output = item.payload?.toString() ?: JsonPrimitive(item.text.orEmpty()).toString(),
-            )
+    private fun toResponseInputItem(
+        item: AgentConversationItem
+    ): ResponseInputItem {
 
-            AgentMessageRole.SYSTEM -> ResponseInputItem.message(
-                role = "user",
-                content = ResponseInputContent.text(item.text.orEmpty()),
-            )
+        return when(item.role) {
+
+
+            AgentMessageRole.USER ->
+
+                ResponseInputItem.message(
+                    role = "user",
+                    content = buildUserContent(item)
+                )
+
+
+
+            AgentMessageRole.ASSISTANT ->
+
+                ResponseInputItem.message(
+                    role = "assistant",
+                    content =
+                        ResponseInputContent.text(
+                            item.text.orEmpty()
+                        )
+                )
+
+
+
+            AgentMessageRole.TOOL ->
+
+                ResponseInputItem.functionCallOutput(
+                    callId =
+                        requireNotNull(item.toolCallId),
+                    output =
+                        item.payload?.toString()
+                            ?: JsonPrimitive(
+                                item.text.orEmpty()
+                            ).toString()
+                )
+
+
+
+            AgentMessageRole.SYSTEM ->
+
+                ResponseInputItem.message(
+                    role = "user",
+                    content =
+                        ResponseInputContent.text(
+                            item.text.orEmpty()
+                        )
+                )
+
         }
+
     }
 
-    private fun buildUserContent(item: AgentConversationItem): ResponseInputContent {
-        val imageAttachments = item.attachments.filter { path ->
-            FileUtils.isVisionSupportedImage(FileUtils.getMimeType(context, path))
-        }
-        if (imageAttachments.isEmpty()) {
-            return ResponseInputContent.text(item.text.orEmpty())
-        }
-        val parts = buildList {
-            imageAttachments.forEach { path ->
-                val mimeType = FileUtils.getMimeType(context, path)
-                val base64 = FileUtils.readAndEncodeFile(context, path) ?: return@forEach
-                add(ResponseContentPart.image("data:$mimeType;base64,$base64"))
+
+
+    private fun buildUserContent(
+        item: AgentConversationItem
+    ): ResponseInputContent {
+
+
+        val images =
+            item.attachments.filter {
+
+                FileUtils.isVisionSupportedImage(
+                    FileUtils.getMimeType(
+                        context,
+                        it
+                    )
+                )
+
             }
-            add(ResponseContentPart.text(item.text.orEmpty()))
+
+
+
+        if(images.isEmpty()) {
+
+            return ResponseInputContent.text(
+                item.text.orEmpty()
+            )
+
         }
+
+
+
+        val parts =
+            buildList {
+
+                images.forEach {
+
+                    val mime =
+                        FileUtils.getMimeType(
+                            context,
+                            it
+                        )
+
+
+                    val base64 =
+                        FileUtils.readAndEncodeFile(
+                            context,
+                            it
+                        )
+                            ?: return@forEach
+
+
+                    add(
+                        ResponseContentPart.image(
+                            "data:$mime;base64,$base64"
+                        )
+                    )
+
+                }
+
+
+                add(
+                    ResponseContentPart.text(
+                        item.text.orEmpty()
+                    )
+                )
+
+            }
+
+
+
         return ResponseInputContent.parts(parts)
+
     }
+
 }
 
-private fun OutputItemDoneEvent.toToolCallOrNull(json: Json): AgentToolCall? {
-    if (item.type != "function_call") {
+
+
+private fun OutputItemDoneEvent.toToolCallOrNull(
+    json: Json
+): AgentToolCall? {
+
+
+    if(item.type != "function_call") {
         return null
     }
 
-    val arguments = item.arguments
-        ?.takeIf { it.isNotBlank() }
-        ?.let {
-            runCatching { json.parseToJsonElement(it) }.getOrElse {
-                buildJsonObject {
-                    put("raw", JsonPrimitive(item.arguments))
-                }
+
+    val arguments =
+        item.arguments
+            ?.takeIf {
+                it.isNotBlank()
             }
-        }
-        ?: buildJsonObject {}
+            ?.let {
+
+                runCatching {
+                    json.parseToJsonElement(it)
+                }.getOrElse {
+
+                    buildJsonObject {
+
+                        put(
+                            "raw",
+                            JsonPrimitive(
+                                item.arguments
+                            )
+                        )
+
+                    }
+
+                }
+
+            }
+            ?: buildJsonObject {}
+
+
 
     return AgentToolCall(
-        id = item.callId ?: item.id,
-        name = requireNotNull(item.name) { "Function call name is missing" },
-        arguments = arguments,
+
+        id =
+            item.callId
+                ?: item.id,
+
+
+        name =
+            requireNotNull(item.name),
+
+
+        arguments =
+            arguments
+
     )
+
 }

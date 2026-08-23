@@ -130,30 +130,22 @@ class SetupViewModelV2 @Inject constructor(
     }
 
 
-    fun updatePlatformName(
-        name: String
-    ) {
+    fun updatePlatformName(name: String) {
         _platformName.value = name
     }
 
 
-    fun updateApiUrl(
-        url: String
-    ) {
+    fun updateApiUrl(url: String) {
         _apiUrl.value = url
     }
 
 
-    fun updateApiKey(
-        key: String
-    ) {
+    fun updateApiKey(key: String) {
         _apiKey.value = key
     }
 
 
-    fun updateModel(
-        modelName: String
-    ) {
+    fun updateModel(modelName: String) {
         _model.value = modelName
     }
 
@@ -200,32 +192,22 @@ class SetupViewModelV2 @Inject constructor(
                 val platform =
                     PlatformV2(
                         name = _platformName.value.trim(),
-
                         compatibleType = clientType,
-
                         enabled = true,
-
                         apiUrl = _apiUrl.value.trim(),
 
-                        token =
-                            _apiKey.value
-                                .trim()
-                                .takeIf {
-                                    it.isNotEmpty()
-                                },
+                        token = _apiKey.value
+                            .trim()
+                            .takeIf {
+                                it.isNotEmpty()
+                            },
 
                         model = _model.value.trim(),
-
                         temperature = 1.0f,
-
                         topP = 1.0f,
-
                         systemPrompt = null,
-
                         stream = true,
-
                         reasoning = false,
-
                         timeout = 30
                     )
 
@@ -315,7 +297,7 @@ class SetupViewModelV2 @Inject constructor(
     fun canProceedFromStep(
         step: Int
     ): Boolean =
-        when(step) {
+        when (step) {
 
             0 ->
                 _platformName.value.isNotBlank()
@@ -337,10 +319,29 @@ class SetupViewModelV2 @Inject constructor(
         _platforms.value.isNotEmpty()
 
 
+
     private fun getDefaultPlatformName(
         clientType: ClientType
     ): String =
-        when(clientType) {
+        when (clientType) {
+
+            ClientType.OPENAI ->
+                "OpenAI"
+
+            ClientType.ANTHROPIC ->
+                "Anthropic"
+
+            ClientType.QWEN ->
+                "Qwen"
+
+            ClientType.KIMI ->
+                "Kimi"
+
+            ClientType.MINIMAX ->
+                "MiniMax"
+
+            ClientType.DEEPSEEK ->
+                "DeepSeek"
 
             ClientType.OPEN_ROUTER ->
                 "OpenRouter"
@@ -350,23 +351,46 @@ class SetupViewModelV2 @Inject constructor(
         }
 
 
+
     private fun getDefaultApiUrl(
         clientType: ClientType
     ): String =
-        when(clientType) {
+        when (clientType) {
 
             ClientType.OPEN_ROUTER ->
                 ModelConstants.OPENROUTER_API_URL
 
             ClientType.CUSTOM ->
                 ModelConstants.CUSTOM_API_URL
+
+            else ->
+                ""
         }
+
 
 
     private fun getDefaultModel(
         clientType: ClientType
     ): String =
-        when(clientType) {
+        when (clientType) {
+
+            ClientType.OPENAI ->
+                "gpt-4o"
+
+            ClientType.ANTHROPIC ->
+                "claude-3-5-sonnet"
+
+            ClientType.QWEN ->
+                "qwen-max"
+
+            ClientType.KIMI ->
+                "moonshot-v1-8k"
+
+            ClientType.MINIMAX ->
+                "abab6.5s-chat"
+
+            ClientType.DEEPSEEK ->
+                "deepseek-chat"
 
             ClientType.OPEN_ROUTER ->
                 "google/gemini-2.5-pro"
@@ -374,6 +398,7 @@ class SetupViewModelV2 @Inject constructor(
             ClientType.CUSTOM ->
                 ""
         }
+
 
 
     companion object {

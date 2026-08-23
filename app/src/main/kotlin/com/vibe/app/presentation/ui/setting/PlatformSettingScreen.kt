@@ -103,13 +103,17 @@ fun PlatformSettingScreen(
 
             modifier = modifier,
 
+
             topBar = {
 
                 PlatformTopAppBar(
 
                     title = platformData.name,
 
-                    onBackClick = onNavigationClick
+                    onBackClick = onNavigationClick,
+
+                    onDeleteClick =
+                        settingViewModel::openDeleteDialog
 
                 )
 

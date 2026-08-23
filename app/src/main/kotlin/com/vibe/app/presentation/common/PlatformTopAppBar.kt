@@ -16,29 +16,33 @@ import androidx.compose.ui.Modifier
 @Composable
 fun PlatformTopAppBar(
     title: String,
-    onNavigationClick: () -> Unit,
+    onBackClick: () -> Unit,
     onDeleteClick: () -> Unit,
-    scrollBehavior: androidx.compose.material3.TopAppBarScrollBehavior? = null,
     modifier: Modifier = Modifier
 ) {
 
     TopAppBar(
 
         title = {
-            Text(text = title)
+            Text(
+                text = title
+            )
         },
+
 
         navigationIcon = {
 
             IconButton(
-                onClick = onNavigationClick
+                onClick = onBackClick
             ) {
 
                 Icon(
                     imageVector = Icons.Default.ArrowBack,
                     contentDescription = "Back"
                 )
+
             }
+
         },
 
 
@@ -52,11 +56,11 @@ fun PlatformTopAppBar(
                     imageVector = Icons.Default.Delete,
                     contentDescription = "Delete"
                 )
+
             }
+
         },
 
-
-        scrollBehavior = scrollBehavior,
 
         modifier = modifier
     )

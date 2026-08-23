@@ -47,15 +47,16 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.style.TextOverflow
-import android.widget.Toast
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 import com.vibe.app.R
 import com.vibe.app.data.model.ClientType
 import com.vibe.app.presentation.common.SettingItem
 import com.vibe.app.util.pinnedExitUntilCollapsedScrollBehavior
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,365 +65,345 @@ fun PlatformSettingScreen(
     settingViewModel: PlatformSettingViewModel = hiltViewModel(),
     onNavigationClick: () -> Unit
 ) {
+
     val scrollState = rememberScrollState()
-    val scrollBehavior = pinnedExitUntilCollapsedScrollBehavior(
-        canScroll = { scrollState.canScrollForward || scrollState.canScrollBackward }
-    )
-    val platform by settingViewModel.platformState.collectAsStateWithLifecycle()
-    val dialogState by settingViewModel.dialogState.collectAsStateWithLifecycle()
-    val isDeleted by settingViewModel.isDeleted.collectAsStateWithLifecycle()
-    val showSystemPrompt = false
-    val showExtendedThinking = false
+
+    val scrollBehavior =
+        pinnedExitUntilCollapsedScrollBehavior(
+            canScroll = {
+                scrollState.canScrollForward ||
+                    scrollState.canScrollBackward
+            }
+        )
+
+
+    val platform by settingViewModel.platformState
+        .collectAsStateWithLifecycle()
+
+    val dialogState by settingViewModel.dialogState
+        .collectAsStateWithLifecycle()
+
+    val isDeleted by settingViewModel.isDeleted
+        .collectAsStateWithLifecycle()
+
+
     val context = LocalContext.current
-    val switchedHint = stringResource(R.string.switched_platform_hint)
+
+    val switchedHint =
+        stringResource(R.string.switched_platform_hint)
+
+
 
     LaunchedEffect(Unit) {
+
         settingViewModel.switchedPlatformEvent.collect { name ->
-            Toast.makeText(context, switchedHint.format(name), Toast.LENGTH_SHORT).show()
+
+            Toast.makeText(
+                context,
+                switchedHint.format(name),
+                Toast.LENGTH_SHORT
+            ).show()
+
         }
+
     }
 
+
+
     LaunchedEffect(isDeleted) {
+
         if (isDeleted) {
             onNavigationClick()
         }
+
     }
 
+
+
     platform?.let { platformData ->
+
         Scaffold(
+
             modifier = modifier
-                .nestedScroll(scrollBehavior.nestedScrollConnection),
+                .nestedScroll(
+                    scrollBehavior.nestedScrollConnection
+                ),
+
             topBar = {
+
                 PlatformTopAppBar(
                     title = platformData.name,
                     onNavigationClick = onNavigationClick,
                     onDeleteClick = settingViewModel::openDeleteDialog,
                     scrollBehavior = scrollBehavior
                 )
+
             }
+
         ) { innerPadding ->
+
+
             Column(
+
                 Modifier
                     .padding(innerPadding)
                     .verticalScroll(scrollState)
+
             ) {
+
+
                 PreferenceSwitchWithContainer(
+
                     title = stringResource(R.string.enable_api),
+
                     isChecked = platformData.enabled
-                ) { settingViewModel.toggleEnabled() }
+
+                ) {
+
+                    settingViewModel.toggleEnabled()
+
+                }
+
+
+
                 SettingItem(
+
                     modifier = Modifier.height(64.dp),
-                    title = stringResource(R.string.platform_name),
+
+                    title = "Platform Name",
+
                     description = platformData.name,
+
                     enabled = platformData.enabled,
-                    onItemClick = settingViewModel::openPlatformNameDialog,
+
+                    onItemClick =
+                        settingViewModel::openPlatformNameDialog,
+
                     showTrailingIcon = false,
+
                     showLeadingIcon = true,
+
                     leadingIcon = {
+
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Label,
-                            contentDescription = stringResource(R.string.platform_name_icon)
+
+                            imageVector =
+                                Icons.AutoMirrored.Filled.Label,
+
+                            contentDescription = null
+
                         )
+
                     }
+
                 )
-                SettingItem(
+                              SettingItem(
+
                     modifier = Modifier.height(64.dp),
-                    title = stringResource(R.string.api_url),
-                    description = platformData.apiUrl,
+
+                    title = "API Provider",
+
+                    description =
+                        if (platformData.apiUrl.contains("openrouter"))
+                            "OpenRouter"
+                        else
+                            "Custom API",
+
                     enabled = platformData.enabled,
-                    onItemClick = settingViewModel::openApiUrlDialog,
-                    showTrailingIcon = false,
-                    showLeadingIcon = true,
-                    leadingIcon = {
-                        Icon(
-                            ImageVector.vectorResource(id = R.drawable.ic_link),
-                            contentDescription = stringResource(R.string.url_icon)
-                        )
-                    }
-                )
-                SettingItem(
-                    modifier = Modifier.height(64.dp),
-                    title = stringResource(R.string.api_key),
-                    description = if (platformData.token.isNullOrEmpty()) {
-                        stringResource(R.string.token_not_set)
-                    } else {
-                        stringResource(R.string.token_set, platformData.token!![0])
+
+                    onItemClick = {
+                        settingViewModel.openApiUrlDialog()
                     },
-                    enabled = platformData.enabled,
-                    onItemClick = settingViewModel::openApiTokenDialog,
+
                     showTrailingIcon = false,
+
                     showLeadingIcon = true,
+
                     leadingIcon = {
+
                         Icon(
-                            ImageVector.vectorResource(id = R.drawable.ic_key),
-                            contentDescription = stringResource(R.string.key_icon)
+
+                            imageVector =
+                                ImageVector.vectorResource(
+                                    id = R.drawable.ic_link
+                                ),
+
+                            contentDescription = null
+
                         )
+
                     }
+
                 )
+
+
+
                 SettingItem(
+
                     modifier = Modifier.height(64.dp),
-                    title = stringResource(R.string.api_model),
+
+                    title = "API Key",
+
+                    description =
+                        if (platformData.token.isNullOrEmpty()) {
+
+                            "Not Set"
+
+                        } else {
+
+                            "Configured"
+
+                        },
+
+                    enabled = platformData.enabled,
+
+                    onItemClick =
+                        settingViewModel::openApiTokenDialog,
+
+                    showTrailingIcon = false,
+
+                    showLeadingIcon = true,
+
+                    leadingIcon = {
+
+                        Icon(
+
+                            imageVector =
+                                ImageVector.vectorResource(
+                                    id = R.drawable.ic_key
+                                ),
+
+                            contentDescription = null
+
+                        )
+
+                    }
+
+                )
+
+
+
+                SettingItem(
+
+                    modifier = Modifier.height(64.dp),
+
+                    title = "Model",
+
                     description = platformData.model,
+
                     enabled = platformData.enabled,
-                    onItemClick = settingViewModel::openApiModelDialog,
+
+                    onItemClick =
+                        settingViewModel::openApiModelDialog,
+
                     showTrailingIcon = false,
+
                     showLeadingIcon = true,
+
                     leadingIcon = {
+
                         Icon(
-                            ImageVector.vectorResource(id = R.drawable.ic_model),
-                            contentDescription = stringResource(R.string.model_icon)
+
+                            imageVector =
+                                ImageVector.vectorResource(
+                                    id = R.drawable.ic_model
+                                ),
+
+                            contentDescription = null
+
                         )
+
                     }
+
                 )
-                // Disable temperature and top_p when reasoning is enabled for OpenAI
-                val isReasoningDisabled = platformData.compatibleType == ClientType.OPENAI && platformData.reasoning
-                val notSetText = stringResource(R.string.not_set)
+
+
+
+                val isReasoningDisabled =
+                    platformData.compatibleType == ClientType.OPENAI &&
+                        platformData.reasoning
+
+
+
+                val notSetText =
+                    stringResource(R.string.not_set)
+
+
+
                 SettingItem(
+
                     modifier = Modifier.height(64.dp),
+
                     title = stringResource(R.string.temperature),
-                    description = platformData.temperature?.toString() ?: notSetText,
-                    enabled = platformData.enabled && !isReasoningDisabled,
-                    onItemClick = settingViewModel::openTemperatureDialog,
+
+                    description =
+                        platformData.temperature?.toString()
+                            ?: notSetText,
+
+                    enabled =
+                        platformData.enabled &&
+                            !isReasoningDisabled,
+
+                    onItemClick =
+                        settingViewModel::openTemperatureDialog,
+
                     showTrailingIcon = false,
+
                     showLeadingIcon = true,
+
                     leadingIcon = {
+
                         Icon(
-                            ImageVector.vectorResource(id = R.drawable.ic_temperature),
-                            contentDescription = stringResource(R.string.temperature_icon)
+
+                            imageVector =
+                                ImageVector.vectorResource(
+                                    id = R.drawable.ic_temperature
+                                ),
+
+                            contentDescription = null
+
                         )
+
                     }
+
                 )
+
+
+
                 SettingItem(
+
                     modifier = Modifier.height(64.dp),
+
                     title = stringResource(R.string.top_p),
-                    description = platformData.topP?.toString() ?: notSetText,
-                    enabled = platformData.enabled && !isReasoningDisabled,
-                    onItemClick = settingViewModel::openTopPDialog,
+
+                    description =
+                        platformData.topP?.toString()
+                            ?: notSetText,
+
+                    enabled =
+                        platformData.enabled &&
+                            !isReasoningDisabled,
+
+                    onItemClick =
+                        settingViewModel::openTopPDialog,
+
                     showTrailingIcon = false,
+
                     showLeadingIcon = true,
+
                     leadingIcon = {
+
                         Icon(
-                            ImageVector.vectorResource(id = R.drawable.ic_chart),
-                            contentDescription = stringResource(R.string.top_p_icon)
+
+                            imageVector =
+                                ImageVector.vectorResource(
+                                    id = R.drawable.ic_chart
+                                ),
+
+                            contentDescription = null
+
                         )
+
                     }
-                )
-                if (showSystemPrompt) {
-                    SettingItem(
-                        modifier = Modifier.height(64.dp),
-                        title = stringResource(R.string.system_prompt),
-                        description = platformData.systemPrompt,
-                        enabled = false,
-                        onItemClick = settingViewModel::openSystemPromptDialog,
-                        showTrailingIcon = false,
-                        showLeadingIcon = true,
-                        leadingIcon = {
-                            Icon(
-                                ImageVector.vectorResource(id = R.drawable.ic_instructions),
-                                contentDescription = stringResource(R.string.system_prompt_icon)
-                            )
-                        }
-                    )
-                }
 
-                if (showExtendedThinking) {
-                    ExtendedThinkingSwitch(
-                        modifier = Modifier.height(64.dp),
-                        enabled = false,
-                        isChecked = platformData.reasoning,
-                        onCheckedChange = { settingViewModel.toggleReasoning() }
-                    )
-                }
-                PlatformNameDialog(dialogState, platformData.name, settingViewModel)
-                APIUrlDialog(dialogState, platformData.apiUrl, settingViewModel)
-                APIKeyDialog(dialogState, settingViewModel)
-                ModelDialog(dialogState, platformData.model, settingViewModel)
-                TemperatureDialog(dialogState, platformData.temperature, settingViewModel)
-                TopPDialog(dialogState, platformData.topP, settingViewModel)
-                SystemPromptDialog(dialogState, platformData.systemPrompt ?: "", settingViewModel)
-                DeletePlatformDialog(dialogState, settingViewModel)
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun PlatformTopAppBar(
-    title: String,
-    onNavigationClick: () -> Unit,
-    onDeleteClick: () -> Unit,
-    scrollBehavior: TopAppBarScrollBehavior
-) {
-    var showMenu by remember { mutableStateOf(false) }
-
-    LargeTopAppBar(
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.background,
-            titleContentColor = MaterialTheme.colorScheme.onBackground
-        ),
-        title = {
-            Text(
-                modifier = Modifier.padding(4.dp),
-                text = title,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        },
-        navigationIcon = {
-            IconButton(
-                modifier = Modifier.padding(4.dp),
-                onClick = onNavigationClick
-            ) {
-                Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.go_back))
-            }
-        },
-        actions = {
-            IconButton(onClick = { showMenu = true }) {
-                Icon(
-                    imageVector = Icons.Filled.MoreVert,
-                    contentDescription = stringResource(R.string.more_options)
-                )
-            }
-            DropdownMenu(
-                expanded = showMenu,
-                onDismissRequest = { showMenu = false }
-            ) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.delete_platform)) },
-                    onClick = {
-                        showMenu = false
-                        onDeleteClick()
-                    }
-                )
-            }
-        },
-        scrollBehavior = scrollBehavior
-    )
-}
-
-@Composable
-fun ExtendedThinkingSwitch(
-    modifier: Modifier,
-    enabled: Boolean,
-    isChecked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    val clickableModifier = if (enabled) {
-        modifier
-            .fillMaxWidth()
-            .clickable(onClick = { onCheckedChange(!isChecked) })
-            .padding(horizontal = 8.dp)
-    } else {
-        modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp)
-    }
-    val colors = ListItemDefaults.colors()
-
-    ListItem(
-        modifier = clickableModifier,
-        headlineContent = {
-            Text(
-                text = stringResource(R.string.extended_thinking),
-                overflow = TextOverflow.Ellipsis
-            )
-        },
-        supportingContent = {
-            Text(
-                text = stringResource(R.string.extended_thinking_description),
-                overflow = TextOverflow.Ellipsis
-            )
-        },
-        leadingContent = {
-            Icon(
-                imageVector = ImageVector.vectorResource(id = R.drawable.ic_model),
-                contentDescription = stringResource(R.string.extended_thinking)
-            )
-        },
-        trailingContent = {
-            Switch(
-                checked = isChecked,
-                onCheckedChange = null,
-                enabled = enabled
-            )
-        },
-        colors = ListItemDefaults.colors(
-            headlineColor = if (enabled) colors.headlineColor else colors.disabledHeadlineColor,
-            supportingColor = if (enabled) colors.supportingTextColor else colors.disabledHeadlineColor,
-            leadingIconColor = if (enabled) colors.leadingIconColor else colors.disabledLeadingIconColor,
-            trailingIconColor = if (enabled) colors.trailingIconColor else colors.disabledTrailingIconColor
-        )
-    )
-}
-
-@Composable
-fun PreferenceSwitchWithContainer(
-    title: String,
-    icon: ImageVector? = null,
-    isChecked: Boolean,
-    onClick: () -> Unit
-) {
-    val thumbContent: (@Composable () -> Unit)? = remember(isChecked) {
-        if (isChecked) {
-            {
-                Icon(
-                    imageVector = Icons.Outlined.Check,
-                    contentDescription = null,
-                    modifier = Modifier.size(SwitchDefaults.IconSize)
-                )
-            }
-        } else {
-            null
-        }
-    }
-
-    val interactionSource = remember { MutableInteractionSource() }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp)
-            .clip(MaterialTheme.shapes.extraLarge)
-            .background(
-                MaterialTheme.colorScheme.surfaceVariant
-            )
-            .toggleable(
-                value = isChecked,
-                onValueChange = { onClick() },
-                interactionSource = interactionSource,
-                indication = LocalIndication.current
-            )
-            .padding(horizontal = 16.dp, vertical = 20.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        icon?.let {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier
-                    .padding(start = 8.dp, end = 16.dp)
-                    .size(24.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .padding(start = if (icon == null) 12.dp else 0.dp, end = 12.dp)
-        ) {
-            Text(
-                text = title,
-                maxLines = 1,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        Switch(
-            checked = isChecked,
-            interactionSource = interactionSource,
-            onCheckedChange = null,
-            modifier = Modifier.padding(start = 12.dp, end = 6.dp),
-            thumbContent = thumbContent
-        )
-    }
-}
+                )  

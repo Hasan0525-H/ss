@@ -24,11 +24,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 import com.vibe.app.R
 import com.vibe.app.data.model.ClientType
-
 import com.vibe.app.presentation.common.SettingItem
 import com.vibe.app.presentation.ui.components.PlatformTopAppBar
 import com.vibe.app.presentation.ui.components.PreferenceSwitchWithContainer
-
 import com.vibe.app.util.pinnedExitUntilCollapsedScrollBehavior
 
 
@@ -40,9 +38,7 @@ fun PlatformSettingScreen(
     onNavigationClick: () -> Unit
 ) {
 
-
     val scrollState = rememberScrollState()
-
 
     val scrollBehavior =
         pinnedExitUntilCollapsedScrollBehavior(
@@ -53,41 +49,41 @@ fun PlatformSettingScreen(
         )
 
 
-    val platform by settingViewModel.platformState
-        .collectAsStateWithLifecycle()
+    val platform =
+        settingViewModel.platformState
+            .collectAsStateWithLifecycle()
+            .value
 
 
-    val dialogState by settingViewModel.dialogState
-        .collectAsStateWithLifecycle()
+    val dialogState =
+        settingViewModel.dialogState
+            .collectAsStateWithLifecycle()
+            .value
 
 
-    val isDeleted by settingViewModel.isDeleted
-        .collectAsStateWithLifecycle()
-
+    val isDeleted =
+        settingViewModel.isDeleted
+            .collectAsStateWithLifecycle()
+            .value
 
 
     val context = LocalContext.current
 
 
-    val switchedHint =
-        stringResource(
-            R.string.switched_platform_hint
-        )
-
-
     LaunchedEffect(Unit) {
 
-        settingViewModel.switchedPlatformEvent
-            .collect { name ->
+        settingViewModel.switchedPlatformEvent.collect { name ->
 
-                Toast.makeText(
-                    context,
-                    switchedHint.format(name),
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
+            Toast.makeText(
+                context,
+                stringResource(R.string.switched_platform_hint)
+                    .format(name),
+                Toast.LENGTH_SHORT
+            ).show()
+
+        }
+
     }
-
 
 
     LaunchedEffect(isDeleted) {
@@ -95,6 +91,7 @@ fun PlatformSettingScreen(
         if (isDeleted) {
             onNavigationClick()
         }
+
     }
 
 
@@ -106,25 +103,14 @@ fun PlatformSettingScreen(
 
             modifier = modifier,
 
-
             topBar = {
-
 
                 PlatformTopAppBar(
 
                     title = platformData.name,
 
+                    onBackClick = onNavigationClick
 
-                    onNavigationClick =
-                        onNavigationClick,
-
-
-                    onDeleteClick =
-                        settingViewModel::openDeleteDialog,
-
-
-                    scrollBehavior =
-                        scrollBehavior
                 )
 
             }
@@ -135,9 +121,10 @@ fun PlatformSettingScreen(
 
             Column(
 
-                modifier = Modifier
-                    .padding(padding)
-                    .verticalScroll(scrollState)
+                modifier =
+                    Modifier
+                        .padding(padding)
+                        .verticalScroll(scrollState)
 
             ) {
 
@@ -150,10 +137,8 @@ fun PlatformSettingScreen(
                             R.string.enable_api
                         ),
 
-
                     isChecked =
                         platformData.enabled,
-
 
                     onCheckedChange = {
 
@@ -165,54 +150,42 @@ fun PlatformSettingScreen(
 
 
 
-
                 SettingItem(
 
-                    modifier =
-                        Modifier.height(64.dp),
-
+                    modifier = Modifier.height(64.dp),
 
                     title =
                         stringResource(
                             R.string.platform_name
                         ),
 
-
                     description =
                         platformData.name,
-
 
                     enabled =
                         platformData.enabled,
 
-
                     onItemClick =
                         settingViewModel::openPlatformNameDialog
+
                 )
-
-
 
 
 
                 SettingItem(
 
-                    modifier =
-                        Modifier.height(64.dp),
-
+                    modifier = Modifier.height(64.dp),
 
                     title =
                         stringResource(
                             R.string.api_url
                         ),
 
-
                     description =
                         platformData.apiUrl,
 
-
                     enabled =
                         platformData.enabled,
-
 
                     onItemClick =
                         settingViewModel::openApiUrlDialog
@@ -221,32 +194,23 @@ fun PlatformSettingScreen(
 
 
 
-
-
                 SettingItem(
 
-                    modifier =
-                        Modifier.height(64.dp),
-
+                    modifier = Modifier.height(64.dp),
 
                     title =
                         stringResource(
                             R.string.api_key
                         ),
 
-
                     description =
-                        if (platformData.token.isNullOrEmpty())
-                            stringResource(
-                                R.string.not_set
-                            )
+                        if (platformData.token.isNullOrBlank())
+                            stringResource(R.string.not_set)
                         else
                             "Configured",
 
-
                     enabled =
                         platformData.enabled,
-
 
                     onItemClick =
                         settingViewModel::openApiTokenDialog
@@ -255,34 +219,25 @@ fun PlatformSettingScreen(
 
 
 
-
-
                 SettingItem(
 
-                    modifier =
-                        Modifier.height(64.dp),
-
+                    modifier = Modifier.height(64.dp),
 
                     title =
                         stringResource(
                             R.string.model
                         ),
 
-
                     description =
                         platformData.model,
 
-
                     enabled =
                         platformData.enabled,
-
 
                     onItemClick =
                         settingViewModel::openApiModelDialog
 
                 )
-
-
 
 
 
@@ -293,7 +248,6 @@ fun PlatformSettingScreen(
 
 
 
-
                 val notSet =
                     stringResource(
                         R.string.not_set
@@ -301,29 +255,23 @@ fun PlatformSettingScreen(
 
 
 
-
                 SettingItem(
 
-                    modifier =
-                        Modifier.height(64.dp),
-
+                    modifier = Modifier.height(64.dp),
 
                     title =
                         stringResource(
                             R.string.temperature
                         ),
 
-
                     description =
                         platformData.temperature
                             ?.toString()
                             ?: notSet,
 
-
                     enabled =
                         platformData.enabled &&
                                 !reasoningDisabled,
-
 
                     onItemClick =
                         settingViewModel::openTemperatureDialog
@@ -332,37 +280,28 @@ fun PlatformSettingScreen(
 
 
 
-
-
                 SettingItem(
 
-                    modifier =
-                        Modifier.height(64.dp),
-
+                    modifier = Modifier.height(64.dp),
 
                     title =
                         stringResource(
                             R.string.top_p
                         ),
 
-
                     description =
                         platformData.topP
                             ?.toString()
                             ?: notSet,
 
-
                     enabled =
                         platformData.enabled &&
                                 !reasoningDisabled,
-
 
                     onItemClick =
                         settingViewModel::openTopPDialog
 
                 )
-
-
 
 
 
@@ -373,7 +312,6 @@ fun PlatformSettingScreen(
                 )
 
 
-
                 APIUrlDialog(
                     dialogState,
                     platformData.apiUrl,
@@ -381,12 +319,10 @@ fun PlatformSettingScreen(
                 )
 
 
-
                 APIKeyDialog(
                     dialogState,
                     settingViewModel
                 )
-
 
 
                 ModelDialog(
@@ -396,7 +332,6 @@ fun PlatformSettingScreen(
                 )
 
 
-
                 TemperatureDialog(
                     dialogState,
                     platformData.temperature,
@@ -404,13 +339,11 @@ fun PlatformSettingScreen(
                 )
 
 
-
                 TopPDialog(
                     dialogState,
                     platformData.topP,
                     settingViewModel
                 )
-
 
 
                 DeletePlatformDialog(

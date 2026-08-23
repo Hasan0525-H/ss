@@ -76,7 +76,6 @@ fun PlatformSettingScreen(
             }
         )
 
-
     val platform by settingViewModel.platformState
         .collectAsStateWithLifecycle()
 
@@ -86,44 +85,33 @@ fun PlatformSettingScreen(
     val isDeleted by settingViewModel.isDeleted
         .collectAsStateWithLifecycle()
 
-
     val context = LocalContext.current
 
     val switchedHint =
         stringResource(R.string.switched_platform_hint)
 
 
-
     LaunchedEffect(Unit) {
-
         settingViewModel.switchedPlatformEvent.collect { name ->
-
             Toast.makeText(
                 context,
                 switchedHint.format(name),
                 Toast.LENGTH_SHORT
             ).show()
-
         }
-
     }
-
 
 
     LaunchedEffect(isDeleted) {
-
         if (isDeleted) {
             onNavigationClick()
         }
-
     }
-
 
 
     platform?.let { platformData ->
 
         Scaffold(
-
             modifier = modifier
                 .nestedScroll(
                     scrollBehavior.nestedScrollConnection
@@ -142,181 +130,108 @@ fun PlatformSettingScreen(
 
         ) { innerPadding ->
 
-
             Column(
-
                 Modifier
                     .padding(innerPadding)
                     .verticalScroll(scrollState)
-
             ) {
 
 
                 PreferenceSwitchWithContainer(
-
                     title = stringResource(R.string.enable_api),
-
                     isChecked = platformData.enabled
-
                 ) {
-
                     settingViewModel.toggleEnabled()
-
                 }
 
 
-
                 SettingItem(
-
                     modifier = Modifier.height(64.dp),
-
                     title = "Platform Name",
-
                     description = platformData.name,
-
                     enabled = platformData.enabled,
-
                     onItemClick =
                         settingViewModel::openPlatformNameDialog,
-
                     showTrailingIcon = false,
-
                     showLeadingIcon = true,
-
                     leadingIcon = {
-
                         Icon(
-
                             imageVector =
                                 Icons.AutoMirrored.Filled.Label,
-
                             contentDescription = null
-
                         )
-
                     }
-
                 )
-                              SettingItem(
 
+
+                SettingItem(
                     modifier = Modifier.height(64.dp),
-
                     title = "API Provider",
-
                     description =
                         if (platformData.apiUrl.contains("openrouter"))
                             "OpenRouter"
                         else
                             "Custom API",
-
                     enabled = platformData.enabled,
-
-                    onItemClick = {
-                        settingViewModel.openApiUrlDialog()
-                    },
-
+                    onItemClick =
+                        settingViewModel::openApiUrlDialog,
                     showTrailingIcon = false,
-
                     showLeadingIcon = true,
-
                     leadingIcon = {
-
                         Icon(
-
                             imageVector =
                                 ImageVector.vectorResource(
                                     id = R.drawable.ic_link
                                 ),
-
                             contentDescription = null
-
                         )
-
                     }
-
                 )
-
-
-
-                SettingItem(
-
+                               SettingItem(
                     modifier = Modifier.height(64.dp),
-
                     title = "API Key",
-
                     description =
                         if (platformData.token.isNullOrEmpty()) {
-
                             "Not Set"
-
                         } else {
-
                             "Configured"
-
                         },
-
                     enabled = platformData.enabled,
-
                     onItemClick =
                         settingViewModel::openApiTokenDialog,
-
                     showTrailingIcon = false,
-
                     showLeadingIcon = true,
-
                     leadingIcon = {
-
                         Icon(
-
                             imageVector =
                                 ImageVector.vectorResource(
                                     id = R.drawable.ic_key
                                 ),
-
                             contentDescription = null
-
                         )
-
                     }
-
                 )
 
 
-
                 SettingItem(
-
                     modifier = Modifier.height(64.dp),
-
                     title = "Model",
-
                     description = platformData.model,
-
                     enabled = platformData.enabled,
-
                     onItemClick =
                         settingViewModel::openApiModelDialog,
-
                     showTrailingIcon = false,
-
                     showLeadingIcon = true,
-
                     leadingIcon = {
-
                         Icon(
-
                             imageVector =
                                 ImageVector.vectorResource(
                                     id = R.drawable.ic_model
                                 ),
-
                             contentDescription = null
-
                         )
-
                     }
-
                 )
-
 
 
                 val isReasoningDisabled =
@@ -324,86 +239,101 @@ fun PlatformSettingScreen(
                         platformData.reasoning
 
 
-
                 val notSetText =
                     stringResource(R.string.not_set)
 
 
-
                 SettingItem(
-
                     modifier = Modifier.height(64.dp),
-
                     title = stringResource(R.string.temperature),
-
                     description =
                         platformData.temperature?.toString()
                             ?: notSetText,
-
                     enabled =
                         platformData.enabled &&
                             !isReasoningDisabled,
-
                     onItemClick =
                         settingViewModel::openTemperatureDialog,
-
                     showTrailingIcon = false,
-
                     showLeadingIcon = true,
-
                     leadingIcon = {
-
                         Icon(
-
                             imageVector =
                                 ImageVector.vectorResource(
                                     id = R.drawable.ic_temperature
                                 ),
-
                             contentDescription = null
-
                         )
-
                     }
-
                 )
 
 
-
                 SettingItem(
-
                     modifier = Modifier.height(64.dp),
-
                     title = stringResource(R.string.top_p),
-
                     description =
                         platformData.topP?.toString()
                             ?: notSetText,
-
                     enabled =
                         platformData.enabled &&
                             !isReasoningDisabled,
-
                     onItemClick =
                         settingViewModel::openTopPDialog,
-
                     showTrailingIcon = false,
-
                     showLeadingIcon = true,
-
                     leadingIcon = {
-
                         Icon(
-
                             imageVector =
                                 ImageVector.vectorResource(
                                     id = R.drawable.ic_chart
                                 ),
-
                             contentDescription = null
-
                         )
-
                     }
+                )
 
-                )  
+
+                PlatformNameDialog(
+                    dialogState,
+                    platformData.name,
+                    settingViewModel
+                )
+
+                APIUrlDialog(
+                    dialogState,
+                    platformData.apiUrl,
+                    settingViewModel
+                )
+
+                APIKeyDialog(
+                    dialogState,
+                    settingViewModel
+                )
+
+                ModelDialog(
+                    dialogState,
+                    platformData.model,
+                    settingViewModel
+                )
+
+                TemperatureDialog(
+                    dialogState,
+                    platformData.temperature,
+                    settingViewModel
+                )
+
+                TopPDialog(
+                    dialogState,
+                    platformData.topP,
+                    settingViewModel
+                )
+
+                DeletePlatformDialog(
+                    dialogState,
+                    settingViewModel
+                )
+
+            }
+        }
+    }
+} 

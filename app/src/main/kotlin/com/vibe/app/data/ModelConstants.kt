@@ -2,13 +2,15 @@ package com.vibe.app.data
 
 object ModelConstants {
 
-    const val OPENAI_API_URL = "https://api.openai.com/"
-    const val ANTHROPIC_API_URL = "https://api.anthropic.com/"
+    const val OPENROUTER_API_URL =
+        "https://openrouter.ai/api/"
 
-    const val QWEN_API_URL = "https://dashscope.aliyuncs.com/compatible-mode/"
-    const val KIMI_API_URL = "https://api.moonshot.cn/"
-    const val MINIMAX_API_URL = "https://api.minimaxi.com/anthropic/"
-    const val DEEPSEEK_API_URL = "https://api.deepseek.com/"
+    const val CUSTOM_API_URL =
+        ""
+
+    const val DEFAULT_PROVIDER =
+        "OPEN_ROUTER"
+
 
     const val CHAT_TITLE_GENERATE_PROMPT =
         "Create a title that summarizes the chat. " +

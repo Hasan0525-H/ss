@@ -37,6 +37,7 @@
     <string name="enable_api">Enable API</string>
 
 
+
     <!-- API -->
 
     <string name="api_key">API Key</string>
@@ -203,6 +204,41 @@
 
     <!-- About -->
 
+    <string name="version">
+        Version
+    </string>
+
+    <string name="version_icon">
+        Version Icon
+    </string>
+
+
+    <string name="license">
+        License
+    </string>
+
+    <string name="license_description">
+        Open source license information.
+    </string>
+
+    <string name="license_icon">
+        License Icon
+    </string>
+
+
+    <string name="github">
+        GitHub
+    </string>
+
+    <string name="github_icon">
+        GitHub Icon
+    </string>
+
+    <string name="github_link">
+        https://github.com/
+    </string>
+
+
     <string name="feedback">
         Feedback
     </string>
@@ -214,6 +250,11 @@
     <string name="feedback_icon">
         Feedback Icon
     </string>
+
+    <string name="feedback_link">
+        mailto:support@example.com
+    </string>
+
 
     <string name="bug_report">
         Bug Report
@@ -227,28 +268,22 @@
         Bug Report Icon
     </string>
 
-
-
-    <!-- License -->
-
-    <string name="license">
-        License
+    <string name="bug_report_link">
+        https://github.com/issues
     </string>
 
 
 
     <!-- Common -->
 
-    <string name="save">
-        Save
-    </string>
+    <string name="save">Save</string>
 
-    <string name="edit">
-        Edit
-    </string>
+    <string name="edit">Edit</string>
 
-    <string name="close">
-        Close
+    <string name="close">Close</string>
+
+    <string name="arrow_icon">
+        Arrow Icon
     </string>
 
 

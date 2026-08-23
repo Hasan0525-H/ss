@@ -25,6 +25,7 @@ import com.vibe.app.feature.diagnostic.ModelExecutionTrace
 import com.vibe.app.feature.diagnostic.ModelRequestDiagnosticContext
 import com.vibe.app.feature.diagnostic.toDiagnosticProviderType
 import com.vibe.app.util.FileUtils
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
@@ -36,7 +37,7 @@ import kotlinx.serialization.json.buildJsonObject
 
 @Singleton
 class OpenAiResponsesAgentGateway @Inject constructor(
-    @androidx.hilt.work.HiltWorker.ApplicationContext private val context: Context,
+    @ApplicationContext private val context: Context,
     private val openAIAPI: OpenAIAPI,
     private val diagnosticLogger: ChatDiagnosticLogger,
 ) : AgentModelGateway {
@@ -52,7 +53,6 @@ class OpenAiResponsesAgentGateway @Inject constructor(
     override suspend fun streamTurn(
         request: AgentModelRequest
     ): Flow<AgentModelEvent> = flow {
-
 
         openAIAPI.setToken(
             request.platform.token
@@ -74,30 +74,24 @@ class OpenAiResponsesAgentGateway @Inject constructor(
             ModelExecutionTrace()
 
 
-
         val responseRequest =
             ResponsesRequest(
 
                 model =
                     request.platform.model,
 
-
                 input =
                     request.conversation.map(
                         ::toResponseInputItem
                     ),
 
-
                 previousResponseId =
                     request.previousResponseId,
 
-
                 stream = true,
-
 
                 instructions =
                     request.instructions,
-
 
                 tools =
                     request.tools
@@ -111,10 +105,8 @@ class OpenAiResponsesAgentGateway @Inject constructor(
                                 name =
                                     it.name,
 
-
                                 description =
                                     it.description,
-
 
                                 parameters =
                                     it.inputSchema
@@ -122,11 +114,8 @@ class OpenAiResponsesAgentGateway @Inject constructor(
                                             it.isEmptyJsonObject()
                                         },
 
-
                                 strict = null
-
                             )
-
                         },
 
 
@@ -138,9 +127,7 @@ class OpenAiResponsesAgentGateway @Inject constructor(
             )
 
 
-
         trace.markRequestPrepared()
-
 
 
         val requestContext =
@@ -151,39 +138,30 @@ class OpenAiResponsesAgentGateway @Inject constructor(
                 )
                 ?.let {
 
-
                     ModelRequestDiagnosticContext(
 
                         diagnosticContext = it,
-
 
                         providerType =
                             request.platform.compatibleType
                                 .toDiagnosticProviderType(),
 
-
                         apiFamily =
                             "responses",
-
 
                         model =
                             request.platform.model,
 
-
                         stream = true,
-
 
                         reasoningEnabled =
                             request.platform.reasoning,
 
-
                         estimatedContextTokens =
                             request.estimateContextTokensForDiagnostics(),
 
-
                         messageCount =
                             request.conversation.size,
-
 
                         toolCount =
                             request.tools.size
@@ -191,16 +169,13 @@ class OpenAiResponsesAgentGateway @Inject constructor(
                                     it > 0
                                 },
 
-
                         toolChoiceMode =
                             request.policy.toolChoiceMode
                                 .name
                                 .lowercase(),
 
-
                         systemPromptPresent =
                             !request.instructions.isNullOrBlank(),
-
 
                         systemPromptChars =
                             request.instructions
@@ -208,16 +183,12 @@ class OpenAiResponsesAgentGateway @Inject constructor(
                                 ?.takeIf {
                                     it > 0
                                 }
-
                     )
-
                 }
-
 
 
         var lastResponseId: String? =
             request.previousResponseId
-
 
 
         openAIAPI.streamResponses(
@@ -226,9 +197,7 @@ class OpenAiResponsesAgentGateway @Inject constructor(
             trace
         ).collect { event ->
 
-
             when(event) {
-
 
                 is ReasoningSummaryTextDeltaEvent -> {
 
@@ -241,9 +210,7 @@ class OpenAiResponsesAgentGateway @Inject constructor(
                             event.delta
                         )
                     )
-
                 }
-
 
 
                 is OutputTextDeltaEvent -> {
@@ -257,18 +224,14 @@ class OpenAiResponsesAgentGateway @Inject constructor(
                             event.delta
                         )
                     )
-
                 }
-
 
 
                 is ResponseCreatedEvent -> {
 
                     lastResponseId =
                         event.response.id
-
                 }
-
 
 
                 is ResponseCompletedEvent -> {
@@ -276,18 +239,14 @@ class OpenAiResponsesAgentGateway @Inject constructor(
                     lastResponseId =
                         event.response.id
 
-
                     trace.markCompleted()
-
 
                     emit(
                         AgentModelEvent.Completed(
                             responseId = lastResponseId
                         )
                     )
-
                 }
-
 
 
                 is OutputItemDoneEvent -> {
@@ -297,17 +256,13 @@ class OpenAiResponsesAgentGateway @Inject constructor(
 
                             trace.markToolCall()
 
-
                             emit(
                                 AgentModelEvent.ToolCallReady(
                                     it
                                 )
                             )
-
                         }
-
                 }
-
 
 
                 is ResponseFailedEvent -> {
@@ -317,16 +272,13 @@ class OpenAiResponsesAgentGateway @Inject constructor(
                         event.response.error?.message
                     )
 
-
                     emit(
                         AgentModelEvent.Failed(
                             event.response.error?.message
                                 ?: "Responses request failed"
                         )
                     )
-
                 }
-
 
 
                 is ResponseErrorEvent -> {
@@ -339,22 +291,17 @@ class OpenAiResponsesAgentGateway @Inject constructor(
                         event.message
                     )
 
-
                     emit(
                         AgentModelEvent.Failed(
                             event.message
                         )
                     )
-
                 }
 
 
                 else -> Unit
-
             }
-
         }
-
 
 
         requestContext?.let {
@@ -370,12 +317,8 @@ class OpenAiResponsesAgentGateway @Inject constructor(
                 it,
                 trace
             )
-
         }
-
-
     }
-
 
 
     private fun toResponseInputItem(
@@ -384,14 +327,12 @@ class OpenAiResponsesAgentGateway @Inject constructor(
 
         return when(item.role) {
 
-
             AgentMessageRole.USER ->
 
                 ResponseInputItem.message(
                     role = "user",
                     content = buildUserContent(item)
                 )
-
 
 
             AgentMessageRole.ASSISTANT ->
@@ -403,7 +344,6 @@ class OpenAiResponsesAgentGateway @Inject constructor(
                             item.text.orEmpty()
                         )
                 )
-
 
 
             AgentMessageRole.TOOL ->
@@ -419,7 +359,6 @@ class OpenAiResponsesAgentGateway @Inject constructor(
                 )
 
 
-
             AgentMessageRole.SYSTEM ->
 
                 ResponseInputItem.message(
@@ -429,17 +368,13 @@ class OpenAiResponsesAgentGateway @Inject constructor(
                             item.text.orEmpty()
                         )
                 )
-
         }
-
     }
-
 
 
     private fun buildUserContent(
         item: AgentConversationItem
     ): ResponseInputContent {
-
 
         val images =
             item.attachments.filter {
@@ -450,9 +385,7 @@ class OpenAiResponsesAgentGateway @Inject constructor(
                         it
                     )
                 )
-
             }
-
 
 
         if(images.isEmpty()) {
@@ -460,9 +393,7 @@ class OpenAiResponsesAgentGateway @Inject constructor(
             return ResponseInputContent.text(
                 item.text.orEmpty()
             )
-
         }
-
 
 
         val parts =
@@ -490,7 +421,6 @@ class OpenAiResponsesAgentGateway @Inject constructor(
                             "data:$mime;base64,$base64"
                         )
                     )
-
                 }
 
 
@@ -499,23 +429,17 @@ class OpenAiResponsesAgentGateway @Inject constructor(
                         item.text.orEmpty()
                     )
                 )
-
             }
 
 
-
         return ResponseInputContent.parts(parts)
-
     }
-
 }
-
 
 
 private fun OutputItemDoneEvent.toToolCallOrNull(
     json: Json
 ): AgentToolCall? {
-
 
     if(item.type != "function_call") {
         return null
@@ -541,14 +465,10 @@ private fun OutputItemDoneEvent.toToolCallOrNull(
                                 item.arguments
                             )
                         )
-
                     }
-
                 }
-
             }
             ?: buildJsonObject {}
-
 
 
     return AgentToolCall(
@@ -557,14 +477,10 @@ private fun OutputItemDoneEvent.toToolCallOrNull(
             item.callId
                 ?: item.id,
 
-
         name =
             requireNotNull(item.name),
 
-
         arguments =
             arguments
-
     )
-
 }

@@ -397,14 +397,34 @@
     </string>
 
 
-    <!-- Added Missing Tool/Snapshot References -->
+    <!-- Complete Tool Display Names -->
+    <string name="tool_name_close_app">Close App</string>
+    <string name="tool_name_create_plan">Create Plan</string>
+    <string name="tool_name_delete_project_file">Delete Project File</string>
+    <string name="tool_name_edit_project_file">Edit Project File</string>
+    <string name="tool_name_fetch_web_page">Fetch Web Page</string>
+    <string name="tool_name_fix_crash_guide">Fix Crash Guide</string>
+    <string name="tool_name_get_design_guide">Get Design Guide</string>
+    <string name="tool_name_get_project_memo">Get Project Memo</string>
+    <string name="tool_name_get_ui_pattern">Get UI Pattern</string>
+    <string name="tool_name_grep_project_files">Grep Project Files</string>
+    <string name="tool_name_inspect_ui">Inspect UI</string>
+    <string name="tool_name_interact_ui">Interact UI</string>
+    <string name="tool_name_launch_app">Launch App</string>
+    <string name="tool_name_list_project_files">List Project Files</string>
+    <string name="tool_name_read_project_file">Read Project File</string>
+    <string name="tool_name_read_runtime_log">Read Runtime Log</string>
+    <string name="tool_name_rename_project">Rename Project</string>
     <string name="tool_name_run_build_pipeline">Run Build Pipeline</string>
     <string name="tool_name_search_icon">Search Icon</string>
     <string name="tool_name_search_ui_pattern">Search UI Pattern</string>
+    <string name="tool_name_update_plan_step">Update Plan Step</string>
     <string name="tool_name_update_project_icon">Update Project Icon</string>
+    <string name="tool_name_update_project_icon_custom">Update Project Icon Custom</string>
     <string name="tool_name_update_project_intent">Update Project Intent</string>
     <string name="tool_name_web_search">Web Search</string>
     <string name="tool_name_write_project_file">Write Project File</string>
+
     <string name="project_memo_title">Project Memo</string>
     <string name="snapshot_history_title">Snapshot History</string>
     <string name="snapshot_history_empty">No snapshots found</string>

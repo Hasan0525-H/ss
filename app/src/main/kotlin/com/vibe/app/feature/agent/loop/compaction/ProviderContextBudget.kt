@@ -2,18 +2,35 @@ package com.vibe.app.feature.agent.loop.compaction
 
 import com.vibe.app.data.model.ClientType
 
+
 data class ProviderContextBudget(
     val maxTokens: Int,
     val recentTurns: Int,
 ) {
+
     companion object {
-        fun forProvider(clientType: ClientType): ProviderContextBudget = when (clientType) {
-            ClientType.ANTHROPIC -> ProviderContextBudget(maxTokens = 80_000, recentTurns = 5)
-            ClientType.OPENAI -> ProviderContextBudget(maxTokens = 60_000, recentTurns = 5)
-            ClientType.QWEN -> ProviderContextBudget(maxTokens = 40_000, recentTurns = 4)
-            ClientType.MINIMAX -> ProviderContextBudget(maxTokens = 40_000, recentTurns = 4)
-            ClientType.KIMI -> ProviderContextBudget(maxTokens = 24_000, recentTurns = 3)
-            ClientType.DEEPSEEK -> ProviderContextBudget(maxTokens = 60_000, recentTurns = 5)
+
+
+        fun forProvider(
+            clientType: ClientType
+        ): ProviderContextBudget = when (clientType) {
+
+
+            ClientType.OPEN_ROUTER ->
+                ProviderContextBudget(
+                    maxTokens = 60_000,
+                    recentTurns = 5
+                )
+
+
+            ClientType.CUSTOM ->
+                ProviderContextBudget(
+                    maxTokens = 60_000,
+                    recentTurns = 5
+                )
+
         }
+
     }
+
 }

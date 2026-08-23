@@ -71,14 +71,11 @@ class KimiChatCompletionsAgentGateway @Inject constructor(
             ModelExecutionTrace()
 
 
-
         val messages =
             buildMessages(request)
 
 
-
         trace.markRequestPrepared()
-
 
 
         val requestContext =
@@ -89,37 +86,28 @@ class KimiChatCompletionsAgentGateway @Inject constructor(
                 ?.let { diagnosticContext ->
 
                     ModelRequestDiagnosticContext(
-
                         diagnosticContext = diagnosticContext,
-
 
                         providerType =
                             request.platform.compatibleType
                                 .toDiagnosticProviderType(),
 
-
                         apiFamily =
                             "chat_completions",
-
 
                         model =
                             request.platform.model,
 
-
                         stream = true,
-
 
                         reasoningEnabled =
                             request.platform.reasoning,
 
-
                         estimatedContextTokens =
                             request.estimateContextTokensForDiagnostics(),
 
-
                         messageCount =
                             messages.size,
-
 
                         toolCount =
                             request.tools.size
@@ -127,17 +115,14 @@ class KimiChatCompletionsAgentGateway @Inject constructor(
                                     it > 0
                                 },
 
-
                         toolChoiceMode =
                             "auto"
                                 .takeIf {
                                     request.tools.isNotEmpty()
                                 },
 
-
                         systemPromptPresent =
                             true,
-
 
                         systemPromptChars =
                             request.instructions
@@ -146,12 +131,10 @@ class KimiChatCompletionsAgentGateway @Inject constructor(
                                     it > 0
                                 },
 
-
                         hasImages =
                             request.fullConversation.any {
                                 it.attachments.isNotEmpty()
                             },
-
 
                         imageCount =
                             request.fullConversation
@@ -161,22 +144,14 @@ class KimiChatCompletionsAgentGateway @Inject constructor(
                                 .takeIf {
                                     it > 0
                                 }
-
                     )
-
                 }
 
 
-
         data class ToolCallAccumulator(
-
             var id: String = "",
-
             var name: String = "",
-
-            val arguments:
-                StringBuilder = StringBuilder()
-
+            val arguments: StringBuilder = StringBuilder()
         )
 
 
@@ -191,17 +166,15 @@ class KimiChatCompletionsAgentGateway @Inject constructor(
 
 
         var streamError: String? = null
-                openAIAPI.streamQwenChatCompletion(
+              openAIAPI.streamQwenChatCompletion(
 
             QwenChatCompletionRequest(
 
                 model =
                     request.platform.model,
 
-
                 messages =
                     messages,
-
 
                 tools =
                     request.tools
@@ -218,10 +191,8 @@ class KimiChatCompletionsAgentGateway @Inject constructor(
                                         name =
                                             tool.name,
 
-
                                         description =
                                             tool.description,
-
 
                                         parameters =
                                             tool.inputSchema
@@ -233,21 +204,17 @@ class KimiChatCompletionsAgentGateway @Inject constructor(
 
                         },
 
-
                 toolChoice =
                     if (request.tools.isNotEmpty())
                         "auto"
                     else
                         null,
 
-
                 stream = true
 
             ),
 
-
             diagnosticContext = requestContext,
-
 
             trace = trace
 
@@ -384,7 +351,6 @@ class KimiChatCompletionsAgentGateway @Inject constructor(
             }
             .forEach { (_, acc) ->
 
-
                 trace.markToolCall()
 
 
@@ -411,7 +377,6 @@ class KimiChatCompletionsAgentGateway @Inject constructor(
                     }
 
 
-
                 emit(
 
                     AgentModelEvent.ToolCallReady(
@@ -421,10 +386,8 @@ class KimiChatCompletionsAgentGateway @Inject constructor(
                             id =
                                 acc.id,
 
-
                             name =
                                 acc.name,
-
 
                             arguments =
                                 arguments
@@ -447,22 +410,18 @@ class KimiChatCompletionsAgentGateway @Inject constructor(
                 }
 
 
-
         reasoningContent?.let {
             trace.markThinking(it)
         }
-
 
 
         trace.finishReason =
             finishReason
 
 
-
         trace.markCompleted(
             finishReason
         )
-
 
 
         if (requestContext != null) {
@@ -482,7 +441,6 @@ class KimiChatCompletionsAgentGateway @Inject constructor(
         }
 
 
-
         emit(
             AgentModelEvent.Completed(
                 reasoningContent = reasoningContent
@@ -491,172 +449,4 @@ class KimiChatCompletionsAgentGateway @Inject constructor(
 
     }
 
-
-
-    private fun buildMessages(
-        request: AgentModelRequest
-    ): List<QwenChatMessage> {
-
-
-        val messages =
-            mutableListOf<QwenChatMessage>()
-
-
-        val toolRequired =
-            request.policy.toolChoiceMode ==
-                    AgentToolChoiceMode.REQUIRED
-
-
-        val hasTools =
-            request.tools.isNotEmpty()
-
-
-
-        val systemContent =
-            buildString {
-
-                request.instructions
-                    ?.takeIf {
-                        it.isNotBlank()
-                    }
-                    ?.let {
-                        append(it)
-                    }
-
-
-                if (toolRequired && hasTools) {
-
-                    append("\n\n")
-
-                    append(
-                        TOOL_REQUIRED_INSTRUCTION
-                    )
-
-                } else if (hasTools) {
-
-                    append("\n\n")
-
-                    append(
-                        TOOL_ENCOURAGE_INSTRUCTION
-                    )
-
-                }
-
-            }.trim()
-
-
-
-        if (systemContent.isNotBlank()) {
-
-            messages += QwenChatMessage(
-
-                role = "system",
-
-                content =
-                    qwenTextContent(
-                        systemContent
-                    )
-
-            )
-
-        }
-
-
-
-        request.fullConversation.forEach { item ->
-
-            when(item.role) {
-
-
-                AgentMessageRole.USER ->
-
-                    messages += QwenChatMessage(
-
-                        role = "user",
-
-                        content =
-                            buildKimiUserContent(item)
-
-                    )
-
-
-
-                AgentMessageRole.ASSISTANT ->
-
-                    messages += QwenChatMessage(
-
-                        role = "assistant",
-
-                        content =
-                            qwenTextContent(item.text),
-
-
-                        reasoningContent =
-                            item.reasoningContent,
-
-
-                        toolCalls =
-                            item.toolCalls
-                                ?.map { toolCall ->
-
-                                    QwenToolCall(
-
-                                        id =
-                                            toolCall.id,
-
-
-                                        function =
-                                            QwenFunctionCall(
-
-                                                name =
-                                                    toolCall.name,
-
-
-                                                arguments =
-                                                    toolCall.arguments
-                                                        .toString()
-
-                                            )
-
-                                    )
-
-                                }
-                                ?.takeIf {
-                                    it.isNotEmpty()
-                                }
-
-                    )
-
-
-
-                AgentMessageRole.TOOL ->
-
-                    messages += QwenChatMessage(
-
-                        role = "tool",
-
-                        content =
-                            qwenTextContent(
-                                item.payload?.toString()
-                                    ?: item.text.orEmpty()
-                            ),
-
-
-                        toolCallId =
-                            item.toolCallId
-
-                    )
-
-
-
-                AgentMessageRole.SYSTEM -> Unit
-
-            }
-
-        }
-
-
-
-        return messages
-
-    }
+}  

@@ -55,26 +55,21 @@
         Select the API provider you want to use
     </string>
 
-
     <string name="platform_name">
         Platform Name
     </string>
-
 
     <string name="platform_name_hint">
         My OpenRouter Platform
     </string>
 
-
     <string name="api_key_description">
         Enter your API key. Stored locally on your device.
     </string>
 
-
     <string name="model_description">
         Enter the model identifier you want to use.
     </string>
-
 
     <string name="finish">
         Finish
@@ -91,20 +86,24 @@
         Nucleus sampling (Top p)
     </string>
 
-
     <string name="not_set">
         Not set
     </string>
-
 
     <string name="delete">
         Delete
     </string>
 
-
     <string name="remove">
         Remove
     </string>
+
+
+    <!-- Theme -->
+
+    <string name="on">On</string>
+    <string name="off">Off</string>
+    <string name="system_default">System Default</string>
 
 
 </resources>

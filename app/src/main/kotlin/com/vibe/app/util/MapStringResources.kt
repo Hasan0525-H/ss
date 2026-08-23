@@ -20,11 +20,24 @@ fun getThemeModeTitle(theme: ThemeMode) = when (theme) {
     ThemeMode.LIGHT -> stringResource(R.string.off)
 }
 
-fun getClientTypeDisplayName(clientType: ClientType): String = when (clientType) {
-    ClientType.OPENAI -> "OpenAI"
-    ClientType.ANTHROPIC -> "Anthropic"
-    ClientType.QWEN -> "Qwen"
-    ClientType.KIMI -> "Kimi"
-    ClientType.MINIMAX -> "MiniMax"
-    ClientType.DEEPSEEK -> "DeepSeek"
-}
+fun getClientTypeDisplayName(clientType: ClientType): String =
+    when (clientType) {
+
+        ClientType.OPENAI ->
+            "OpenAI"
+
+        ClientType.ANTHROPIC ->
+            "Anthropic"
+
+        ClientType.QWEN ->
+            "Qwen"
+
+        ClientType.KIMI ->
+            "Kimi"
+
+        ClientType.OPEN_ROUTER ->
+            "OpenRouter"
+
+        ClientType.CUSTOM ->
+            "Custom API"
+    }

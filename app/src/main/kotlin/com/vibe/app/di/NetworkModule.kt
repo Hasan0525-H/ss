@@ -14,35 +14,52 @@ import dagger.hilt.components.SingletonComponent
 import io.ktor.client.engine.okhttp.OkHttp
 import javax.inject.Singleton
 
+
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
+
 
     @Provides
     @Singleton
     fun provideNetworkClient(
         @ApplicationContext context: Context
     ): NetworkClient {
+
         return NetworkClient(
+
             OkHttp.create {
+
                 addInterceptor(
+
                     ChuckerInterceptor.Builder(context)
                         .build()
+
                 )
+
             }
+
         )
+
     }
+
 
 
     @Provides
     @Singleton
     fun provideOpenAIAPI(
         networkClient: NetworkClient,
-        diagnosticLogger: ChatDiagnosticLogger,
+        diagnosticLogger: ChatDiagnosticLogger
     ): OpenAIAPI {
+
         return OpenAIAPIImpl(
-            networkClient,
-            diagnosticLogger
+
+            networkClient = networkClient,
+
+            diagnosticLogger = diagnosticLogger
+
         )
+
     }
+
 }

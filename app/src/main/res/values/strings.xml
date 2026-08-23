@@ -9,10 +9,14 @@
     <!-- API Providers -->
 
     <string name="openrouter" translatable="false">OpenRouter</string>
-    <string name="openrouter_description">Access multiple AI models through OpenRouter API.</string>
+    <string name="openrouter_description">
+        Access multiple AI models through OpenRouter API.
+    </string>
 
     <string name="custom_api" translatable="false">Custom API</string>
-    <string name="custom_api_description">Use a custom compatible API endpoint.</string>
+    <string name="custom_api_description">
+        Use a custom compatible API endpoint.
+    </string>
 
 
 
@@ -23,7 +27,10 @@
     <string name="need_help">Need Help?</string>
 
     <string name="setup_complete">You’re all set!</string>
-    <string name="setup_complete_description">Let’s start using VibeApp!</string>
+    <string name="setup_complete_description">
+        Let’s start using VibeApp!
+    </string>
+
     <string name="setup_complete_logo">Setup Complete</string>
 
     <string name="done">Done</string>
@@ -44,11 +51,17 @@
     <string name="api_model">API Model</string>
     <string name="api_url">API URL</string>
 
-    <string name="api_url_hint">https://openrouter.ai/api/</string>
+    <string name="api_url_hint">
+        https://openrouter.ai/api/
+    </string>
 
-    <string name="api_key_hint">sk-or-v1-…</string>
+    <string name="api_key_hint">
+        sk-or-v1-…
+    </string>
 
-    <string name="model_name">Model Identifier</string>
+    <string name="model_name">
+        Model Identifier
+    </string>
 
     <string name="model">Model</string>
 
@@ -56,13 +69,17 @@
 
     <!-- Setup Wizard -->
 
-    <string name="choose_platform_type">Choose Platform Type</string>
+    <string name="choose_platform_type">
+        Choose Platform Type
+    </string>
 
     <string name="choose_platform_type_description">
         Select the API provider you want to use
     </string>
 
-    <string name="platform_name">Platform Name</string>
+    <string name="platform_name">
+        Platform Name
+    </string>
 
     <string name="platform_name_hint">
         My OpenRouter Platform
@@ -112,45 +129,65 @@
         Switched to %1$s
     </string>
 
-    <string name="finish">Finish</string>
+    <string name="finish">
+        Finish
+    </string>
 
 
 
     <!-- Settings Screen -->
 
-    <string name="theme_settings">Theme Settings</string>
+    <string name="theme_settings">
+        Theme Settings
+    </string>
 
     <string name="theme_description">
         Customize application appearance.
     </string>
 
-    <string name="about">About</string>
+    <string name="about">
+        About
+    </string>
 
     <string name="about_description">
         Application information.
     </string>
 
-    <string name="dynamic_theme">Dynamic Theme</string>
+    <string name="dynamic_theme">
+        Dynamic Theme
+    </string>
 
-    <string name="dark_mode">Dark Mode</string>
+    <string name="dark_mode">
+        Dark Mode
+    </string>
 
-    <string name="enabled">Enabled</string>
+    <string name="enabled">
+        Enabled
+    </string>
 
-    <string name="disabled">Disabled</string>
+    <string name="disabled">
+        Disabled
+    </string>
 
-    <string name="add_platform">Add Platform</string>
+    <string name="add_platform">
+        Add Platform
+    </string>
 
     <string name="add_platform_description">
         Add a new API platform.
     </string>
 
-    <string name="delete_platform">Delete Platform</string>
+    <string name="delete_platform">
+        Delete Platform
+    </string>
 
     <string name="delete_platform_confirmation">
         Are you sure you want to delete this platform?
     </string>
 
-    <string name="debug_log">Debug Log</string>
+    <string name="debug_log">
+        Debug Log
+    </string>
 
     <string name="debug_log_description">
         View application debug information.
@@ -168,7 +205,9 @@
         Configure platform options.
     </string>
 
-    <string name="top_p_setting">Top P</string>
+    <string name="top_p_setting">
+        Top P
+    </string>
 
     <string name="top_p_setting_description">
         Controls nucleus sampling value.
@@ -182,7 +221,9 @@
         Controls creativity of generated responses.
     </string>
 
-    <string name="reset">Reset</string>
+    <string name="reset">
+        Reset
+    </string>
 
     <string name="system_prompt_setting">
         System Prompt
@@ -270,13 +311,31 @@
 
 
 
+    <!-- Home Screen -->
+
+    <string name="new_project">
+        New Project
+    </string>
+
+    <string name="delete_selected_projects">
+        Delete Selected Projects
+    </string>
+
+
+
     <!-- Common -->
 
-    <string name="save">Save</string>
+    <string name="save">
+        Save
+    </string>
 
-    <string name="edit">Edit</string>
+    <string name="edit">
+        Edit
+    </string>
 
-    <string name="close">Close</string>
+    <string name="close">
+        Close
+    </string>
 
     <string name="arrow_icon">
         Arrow Icon
@@ -318,9 +377,13 @@
 
     <!-- Theme -->
 
-    <string name="on">On</string>
+    <string name="on">
+        On
+    </string>
 
-    <string name="off">Off</string>
+    <string name="off">
+        Off
+    </string>
 
     <string name="system_default">
         System Default

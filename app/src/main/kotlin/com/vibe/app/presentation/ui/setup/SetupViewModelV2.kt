@@ -487,3 +487,274 @@ class SetupViewModelV2 @Inject constructor(
 
     }
 }
+    fun savePlatform() {
+
+        val clientType =
+            _selectedClientType.value
+                ?: return
+
+
+        viewModelScope.launch {
+
+            _saveStatus.value =
+                SaveStatus.Saving
+
+
+            try {
+
+                val platform =
+                    PlatformV2(
+
+                        name =
+                            _platformName.value.trim(),
+
+
+                        compatibleType =
+                            clientType,
+
+
+                        enabled = true,
+
+
+                        apiUrl =
+                            _apiUrl.value.trim(),
+
+
+                        token =
+                            _apiKey.value
+                                .trim()
+                                .takeIf {
+                                    it.isNotEmpty()
+                                },
+
+
+                        model =
+                            _model.value.trim(),
+
+
+                        temperature = 1.0f,
+
+
+                        topP = 1.0f,
+
+
+                        systemPrompt = null,
+
+
+                        stream = true,
+
+
+                        reasoning = false,
+
+
+                        timeout = 30
+
+                    )
+
+
+
+                val allPlatforms =
+                    settingRepository.fetchPlatformV2s()
+
+
+
+                val othersEnabled =
+                    allPlatforms.filter {
+                        it.enabled
+                    }
+
+
+
+                othersEnabled.forEach { other ->
+
+                    settingRepository.updatePlatformV2(
+                        other.copy(
+                            enabled = false
+                        )
+                    )
+
+                }
+
+
+
+                settingRepository.addPlatformV2(
+                    platform
+                )
+
+
+
+                if (othersEnabled.isNotEmpty()) {
+
+                    _switchedPlatformEvent.emit(
+                        platform.name
+                    )
+
+                }
+
+
+
+                loadPlatforms()
+
+
+                _saveStatus.value =
+                    SaveStatus.Success
+
+
+                resetWizard()
+
+
+
+            } catch (e: Exception) {
+
+
+                Log.e(
+                    TAG,
+                    "Failed to save platform",
+                    e
+                )
+
+
+                _saveStatus.value =
+                    SaveStatus.Error(
+                        e.message
+                            ?: "Unknown error"
+                    )
+
+            }
+
+        }
+
+    }
+
+
+
+    fun clearSaveStatus() {
+
+        _saveStatus.value =
+            SaveStatus.Idle
+
+    }
+
+
+
+    fun deletePlatform(
+        platform: PlatformV2
+    ) {
+
+        viewModelScope.launch {
+
+            settingRepository.deletePlatformV2(
+                platform
+            )
+
+            loadPlatforms()
+
+        }
+
+    }
+
+
+
+    fun canProceedFromStep(
+        step: Int
+    ): Boolean =
+        when(step) {
+
+            0 ->
+                _platformName.value.isNotBlank()
+                    &&
+                _apiUrl.value.isNotBlank()
+
+
+            1 ->
+                _model.value.isNotBlank()
+
+
+            2 ->
+                true
+
+
+            else ->
+                false
+
+        }
+
+
+
+    fun isSetupComplete(): Boolean =
+        _platforms.value.isNotEmpty()
+
+
+
+    private fun getDefaultPlatformName(
+        clientType: ClientType
+    ): String =
+        when(clientType) {
+
+            ClientType.OPEN_ROUTER ->
+                "OpenRouter"
+
+
+            ClientType.CUSTOM ->
+                "Custom API"
+
+        }
+
+
+
+    private fun getDefaultApiUrl(
+        clientType: ClientType
+    ): String =
+        when(clientType) {
+
+            ClientType.OPEN_ROUTER ->
+                ModelConstants.OPENROUTER_API_URL
+
+
+            ClientType.CUSTOM ->
+                ModelConstants.CUSTOM_API_URL
+
+        }
+
+
+
+    private fun getDefaultModel(
+        clientType: ClientType
+    ): String =
+        when(clientType) {
+
+            ClientType.OPEN_ROUTER ->
+                "google/gemini-2.5-pro"
+
+
+            ClientType.CUSTOM ->
+                ""
+
+        }
+
+
+
+    companion object {
+
+        private const val TAG =
+            "SetupViewModelV2"
+
+
+        const val WIZARD_STEP_BASICS =
+            0
+
+
+        const val WIZARD_STEP_MODEL =
+            1
+
+
+        const val WIZARD_STEP_API_KEY =
+            2
+
+
+        const val WIZARD_TOTAL_STEPS =
+            3
+
+    }
+
+}

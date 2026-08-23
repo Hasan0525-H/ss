@@ -10,15 +10,38 @@ import kotlinx.coroutines.flow.Flow
 
 interface OpenAIAPI {
 
+    /**
+     * تحديث مفتاح API للمزود الحالي
+     */
     fun setToken(token: String?)
 
+
+    /**
+     * تحديث رابط API المخصص
+     * يستخدم مع Custom API
+     */
     fun setAPIUrl(url: String)
 
+
+    /**
+     * تحديد نوع المزود
+     *
+     * OPEN_ROUTER:
+     * يستخدم OpenRouter API
+     *
+     * CUSTOM:
+     * يستخدم رابط المستخدم
+     */
     fun setProvider(
         type: String,
         customUrl: String? = null
     )
 
+
+    /**
+     * OpenAI compatible Chat Completions API
+     * يعمل مع OpenRouter ومعظم المزودات المتوافقة
+     */
     fun streamChatCompletion(
         request: ChatCompletionRequest,
         diagnosticContext: ModelRequestDiagnosticContext? = null,
@@ -26,6 +49,10 @@ interface OpenAIAPI {
     ): Flow<ChatCompletionChunk>
 
 
+    /**
+     * OpenAI Responses API
+     * يعمل مع المزودات التي تدعم Responses endpoint
+     */
     fun streamResponses(
         request: ResponsesRequest,
         diagnosticContext: ModelRequestDiagnosticContext? = null,

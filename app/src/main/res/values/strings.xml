@@ -24,6 +24,7 @@
 
     <string name="setup_complete">You’re all set!</string>
     <string name="setup_complete_description">Let’s start using VibeApp!</string>
+    <string name="setup_complete_logo">Setup Complete</string>
 
     <string name="done">Done</string>
 
@@ -34,6 +35,9 @@
     <string name="go_back">Go back</string>
 
     <string name="enable_api">Enable API</string>
+
+
+    <!-- API -->
 
     <string name="api_key">API Key</string>
     <string name="api_model">API Model</string>
@@ -141,6 +145,79 @@
 
 
 
+    <!-- Settings Screen -->
+
+    <string name="theme_settings">
+        Theme Settings
+    </string>
+
+
+    <string name="theme_description">
+        Customize application appearance.
+    </string>
+
+
+    <string name="about">
+        About
+    </string>
+
+
+    <string name="about_description">
+        Application information.
+    </string>
+
+
+    <string name="dynamic_theme">
+        Dynamic Theme
+    </string>
+
+
+    <string name="dark_mode">
+        Dark Mode
+    </string>
+
+
+    <string name="enabled">
+        Enabled
+    </string>
+
+
+    <string name="disabled">
+        Disabled
+    </string>
+
+
+    <string name="add_platform">
+        Add Platform
+    </string>
+
+
+    <string name="add_platform_description">
+        Add a new API platform.
+    </string>
+
+
+    <string name="delete_platform">
+        Delete Platform
+    </string>
+
+
+    <string name="delete_platform_confirmation">
+        Are you sure you want to delete this platform?
+    </string>
+
+
+    <string name="debug_log">
+        Debug Log
+    </string>
+
+
+    <string name="debug_log_description">
+        View application debug information.
+    </string>
+
+
+
     <!-- Settings -->
 
     <string name="temperature">
@@ -172,8 +249,12 @@
     <!-- Theme -->
 
     <string name="on">On</string>
+
     <string name="off">Off</string>
-    <string name="system_default">System Default</string>
+
+    <string name="system_default">
+        System Default
+    </string>
 
 
 </resources>

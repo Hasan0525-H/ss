@@ -10,12 +10,13 @@ import com.vibe.app.data.database.dao.PlatformV2Dao
 import com.vibe.app.data.database.dao.ProjectDao
 import com.vibe.app.data.database.entity.ChatPlatformModelV2
 import com.vibe.app.data.database.entity.ChatRoomV2
+import com.vibe.app.data.database.entity.ClientTypeConverter
 import com.vibe.app.data.database.entity.MessageV2
 import com.vibe.app.data.database.entity.PlatformV2
 import com.vibe.app.data.database.entity.Project
 import com.vibe.app.data.database.entity.ProjectBuildStatusConverter
 import com.vibe.app.data.database.entity.StringListConverter
-import com.vibe.app.data.database.entity.ClientTypeConverter
+
 
 @Database(
     entities = [
@@ -26,7 +27,7 @@ import com.vibe.app.data.database.entity.ClientTypeConverter
         Project::class
     ],
     version = 3,
-    exportSchema = true,
+    exportSchema = true
 )
 @TypeConverters(
     StringListConverter::class,
@@ -35,13 +36,19 @@ import com.vibe.app.data.database.entity.ClientTypeConverter
 )
 abstract class ChatDatabaseV2 : RoomDatabase() {
 
+
     abstract fun platformDao(): PlatformV2Dao
+
 
     abstract fun chatRoomDao(): ChatRoomV2Dao
 
+
     abstract fun messageDao(): MessageV2Dao
+
 
     abstract fun chatPlatformModelDao(): ChatPlatformModelV2Dao
 
+
     abstract fun projectDao(): ProjectDao
+
 }

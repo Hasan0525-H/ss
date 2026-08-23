@@ -8,47 +8,42 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 
+
 /**
- * Routes agent model requests to the appropriate [AgentModelGateway] implementation based on
- * the platform's [ClientType].
+ * Routes agent model requests based on the selected platform type.
  *
- * Routing table:
- * - [ClientType.ANTHROPIC] → [AnthropicMessagesAgentGateway]
- * - [ClientType.MINIMAX]   → [AnthropicMessagesAgentGateway] (Anthropic-compatible API)
- * - [ClientType.QWEN]      → [QwenChatCompletionsAgentGateway]
- * - [ClientType.KIMI]      → [KimiChatCompletionsAgentGateway]
- * - [ClientType.OPENAI]    → [OpenAiResponsesAgentGateway]
+ * OPEN_ROUTER:
+ * Uses OpenAI compatible Responses API.
  *
- * New providers can be added here without touching the coordinator or DI graph.
+ * CUSTOM:
+ * Uses OpenAI compatible custom endpoint.
  */
 @Singleton
 class ProviderAgentGatewayRouter @Inject constructor(
     private val openAiGateway: OpenAiResponsesAgentGateway,
-    private val qwenGateway: QwenChatCompletionsAgentGateway,
-    private val kimiGateway: KimiChatCompletionsAgentGateway,
-    private val anthropicGateway: AnthropicMessagesAgentGateway,
-    private val deepSeekGateway: DeepSeekChatCompletionsAgentGateway,
 ) : AgentModelGateway {
 
-    override suspend fun streamTurn(request: AgentModelRequest): Flow<AgentModelEvent> {
-        return when (request.platform.compatibleType) {
-            ClientType.ANTHROPIC -> anthropicGateway.streamTurn(request)
-            ClientType.MINIMAX -> anthropicGateway.streamTurn(request.withMiniMaxAnthropicUrl())
-            ClientType.QWEN -> qwenGateway.streamTurn(request)
-            ClientType.KIMI -> kimiGateway.streamTurn(request)
-            ClientType.OPENAI -> openAiGateway.streamTurn(request)
-            ClientType.DEEPSEEK -> deepSeekGateway.streamTurn(request)
-        }
-    }
-}
 
-/**
- * Ensures the MiniMax platform URL points to the Anthropic-compatible endpoint.
- * Migrates old OpenAI-style URLs (e.g. `https://api.minimaxi.com/`) to the
- * Anthropic path (`https://api.minimaxi.com/anthropic/`).
- */
-private fun AgentModelRequest.withMiniMaxAnthropicUrl(): AgentModelRequest {
-    val url = platform.apiUrl.trimEnd('/')
-    if (url.endsWith("/anthropic")) return this
-    return copy(platform = platform.copy(apiUrl = "$url/anthropic/"))
+    override suspend fun streamTurn(
+        request: AgentModelRequest
+    ): Flow<AgentModelEvent> {
+
+
+        return when (
+            request.platform.compatibleType
+        ) {
+
+
+            ClientType.OPEN_ROUTER ->
+                openAiGateway.streamTurn(request)
+
+
+
+            ClientType.CUSTOM ->
+                openAiGateway.streamTurn(request)
+
+        }
+
+    }
+
 }

@@ -12,6 +12,7 @@ object ModelConstants {
         "OPEN_ROUTER"
 
 
+
     const val CHAT_TITLE_GENERATE_PROMPT =
         "Create a title that summarizes the chat. " +
             "The output must match the language that the user and the opponent is using, and should be less than 50 letters. " +

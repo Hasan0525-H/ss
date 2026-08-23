@@ -9,42 +9,139 @@ import com.vibe.app.data.model.DynamicTheme
 import com.vibe.app.data.model.ThemeMode
 import javax.inject.Inject
 
+
 class SettingRepositoryImpl @Inject constructor(
     private val settingDataSource: SettingDataSource,
     private val platformV2Dao: PlatformV2Dao,
     private val chatPlatformModelV2Dao: ChatPlatformModelV2Dao
 ) : SettingRepository {
 
-    override suspend fun fetchPlatformV2s(): List<PlatformV2> = platformV2Dao.getPlatforms()
 
-    override suspend fun fetchThemes(): ThemeSetting = ThemeSetting(
-        dynamicTheme = settingDataSource.getDynamicTheme() ?: DynamicTheme.OFF,
-        themeMode = settingDataSource.getThemeMode() ?: ThemeMode.SYSTEM
-    )
+    override suspend fun fetchPlatformV2s(): List<PlatformV2> =
+        platformV2Dao.getPlatforms()
 
-    override suspend fun updateThemes(themeSetting: ThemeSetting) {
-        settingDataSource.updateDynamicTheme(themeSetting.dynamicTheme)
-        settingDataSource.updateThemeMode(themeSetting.themeMode)
+
+
+    override suspend fun fetchThemes(): ThemeSetting =
+        ThemeSetting(
+            dynamicTheme =
+            settingDataSource.getDynamicTheme()
+                ?: DynamicTheme.OFF,
+
+            themeMode =
+            settingDataSource.getThemeMode()
+                ?: ThemeMode.SYSTEM
+        )
+
+
+
+    override suspend fun updateThemes(
+        themeSetting: ThemeSetting
+    ) {
+
+        settingDataSource.updateDynamicTheme(
+            themeSetting.dynamicTheme
+        )
+
+        settingDataSource.updateThemeMode(
+            themeSetting.themeMode
+        )
     }
 
-    override suspend fun addPlatformV2(platform: PlatformV2) {
-        platformV2Dao.addPlatform(platform)
+
+
+    override suspend fun addPlatformV2(
+        platform: PlatformV2
+    ) {
+
+        platformV2Dao.addPlatform(
+            platform
+        )
     }
 
-    override suspend fun updatePlatformV2(platform: PlatformV2) {
-        platformV2Dao.editPlatform(platform)
+
+
+    override suspend fun updatePlatformV2(
+        platform: PlatformV2
+    ) {
+
+        platformV2Dao.editPlatform(
+            platform
+        )
     }
 
-    override suspend fun deletePlatformV2(platform: PlatformV2) {
-        chatPlatformModelV2Dao.deleteByPlatformUid(platform.uid)
-        platformV2Dao.deletePlatform(platform)
+
+
+    override suspend fun deletePlatformV2(
+        platform: PlatformV2
+    ) {
+
+        chatPlatformModelV2Dao.deleteByPlatformUid(
+            platform.uid
+        )
+
+        platformV2Dao.deletePlatform(
+            platform
+        )
     }
 
-    override suspend fun getPlatformV2ById(id: Int): PlatformV2? = platformV2Dao.getPlatform(id)
 
-    override suspend fun getDebugMode(): Boolean = settingDataSource.getDebugMode()
 
-    override suspend fun updateDebugMode(enabled: Boolean) {
-        settingDataSource.updateDebugMode(enabled)
+    override suspend fun getPlatformV2ById(
+        id: Int
+    ): PlatformV2? =
+        platformV2Dao.getPlatform(id)
+
+
+
+    override suspend fun getDebugMode(): Boolean =
+        settingDataSource.getDebugMode()
+
+
+
+    override suspend fun updateDebugMode(
+        enabled: Boolean
+    ) {
+
+        settingDataSource.updateDebugMode(
+            enabled
+        )
     }
+
+
+
+    override suspend fun saveApiSettings(
+        provider: String,
+        apiKey: String,
+        customUrl: String
+    ) {
+
+        settingDataSource.updateApiProvider(
+            provider
+        )
+
+        settingDataSource.updateApiKey(
+            apiKey
+        )
+
+        settingDataSource.updateCustomApiUrl(
+            customUrl
+        )
+    }
+
+
+
+    override suspend fun getApiProvider(): String =
+        settingDataSource.getApiProvider()
+
+
+
+    override suspend fun getApiKey(): String =
+        settingDataSource.getApiKey()
+
+
+
+    override suspend fun getCustomApiUrl(): String =
+        settingDataSource.getCustomApiUrl()
+
 }

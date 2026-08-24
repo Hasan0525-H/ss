@@ -248,6 +248,8 @@ fun ClientType.toDiagnosticProviderType(): String = when (this) {
     ClientType.KIMI -> "kimi"
     ClientType.MINIMAX -> "minimax"
     ClientType.DEEPSEEK -> "deepseek"
+    ClientType.OPEN_ROUTER -> "open_router"
+    ClientType.CUSTOM -> "custom"
 }
 
 fun String.clipPreview(maxLength: Int = 240): String {

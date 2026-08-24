@@ -82,6 +82,13 @@ class SetupViewModelV2 @Inject constructor(
         _model.asStateFlow()
 
 
+    private val _isFreePlan =
+        MutableStateFlow(true)
+
+    val isFreePlan: StateFlow<Boolean> =
+        _isFreePlan.asStateFlow()
+
+
     private val _saveStatus =
         MutableStateFlow<SaveStatus>(SaveStatus.Idle)
 
@@ -126,7 +133,10 @@ class SetupViewModelV2 @Inject constructor(
         _model.value =
             getDefaultModel(clientType)
 
-        _wizardStep.value = 2
+        _isFreePlan.value = true
+
+        // البدء بالخطوة الأولى: الأساسيات والـ API Key
+        _wizardStep.value = WIZARD_STEP_BASICS
     }
 
 
@@ -147,6 +157,11 @@ class SetupViewModelV2 @Inject constructor(
 
     fun updateModel(modelName: String) {
         _model.value = modelName
+    }
+
+
+    fun updatePlanType(isFree: Boolean) {
+        _isFreePlan.value = isFree
     }
 
 
@@ -172,6 +187,7 @@ class SetupViewModelV2 @Inject constructor(
         _apiUrl.value = ""
         _apiKey.value = ""
         _model.value = ""
+        _isFreePlan.value = true
     }
 
 
@@ -203,6 +219,7 @@ class SetupViewModelV2 @Inject constructor(
                             },
 
                         model = _model.value.trim(),
+                        isFree = _isFreePlan.value,
                         temperature = 1.0f,
                         topP = 1.0f,
                         systemPrompt = null,
@@ -299,16 +316,15 @@ class SetupViewModelV2 @Inject constructor(
     ): Boolean =
         when (step) {
 
-            0 ->
-                _platformName.value.isNotBlank()
-                    &&
-                _apiUrl.value.isNotBlank()
+            WIZARD_STEP_BASICS ->
+                _platformName.value.isNotBlank() &&
+                    _apiUrl.value.isNotBlank()
 
-            1 ->
+            WIZARD_STEP_API_KEY ->
+                _apiKey.value.isNotBlank()
+
+            WIZARD_STEP_MODEL ->
                 _model.value.isNotBlank()
-
-            2 ->
-                true
 
             else ->
                 false
@@ -411,11 +427,11 @@ class SetupViewModelV2 @Inject constructor(
             0
 
 
-        const val WIZARD_STEP_MODEL =
+        const val WIZARD_STEP_API_KEY =
             1
 
 
-        const val WIZARD_STEP_API_KEY =
+        const val WIZARD_STEP_MODEL =
             2
 
 

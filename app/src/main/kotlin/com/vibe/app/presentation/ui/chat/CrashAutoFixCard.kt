@@ -19,11 +19,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.vibe.app.R
 
 @Composable
 fun CrashAutoFixCard(
@@ -51,7 +49,7 @@ fun CrashAutoFixCard(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = stringResource(R.string.crash_detected_title),
+                    text = "App Crashed", // بدلاً من crash_detected_title
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onErrorContainer,
                 )
@@ -76,7 +74,7 @@ fun CrashAutoFixCard(
                     ),
                 ) {
                     Text(
-                        text = stringResource(R.string.crash_dismiss),
+                        text = "Dismiss", // بدلاً من crash_dismiss
                         style = MaterialTheme.typography.labelMedium,
                     )
                 }
@@ -89,7 +87,7 @@ fun CrashAutoFixCard(
                     ),
                 ) {
                     Text(
-                        text = stringResource(R.string.crash_auto_fix),
+                        text = "Auto Fix", // بدلاً من crash_auto_fix
                         style = MaterialTheme.typography.labelMedium,
                     )
                 }

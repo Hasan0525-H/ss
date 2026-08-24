@@ -13,9 +13,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.vibe.app.R
 import com.vibe.app.feature.project.snapshot.Snapshot
 import com.vibe.app.feature.project.snapshot.SnapshotType
 import java.text.SimpleDateFormat
@@ -37,13 +35,13 @@ fun SnapshotHistoryPanel(
     val context = LocalContext.current
     Column(modifier = modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 12.dp)) {
         Text(
-            text = stringResource(R.string.snapshot_history_title),
+            text = "Snapshot History", // بدلاً من snapshot_history_title
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(start = 16.dp, bottom = 12.dp),
         )
         if (snapshots.isEmpty()) {
             Text(
-                text = stringResource(R.string.snapshot_history_empty),
+                text = "No snapshots available.", // بدلاً من snapshot_history_empty
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp),
@@ -56,32 +54,21 @@ fun SnapshotHistoryPanel(
                     headlineContent = {
                         Text(
                             text = when (snap.type) {
-                                SnapshotType.TURN -> stringResource(
-                                    R.string.snapshot_history_turn_label,
-                                    snap.turnIndex?.toString() ?: "?",
-                                    snap.label,
-                                )
-                                SnapshotType.MANUAL -> stringResource(
-                                    R.string.snapshot_history_manual_label,
-                                    snap.label,
-                                )
+                                SnapshotType.TURN -> "Turn ${snap.turnIndex ?: "?"}: ${snap.label}"
+                                SnapshotType.MANUAL -> "Manual: ${snap.label}"
                             },
                             style = MaterialTheme.typography.bodyMedium,
                         )
                     },
                     supportingContent = {
                         Text(
-                            text = stringResource(
-                                R.string.snapshot_history_supporting,
-                                formatRelativeTime(context, snap.createdAtEpochMs),
-                                snap.affectedFiles.size,
-                            ),
+                            text = "${formatRelativeTime(context, snap.createdAtEpochMs)} • ${snap.affectedFiles.size} files affected",
                             style = MaterialTheme.typography.bodySmall,
                         )
                     },
                     trailingContent = {
                         TextButton(onClick = { onRestoreClick(snap) }) {
-                            Text(stringResource(R.string.snapshot_history_restore))
+                            Text("Restore") // بدلاً من snapshot_history_restore
                         }
                     },
                 )
@@ -95,9 +82,9 @@ private fun formatRelativeTime(context: android.content.Context, epochMs: Long):
     val now = System.currentTimeMillis()
     val diffMs = now - epochMs
     return when {
-        diffMs < 60_000 -> context.getString(R.string.snapshot_time_just_now)
-        diffMs < 3_600_000 -> context.getString(R.string.snapshot_time_minutes_ago, (diffMs / 60_000).toInt())
-        diffMs < 86_400_000 -> context.getString(R.string.snapshot_time_hours_ago, (diffMs / 3_600_000).toInt())
+        diffMs < 60_000 -> "Just now"
+        diffMs < 3_600_000 -> "${(diffMs / 60_000).toInt()}m ago"
+        diffMs < 86_400_000 -> "${(diffMs / 3_600_000).toInt()}h ago"
         else -> SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(epochMs))
     }
 }

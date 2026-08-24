@@ -5,6 +5,7 @@ import com.chuckerteam.chucker.api.ChuckerInterceptor
 import com.vibe.app.data.network.NetworkClient
 import com.vibe.app.data.network.OpenAIAPI
 import com.vibe.app.data.network.OpenAIAPIImpl
+import com.vibe.app.data.network.OpenRouterModelsAPI
 import com.vibe.app.feature.diagnostic.ChatDiagnosticLogger
 import dagger.Module
 import dagger.Provides
@@ -12,6 +13,8 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import io.ktor.client.engine.okhttp.OkHttp
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
 import javax.inject.Singleton
 
 
@@ -59,6 +62,20 @@ object NetworkModule {
             diagnosticLogger = diagnosticLogger
 
         )
+
+    }
+
+
+
+    @Provides
+    @Singleton
+    fun provideOpenRouterModelsAPI(): OpenRouterModelsAPI {
+
+        return Retrofit.Builder()
+            .baseUrl("https://openrouter.ai/")
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(OpenRouterModelsAPI::class.java)
 
     }
 

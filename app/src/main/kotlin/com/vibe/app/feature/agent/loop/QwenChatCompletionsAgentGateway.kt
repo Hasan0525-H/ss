@@ -42,30 +42,20 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
         request: AgentModelRequest
     ): Flow<AgentModelEvent> = flow {
 
-        openAIAPI.setToken(
-            request.platform.token
-        )
-
-        openAIAPI.setAPIUrl(
-            request.platform.apiUrl.toQwenChatCompletionsBaseUrl()
-        )
-
+        openAIAPI.setToken(request.platform.token)
+        openAIAPI.setAPIUrl(request.platform.apiUrl.toQwenChatCompletionsBaseUrl())
         openAIAPI.setProvider(
             type = request.platform.compatibleType.name,
             customUrl = request.platform.apiUrl
         )
 
         val trace = ModelExecutionTrace()
-
         val effectiveToolChoice = request.toQwenToolChoice()
         val messages = buildMessages(request)
-
         trace.markRequestPrepared()
 
         val requestContext = request.diagnosticContext
-            ?.copy(
-                platformUid = request.platform.uid
-            )
+            ?.copy(platformUid = request.platform.uid)
             ?.let { diagnosticContext ->
                 ModelRequestDiagnosticContext(
                     diagnosticContext = diagnosticContext,
@@ -124,7 +114,6 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
             }
 
             val choice = chunk.choices?.firstOrNull() ?: return@collect
-
             finishReason = choice.finishReason ?: finishReason
 
             choice.delta?.content
@@ -193,28 +182,20 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
 
     private fun buildMessages(request: AgentModelRequest): List<QwenChatMessage> {
         val messages = mutableListOf<QwenChatMessage>()
-
         val toolRequired = request.policy.toolChoiceMode == AgentToolChoiceMode.REQUIRED
         val hasTools = request.tools.isNotEmpty()
 
         val systemContent = buildString {
-            request.instructions?.takeIf { it.isNotBlank() }?.let {
-                append(it)
-            }
+            request.instructions?.takeIf { it.isNotBlank() }?.let { append(it) }
             if (toolRequired && hasTools) {
-                append("\n\n")
-                append(TOOL_REQUIRED_INSTRUCTION)
+                append("\n\n").append(TOOL_REQUIRED_INSTRUCTION)
             } else if (hasTools) {
-                append("\n\n")
-                append(TOOL_ENCOURAGE_INSTRUCTION)
+                append("\n\n").append(TOOL_ENCOURAGE_INSTRUCTION)
             }
         }.trim()
 
         if (systemContent.isNotBlank()) {
-            messages += QwenChatMessage(
-                role = "system",
-                content = qwenTextContent(systemContent)
-            )
+            messages += QwenChatMessage(role = "system", content = qwenTextContent(systemContent))
         }
 
         request.fullConversation.forEach { item ->

@@ -10,23 +10,21 @@ import com.vibe.app.data.dto.OpenRouterModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ModelDialog(
-    dialogState: PlatformDialogState, // أو النوع المستخدم لحالة الحوار في مشروعك
+    dialogState: PlatformSettingViewModel.DialogState,
     currentModel: String,
     settingViewModel: PlatformSettingViewModel
 ) {
-    // تحقق مما إذا كان الحوار مفتوحاً (استبدل الشرط بما يناسب حقل الحالة لديك إذا لزم الأمر)
-    // إذا كنت تستخدم نافذة حوار مخصصة، يمكنك تكييف الـ state هنا
-    
+    if (!dialogState.isApiModelDialogOpen) return
+
     var isFreeOnly by remember { mutableStateOf(true) }
     var modelsList by remember { mutableStateOf<List<OpenRouterModel>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
     var selectedModel by remember { mutableStateOf(currentModel) }
     var expanded by remember { mutableStateOf(false) }
 
-    // جلب النماذج عند تغيير نوع الفلتر (مجاني أو مدفوع)
+    // جلب النماذج عند تغيير نوع الفلتر
     LaunchedEffect(isFreeOnly) {
         isLoading = true
-        // استدعاء دالة الجلب من الـ ViewModel أو الـ API مباشرة
         modelsList = settingViewModel.fetchOpenRouterModels(isFreeOnly)
         isLoading = false
     }
@@ -41,7 +39,7 @@ fun ModelDialog(
                     .padding(vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // أزرار التبديل: مجاني / مدفوع
+                // أزرار التبديل الفوري بين المجاني والمدفوع
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -60,7 +58,7 @@ fun ModelDialog(
                     )
                 }
 
-                // القائمة المنسدلة لاختيار النموذج
+                // القائمة المنسدلة للنماذج
                 ExposedDropdownMenuBox(
                     expanded = expanded,
                     onExpandedChange = { expanded = !expanded }
@@ -69,7 +67,7 @@ fun ModelDialog(
                         value = selectedModel,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("النموذج المحدد") },
+                        label = { Text("Model") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                         modifier = Modifier
                             .menuAnchor()
@@ -83,7 +81,10 @@ fun ModelDialog(
                         if (isLoading) {
                             DropdownMenuItem(
                                 text = { 
-                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.Center
+                                    ) {
                                         CircularProgressIndicator(modifier = Modifier.size(24.dp))
                                     }
                                 },
@@ -127,8 +128,7 @@ fun ModelDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    settingViewModel.updateModel(selectedModel)
-                    settingViewModel.closeApiModelDialog()
+                    settingViewModel.updateApiModel(selectedModel)
                 }
             ) {
                 Text("حفظ")

@@ -36,7 +36,6 @@ class PlatformSettingViewModel @Inject constructor(
     private val _isDeleted = MutableStateFlow(false)
     val isDeleted: StateFlow<Boolean> = _isDeleted.asStateFlow()
 
-    /** Emits the name of the newly enabled platform when another was disabled */
     private val _switchedPlatformEvent = MutableSharedFlow<String>()
     val switchedPlatformEvent: SharedFlow<String> = _switchedPlatformEvent.asSharedFlow()
 
@@ -52,9 +51,6 @@ class PlatformSettingViewModel @Inject constructor(
         }
     }
 
-    /**
-     * جلب النماذج (مفعلة التصفية للمجاني، أو المدفوع وترتيبها تصاعدياً حسب السعر)
-     */
     suspend fun fetchOpenRouterModels(isFreeOnly: Boolean): List<OpenRouterModel> {
         val apiKey = _platformState.value?.token ?: return emptyList()
         return openRouterModelsAPI.fetchOpenRouterModels(apiKey, isFreeOnly)
@@ -65,7 +61,6 @@ class PlatformSettingViewModel @Inject constructor(
             val willEnable = !platform.enabled
             if (willEnable) {
                 viewModelScope.launch {
-                    // Disable all other enabled platforms
                     val allPlatforms = settingRepository.fetchPlatformV2s()
                     val othersEnabled = allPlatforms.filter { it.enabled && it.id != platform.id }
                     othersEnabled.forEach { other ->

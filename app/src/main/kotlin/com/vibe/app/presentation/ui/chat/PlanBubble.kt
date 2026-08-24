@@ -19,11 +19,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.vibe.app.R
 import com.vibe.app.feature.agent.AgentPlan
 import com.vibe.app.feature.agent.PlanStepStatus
 
@@ -54,7 +52,7 @@ fun PlanBubble(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = stringResource(R.string.plan_header, completedCount, totalCount),
+                text = "Plan ($completedCount/$totalCount)", // تم استبدال stringResource(R.string.plan_header, completedCount, totalCount)
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

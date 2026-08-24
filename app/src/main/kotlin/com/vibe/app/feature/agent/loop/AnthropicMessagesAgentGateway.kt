@@ -15,6 +15,7 @@ import com.vibe.app.data.dto.anthropic.request.AnthropicTool
 import com.vibe.app.data.dto.anthropic.request.AnthropicToolChoice
 import com.vibe.app.data.dto.anthropic.request.InputMessage
 import com.vibe.app.data.dto.anthropic.request.MessageRequest
+import com.vibe.app.data.dto.anthropic.response.AnthropicResponseChunk
 import com.vibe.app.data.dto.anthropic.response.ContentBlockType
 import com.vibe.app.data.dto.anthropic.response.ContentDeltaResponseChunk
 import com.vibe.app.data.dto.anthropic.response.ContentStartResponseChunk
@@ -101,7 +102,7 @@ class AnthropicMessagesAgentGateway @Inject constructor(
         val activeToolBlocks = mutableMapOf<Int, ToolUseBlock>()
         var stopReason: StopReason? = null
 
-        anthropicAPI.streamChatMessage(messageRequest, requestContext, trace).collect { chunk ->
+        anthropicAPI.streamChatMessage(messageRequest, requestContext, trace).collect { chunk: AnthropicResponseChunk ->
             when (chunk) {
                 is MessageStartResponseChunk -> {
                     trace.markInputTokens(
@@ -252,14 +253,16 @@ class AnthropicMessagesAgentGateway @Inject constructor(
         }
     }
 
-    private suspend fun buildUserContent(item: AgentConversationItem): List<MessageContent> = buildList {
-        item.attachments.forEach { path ->
-            val mimeType = FileUtils.getMimeType(context, path)
-            val mediaType = mimeTypeToMediaType(mimeType) ?: return@forEach
-            val base64 = FileUtils.readAndEncodeFile(context, path) ?: return@forEach
-            add(ImageContent(source = ImageSource(type = ImageSourceType.BASE64, mediaType = mediaType, data = base64)))
+    private suspend fun buildUserContent(item: AgentConversationItem): List<MessageContent> {
+        val contents = mutableListOf<MessageContent>()
+        for (path in item.attachments) {
+            val mimeType = FileUtils.getMimeType(context, path) ?: continue
+            val mediaType = mimeTypeToMediaType(mimeType) ?: continue
+            val base64 = FileUtils.readAndEncodeFile(context, path) ?: continue
+            contents.add(ImageContent(source = ImageSource(type = ImageSourceType.BASE64, mediaType = mediaType, data = base64)))
         }
-        add(TextContent(item.text.orEmpty()))
+        contents.add(TextContent(item.text.orEmpty()))
+        return contents
     }
 
     private fun mimeTypeToMediaType(mimeType: String): MediaType? = when (mimeType.lowercase()) {

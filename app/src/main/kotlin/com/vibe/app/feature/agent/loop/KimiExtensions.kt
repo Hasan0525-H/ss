@@ -1,6 +1,7 @@
 package com.vibe.app.data.network
 
 import com.vibe.app.data.dto.qwen.request.QwenToolSchema
+import kotlinx.serialization.json.JsonElement
 
 fun String.toKimiBaseUrl(): String {
     val trimmed = this.trim().trimEnd('/')
@@ -8,9 +9,12 @@ fun String.toKimiBaseUrl(): String {
 }
 
 fun Map<String, Any?>.toKimiToolSchema(): QwenToolSchema {
+    @Suppress("UNCHECKED_CAST")
+    val propertiesMap = this["properties"] as? Map<String, JsonElement> ?: emptyMap()
+    val requiredList = this["required"] as? List<String> ?: emptyList()
     return QwenToolSchema(
         type = "object",
-        properties = this["properties"] as? Map<String, Any?> ?: emptyMap(),
-        required = this["required"] as? List<String> ?: emptyList()
+        properties = propertiesMap,
+        required = requiredList
     )
 }

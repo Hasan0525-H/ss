@@ -70,10 +70,15 @@ class OpenAIAPIImpl @Inject constructor(
             }.body()
 
             val parsedResponse = NetworkClient.json.decodeFromString<OpenRouterModelsResponse>(response)
+            
             if (isFreeOnly) {
+                // تصفية النماذج المجانية فقط
                 parsedResponse.data.filter { it.pricing?.isFree == true }
             } else {
+                // تصفية النماذج المدفوعة وترتيبها تصاعدياً حسب متوسط السعر (من الأقل للأعلى)
                 parsedResponse.data
+                    .filter { it.pricing?.isFree == false }
+                    .sortedBy { it.pricing?.averagePrice ?: Double.MAX_VALUE }
             }
         } catch (e: Exception) {
             emptyList()
@@ -274,7 +279,7 @@ class OpenAIAPIImpl @Inject constructor(
                 .execute { response ->
                     val channel = response.bodyAsChannel()
                     while (!channel.isClosedForRead) {
-                        val line = channel.readUTF8Line() ?: break
+                        val line = channel.readUTF8Line() ?: backend: break
                         if (line.isBlank()) {
                             continue
                         }

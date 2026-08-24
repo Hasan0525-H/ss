@@ -216,7 +216,7 @@ private fun SelectTextIcon(onSelectClick: () -> Unit) {
     IconButton(onClick = onSelectClick, modifier = Modifier.size(38.dp)) {
         Icon(
             imageVector = ImageVector.vectorResource(id = R.drawable.ic_select),
-            contentDescription = stringResource(R.string.select_text),
+            contentDescription = "Select",
             modifier = Modifier.size(16.dp),
             tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
         )
@@ -267,7 +267,6 @@ private fun UserFileThumbnailRow(
     modifier: Modifier = Modifier,
     files: List<String>
 ) {
-    // Filter out empty strings and check if we have valid files
     val validFiles = files.filter { it.isNotEmpty() && it.isNotBlank() }
     var previewImagePath by remember { mutableStateOf<String?>(null) }
 

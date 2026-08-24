@@ -45,18 +45,6 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 
-/**
- * [AgentModelGateway] implementation for the Anthropic Messages API.
- *
- * Key differences vs OpenAI Responses API:
- * - Stateless: every turn must carry the full conversation history.
- * - Tool calling uses content blocks inside messages instead of a separate output array.
- * - Tool results are sent as `tool_result` content blocks in a user-role message.
- * - Input JSON for a tool call is streamed incrementally via `input_json_delta` deltas.
- *
- * This gateway reads [AgentModelRequest.fullConversation] (the entire accumulated history)
- * and builds a proper Anthropic `messages` array from it.
- */
 @Singleton
 class AnthropicMessagesAgentGateway @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -109,7 +97,6 @@ class AnthropicMessagesAgentGateway @Inject constructor(
             )
         }
 
-        // Per-block state: maps content block index → pending tool call info
         data class ToolUseBlock(val id: String, val name: String, val inputBuilder: StringBuilder)
 
         val activeToolBlocks = mutableMapOf<Int, ToolUseBlock>()
@@ -204,24 +191,13 @@ class AnthropicMessagesAgentGateway @Inject constructor(
         }
     }
 
-    /**
-     * Converts the full accumulated conversation into Anthropic [InputMessage] list.
-     *
-     * Mapping rules:
-     * - USER items → user message with [TextContent]
-     * - ASSISTANT items → assistant message with [TextContent] and/or [ToolUseContent] blocks
-     * - TOOL items → must be grouped into a single user message with [ToolResultContent] blocks
-     *   (Anthropic requires all tool results for a turn in one user message)
-     * - SYSTEM items are excluded (system prompt is passed via [MessageRequest.systemPrompt])
-     */
-    private fun buildMessages(conversation: List<AgentConversationItem>): List<InputMessage> {
+    private suspend fun buildMessages(conversation: List<AgentConversationItem>): List<InputMessage> {
         val messages = mutableListOf<InputMessage>()
         var i = 0
         while (i < conversation.size) {
             val item = conversation[i]
             when (item.role) {
                 AgentMessageRole.SYSTEM -> {
-                    // System prompt is handled separately via MessageRequest.systemPrompt.
                     i++
                 }
 
@@ -247,7 +223,6 @@ class AnthropicMessagesAgentGateway @Inject constructor(
                 }
 
                 AgentMessageRole.TOOL -> {
-                    // Consume all consecutive TOOL items into a single user message.
                     val toolResultBlocks = buildList {
                         while (i < conversation.size && conversation[i].role == AgentMessageRole.TOOL) {
                             val t = conversation[i]
@@ -278,7 +253,7 @@ class AnthropicMessagesAgentGateway @Inject constructor(
         }
     }
 
-    private fun buildUserContent(item: AgentConversationItem): List<MessageContent> = buildList {
+    private suspend fun buildUserContent(item: AgentConversationItem): List<MessageContent> = buildList {
         item.attachments.forEach { path ->
             val mimeType = FileUtils.getMimeType(context, path)
             val mediaType = mimeTypeToMediaType(mimeType) ?: return@forEach

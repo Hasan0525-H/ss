@@ -43,6 +43,22 @@ data class PlatformV2(
     val model: String,
 
 
+    @ColumnInfo(name = "provider")
+    val provider: String? = null,
+
+
+    @ColumnInfo(name = "is_free")
+    val isFree: Boolean? = null,
+
+
+    @ColumnInfo(name = "pricing_prompt")
+    val pricingPrompt: String? = null,
+
+
+    @ColumnInfo(name = "pricing_completion")
+    val pricingCompletion: String? = null,
+
+
     @ColumnInfo(name = "temperature")
     val temperature: Float? = null,
 

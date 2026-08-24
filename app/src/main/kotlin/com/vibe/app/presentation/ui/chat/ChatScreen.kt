@@ -44,6 +44,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.outlined.Android
 import androidx.compose.material.icons.outlined.BugReport
@@ -55,6 +56,7 @@ import androidx.compose.material.icons.automirrored.outlined.StickyNote2
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.InstallMobile
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.VpnKey
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilledTonalButton
@@ -712,7 +714,7 @@ private fun MissingPlatformPromptCard(
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
-                        imageVector = ImageVector.vectorResource(id = R.drawable.ic_key),
+                        imageVector = Icons.Outlined.VpnKey,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurface,
                     )
@@ -723,13 +725,13 @@ private fun MissingPlatformPromptCard(
                         .weight(1f)
                 ) {
                     Text(
-                        text = stringResource(R.string.add_api_key_prompt_title),
+                        text = "Add API Key",
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
                         modifier = Modifier.padding(top = 4.dp),
-                        text = stringResource(R.string.add_api_key_prompt_description),
+                        text = "Please add an API key to start chatting.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -795,8 +797,8 @@ private fun ChatTopBar(
                     onClick = onRunClick
                 ) {
                     Icon(
-                        imageVector = ImageVector.vectorResource(id = R.drawable.ic_run),
-                        contentDescription = stringResource(R.string.run)
+                        imageVector = Icons.Filled.PlayArrow,
+                        contentDescription = "Run"
                     )
                 }
                 IconButton(
@@ -1188,7 +1190,7 @@ fun ChatInputBox(
     val mergedStyle = localStyle.merge(TextStyle(color = LocalContentColor.current))
     val context = LocalContext.current
     val supportedImageFormatsText = stringResource(R.string.supported_image_formats)
-    val failedToSelectImageText = stringResource(R.string.failed_to_select_image)
+    val failedToSelectImageText = "Failed to select image"
 
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()

@@ -1,5 +1,6 @@
 package com.vibe.app.data.dto.qwen.request
 
+import com.vibe.app.data.dto.qwen.request.QwenToolSchema
 import com.vibe.app.feature.agent.AgentModelRequest
 import com.vibe.app.feature.agent.AgentToolChoiceMode
 

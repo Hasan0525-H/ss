@@ -4,10 +4,8 @@ import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.vibe.app.data.dto.qwen.request.QwenChatCompletionRequest
 import com.vibe.app.data.dto.qwen.request.QwenChatMessage
-import com.vibe.app.data.dto.qwen.request.QwenFunctionCall
 import com.vibe.app.data.dto.qwen.request.QwenFunctionDefinition
 import com.vibe.app.data.dto.qwen.request.QwenTool
-import com.vibe.app.data.dto.qwen.request.QwenToolCall
 import com.vibe.app.data.dto.qwen.request.qwenTextContent
 import com.vibe.app.data.network.OpenAIAPI
 import com.vibe.app.feature.agent.AgentMessageRole
@@ -15,12 +13,10 @@ import com.vibe.app.feature.agent.AgentModelEvent
 import com.vibe.app.feature.agent.AgentModelGateway
 import com.vibe.app.feature.agent.AgentModelRequest
 import com.vibe.app.feature.agent.AgentToolCall
-import com.vibe.app.feature.agent.AgentToolChoiceMode
 import com.vibe.app.feature.diagnostic.ChatDiagnosticLogger
 import com.vibe.app.feature.diagnostic.ModelExecutionTrace
 import com.vibe.app.feature.diagnostic.ModelRequestDiagnosticContext
 import com.vibe.app.feature.diagnostic.toDiagnosticProviderType
-import com.vibe.app.util.FileUtils
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
@@ -28,8 +24,6 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.jsonObject
-
 
 @Singleton
 class KimiChatCompletionsAgentGateway @Inject constructor(
@@ -38,115 +32,57 @@ class KimiChatCompletionsAgentGateway @Inject constructor(
     private val diagnosticLogger: ChatDiagnosticLogger,
 ) : AgentModelGateway {
 
-
     private val json = Json {
         ignoreUnknownKeys = true
         isLenient = true
         explicitNulls = false
     }
 
-
     override suspend fun streamTurn(
         request: AgentModelRequest
     ): Flow<AgentModelEvent> = flow {
-
 
         openAIAPI.setToken(
             request.platform.token
         )
 
-
         openAIAPI.setAPIUrl(
             request.platform.apiUrl.toKimiBaseUrl()
         )
-
 
         openAIAPI.setProvider(
             type = request.platform.compatibleType.name,
             customUrl = request.platform.apiUrl
         )
 
+        val trace = ModelExecutionTrace()
 
-        val trace =
-            ModelExecutionTrace()
-
-
-        val messages =
-            buildMessages(request)
-
+        val messages = buildMessages(request)
 
         trace.markRequestPrepared()
 
-
-        val requestContext =
-            request.diagnosticContext
-                ?.copy(
-                    platformUid = request.platform.uid
+        val requestContext = request.diagnosticContext
+            ?.copy(
+                platformUid = request.platform.uid
+            )
+            ?.let { diagnosticContext ->
+                ModelRequestDiagnosticContext(
+                    diagnosticContext = diagnosticContext,
+                    providerType = request.platform.compatibleType.toDiagnosticProviderType(),
+                    apiFamily = "chat_completions",
+                    model = request.platform.model,
+                    stream = true,
+                    reasoningEnabled = request.platform.reasoning,
+                    estimatedContextTokens = request.estimateContextTokensForDiagnostics(),
+                    messageCount = messages.size,
+                    toolCount = request.tools.size.takeIf { it > 0 },
+                    toolChoiceMode = "auto".takeIf { request.tools.isNotEmpty() },
+                    systemPromptPresent = true,
+                    systemPromptChars = request.instructions?.length?.takeIf { it > 0 },
+                    hasImages = request.fullConversation.any { it.attachments.isNotEmpty() },
+                    imageCount = request.fullConversation.sumOf { it.attachments.size }.takeIf { it > 0 }
                 )
-                ?.let { diagnosticContext ->
-
-                    ModelRequestDiagnosticContext(
-                        diagnosticContext = diagnosticContext,
-
-                        providerType =
-                            request.platform.compatibleType
-                                .toDiagnosticProviderType(),
-
-                        apiFamily =
-                            "chat_completions",
-
-                        model =
-                            request.platform.model,
-
-                        stream = true,
-
-                        reasoningEnabled =
-                            request.platform.reasoning,
-
-                        estimatedContextTokens =
-                            request.estimateContextTokensForDiagnostics(),
-
-                        messageCount =
-                            messages.size,
-
-                        toolCount =
-                            request.tools.size
-                                .takeIf {
-                                    it > 0
-                                },
-
-                        toolChoiceMode =
-                            "auto"
-                                .takeIf {
-                                    request.tools.isNotEmpty()
-                                },
-
-                        systemPromptPresent =
-                            true,
-
-                        systemPromptChars =
-                            request.instructions
-                                ?.length
-                                ?.takeIf {
-                                    it > 0
-                                },
-
-                        hasImages =
-                            request.fullConversation.any {
-                                it.attachments.isNotEmpty()
-                            },
-
-                        imageCount =
-                            request.fullConversation
-                                .sumOf {
-                                    it.attachments.size
-                                }
-                                .takeIf {
-                                    it > 0
-                                }
-                    )
-                }
-
+            }
 
         data class ToolCallAccumulator(
             var id: String = "",
@@ -154,299 +90,141 @@ class KimiChatCompletionsAgentGateway @Inject constructor(
             val arguments: StringBuilder = StringBuilder()
         )
 
-
-        val toolCallAccumulators =
-            mutableMapOf<Int, ToolCallAccumulator>()
-
-
+        val toolCallAccumulators = mutableMapOf<Int, ToolCallAccumulator>()
         var finishReason: String? = null
-
-        val reasoningBuilder =
-            StringBuilder()
-
-
+        val reasoningBuilder = StringBuilder()
         var streamError: String? = null
-              openAIAPI.streamQwenChatCompletion(
 
+        openAIAPI.streamQwenChatCompletion(
             QwenChatCompletionRequest(
-
-                model =
-                    request.platform.model,
-
-                messages =
-                    messages,
-
-                tools =
-                    request.tools
-                        .takeIf {
-                            it.isNotEmpty()
-                        }
-                        ?.map { tool ->
-
-                            QwenTool(
-
-                                function =
-                                    QwenFunctionDefinition(
-
-                                        name =
-                                            tool.name,
-
-                                        description =
-                                            tool.description,
-
-                                        parameters =
-                                            tool.inputSchema
-                                                .toKimiToolSchema()
-
-                                    )
-
+                model = request.platform.model,
+                messages = messages,
+                tools = request.tools
+                    .takeIf { it.isNotEmpty() }
+                    ?.map { tool ->
+                        QwenTool(
+                            function = QwenFunctionDefinition(
+                                name = tool.name,
+                                description = tool.description,
+                                parameters = tool.inputSchema.toKimiToolSchema()
                             )
-
-                        },
-
-                toolChoice =
-                    if (request.tools.isNotEmpty())
-                        "auto"
-                    else
-                        null,
-
+                        )
+                    },
+                toolChoice = if (request.tools.isNotEmpty()) "auto" else null,
                 stream = true
-
             ),
-
             diagnosticContext = requestContext,
-
             trace = trace
-
         ).collect { chunk ->
-
-
             if (chunk.error != null) {
-
-                streamError =
-                    chunk.error.message
-
-
+                streamError = chunk.error.message
                 trace.markFailed(
-                    chunk.error.type
-                        ?: "provider_error",
+                    chunk.error.type ?: "provider_error",
                     chunk.error.message
                 )
-
-
                 return@collect
-
             }
 
+            val choice = chunk.choices?.firstOrNull() ?: return@collect
 
-
-            val choice =
-                chunk.choices?.firstOrNull()
-                    ?: return@collect
-
-
-
-            finishReason =
-                choice.finishReason
-                    ?: finishReason
-
-
+            finishReason = choice.finishReason ?: finishReason
 
             choice.delta.content
-                ?.takeIf {
-                    it.isNotEmpty()
-                }
+                ?.takeIf { it.isNotEmpty() }
                 ?.let { delta ->
-
                     trace.markOutput(delta)
-
-                    emit(
-                        AgentModelEvent.OutputDelta(delta)
-                    )
-
+                    emit(AgentModelEvent.OutputDelta(delta))
                 }
-
-
 
             choice.delta.reasoningContent
-                ?.takeIf {
-                    it.isNotEmpty()
-                }
+                ?.takeIf { it.isNotEmpty() }
                 ?.let { delta ->
-
                     reasoningBuilder.append(delta)
-
-                    emit(
-                        AgentModelEvent.ThinkingDelta(delta)
-                    )
-
+                    emit(AgentModelEvent.ThinkingDelta(delta))
                 }
 
-
-
-            choice.delta.toolCalls
-                ?.forEach { deltaToolCall ->
-
-                    val acc =
-                        toolCallAccumulators.getOrPut(
-                            deltaToolCall.index
-                        ) {
-                            ToolCallAccumulator()
-                        }
-
-
-                    deltaToolCall.id?.let {
-                        acc.id = it
-                    }
-
-
-                    deltaToolCall.function?.name?.let {
-                        acc.name = it
-                    }
-
-
-                    deltaToolCall.function?.arguments?.let {
-                        acc.arguments.append(it)
-                    }
-
+            choice.delta.toolCalls?.forEach { deltaToolCall ->
+                val acc = toolCallAccumulators.getOrPut(deltaToolCall.index) {
+                    ToolCallAccumulator()
                 }
-
+                deltaToolCall.id?.let { acc.id = it }
+                deltaToolCall.function?.name?.let { acc.name = it }
+                deltaToolCall.function?.arguments?.let { acc.arguments.append(it) }
+            }
         }
-
-
 
         streamError?.let { error ->
-
             if (requestContext != null) {
-
-                diagnosticLogger.logModelResponse(
-                    requestContext,
-                    trace,
-                    success = false
-                )
-
-
-                diagnosticLogger.logLatencyBreakdown(
-                    requestContext,
-                    trace
-                )
-
+                diagnosticLogger.logModelResponse(requestContext, trace, success = false)
+                diagnosticLogger.logLatencyBreakdown(requestContext, trace)
             }
+            emit(AgentModelEvent.Failed(error))
+            return@flow
+        }
 
+        toolCallAccumulators.entries.sortedBy { it.key }.forEach { (_, acc) ->
+            trace.markToolCall()
+            val arguments = runCatching {
+                json.parseToJsonElement(acc.arguments.toString())
+            }.getOrElse {
+                buildJsonObject {
+                    put("raw", JsonPrimitive(acc.arguments.toString()))
+                }
+            }
 
             emit(
-                AgentModelEvent.Failed(error)
-            )
-
-
-            return@flow
-
-        }
-
-
-
-        toolCallAccumulators.entries
-            .sortedBy {
-                it.key
-            }
-            .forEach { (_, acc) ->
-
-                trace.markToolCall()
-
-
-                val arguments =
-                    runCatching {
-
-                        json.parseToJsonElement(
-                            acc.arguments.toString()
-                        )
-
-                    }.getOrElse {
-
-                        buildJsonObject {
-
-                            put(
-                                "raw",
-                                JsonPrimitive(
-                                    acc.arguments.toString()
-                                )
-                            )
-
-                        }
-
-                    }
-
-
-                emit(
-
-                    AgentModelEvent.ToolCallReady(
-
-                        AgentToolCall(
-
-                            id =
-                                acc.id,
-
-                            name =
-                                acc.name,
-
-                            arguments =
-                                arguments
-
-                        )
-
+                AgentModelEvent.ToolCallReady(
+                    AgentToolCall(
+                        id = acc.id,
+                        name = acc.name,
+                        arguments = arguments
                     )
-
                 )
-
-            }
-
-
-
-        val reasoningContent =
-            reasoningBuilder
-                .toString()
-                .takeIf {
-                    it.isNotBlank()
-                }
-
-
-        reasoningContent?.let {
-            trace.markThinking(it)
+            )
         }
 
+        val reasoningContent = reasoningBuilder.toString().takeIf { it.isNotBlank() }
+        reasoningContent?.let { trace.markThinking(it) }
 
-        trace.finishReason =
-            finishReason
-
-
-        trace.markCompleted(
-            finishReason
-        )
-
+        trace.finishReason = finishReason
+        trace.markCompleted(finishReason)
 
         if (requestContext != null) {
-
-            diagnosticLogger.logModelResponse(
-                requestContext,
-                trace,
-                success = true
-            )
-
-
-            diagnosticLogger.logLatencyBreakdown(
-                requestContext,
-                trace
-            )
-
+            diagnosticLogger.logModelResponse(requestContext, trace, success = true)
+            diagnosticLogger.logLatencyBreakdown(requestContext, trace)
         }
 
-
-        emit(
-            AgentModelEvent.Completed(
-                reasoningContent = reasoningContent
-            )
-        )
-
+        emit(AgentModelEvent.Completed(reasoningContent = reasoningContent))
     }
 
-}  
+    private fun buildMessages(request: AgentModelRequest): List<QwenChatMessage> {
+        val messages = mutableListOf<QwenChatMessage>()
+        
+        request.instructions?.takeIf { it.isNotBlank() }?.let {
+            messages += QwenChatMessage(
+                role = "system",
+                content = qwenTextContent(it)
+            )
+        }
+
+        request.fullConversation.forEach { item ->
+            when (item.role) {
+                AgentMessageRole.USER -> messages += QwenChatMessage(
+                    role = "user",
+                    content = qwenTextContent(item.text.orEmpty())
+                )
+                AgentMessageRole.ASSISTANT -> messages += QwenChatMessage(
+                    role = "assistant",
+                    content = qwenTextContent(item.text)
+                )
+                AgentMessageRole.TOOL -> messages += QwenChatMessage(
+                    role = "tool",
+                    content = qwenTextContent(item.payload?.toString() ?: item.text.orEmpty()),
+                    toolCallId = item.toolCallId
+                )
+                AgentMessageRole.SYSTEM -> Unit
+            }
+        }
+        return messages
+    }
+}

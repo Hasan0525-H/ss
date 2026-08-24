@@ -251,7 +251,7 @@ Do NOT assume you already know the file contents — always use tools to read an
     }
 }
 
-// دوال الامتداد بصيغة عامة (public) لضمان رؤيتها داخل الملف وحل مشاكل الـ Unresolved reference
+// دوال الامتداد مضافة هنا مباشرة لضمان عدم حدوث أخطاء Unresolved reference
 fun String.toQwenChatCompletionsBaseUrl(): String {
     val trimmed = this.trim().trimEnd('/')
     return if (trimmed.endsWith("/v1")) trimmed else "$trimmed/v1"

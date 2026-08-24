@@ -22,7 +22,6 @@ fun ModelDialog(
     var selectedModel by remember { mutableStateOf(currentModel) }
     var expanded by remember { mutableStateOf(false) }
 
-    // جلب النماذج عند تغيير نوع الفلتر (مجاني / مدفوع)
     LaunchedEffect(isFreeOnly) {
         isLoading = true
         modelsList = settingViewModel.fetchOpenRouterModels(isFreeOnly)
@@ -39,7 +38,6 @@ fun ModelDialog(
                     .padding(vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // أزرار التبديل الفوري بين المجاني والمدفوع
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -58,7 +56,6 @@ fun ModelDialog(
                     )
                 }
 
-                // القائمة المنسدلة للنماذج
                 ExposedDropdownMenuBox(
                     expanded = expanded,
                     onExpandedChange = { expanded = !expanded }

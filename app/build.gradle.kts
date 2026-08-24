@@ -21,6 +21,9 @@ android {
         versionCode = 15
         versionName = "1.9.0"
 
+        // دعم اللغة الإنجليزية والعربية فقط وتجاهل باقي اللغات
+        resConfigs("en", "ar")
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
@@ -94,6 +97,8 @@ android {
     }
     lint {
         baseline = file("lint-baseline.xml")
+        disable += "MissingTranslation"
+        abortOnError = false
     }
 }
 

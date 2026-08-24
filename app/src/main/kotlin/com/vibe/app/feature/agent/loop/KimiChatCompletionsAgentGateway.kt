@@ -44,29 +44,19 @@ class KimiChatCompletionsAgentGateway @Inject constructor(
         request: AgentModelRequest
     ): Flow<AgentModelEvent> = flow {
 
-        openAIAPI.setToken(
-            request.platform.token
-        )
-
-        openAIAPI.setAPIUrl(
-            request.platform.apiUrl.toKimiBaseUrl()
-        )
-
+        openAIAPI.setToken(request.platform.token)
+        openAIAPI.setAPIUrl(request.platform.apiUrl.toKimiBaseUrl())
         openAIAPI.setProvider(
             type = request.platform.compatibleType.name,
             customUrl = request.platform.apiUrl
         )
 
         val trace = ModelExecutionTrace()
-
         val messages = buildMessages(request)
-
         trace.markRequestPrepared()
 
         val requestContext = request.diagnosticContext
-            ?.copy(
-                platformUid = request.platform.uid
-            )
+            ?.copy(platformUid = request.platform.uid)
             ?.let { diagnosticContext ->
                 ModelRequestDiagnosticContext(
                     diagnosticContext = diagnosticContext,
@@ -128,7 +118,6 @@ class KimiChatCompletionsAgentGateway @Inject constructor(
             }
 
             val choice = chunk.choices?.firstOrNull() ?: return@collect
-
             finishReason = choice.finishReason ?: finishReason
 
             choice.delta.content

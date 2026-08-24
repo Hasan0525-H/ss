@@ -98,7 +98,14 @@ class KimiChatCompletionsAgentGateway @Inject constructor(
                             function = QwenFunctionDefinition(
                                 name = tool.name,
                                 description = tool.description,
-                                parameters = tool.inputSchema.toKimiToolSchema()
+                                parameters = when (val schema = tool.inputSchema) {
+                                    is QwenToolSchema -> schema
+                                    is Map<*, *> -> {
+                                        @Suppress("UNCHECKED_CAST")
+                                        (schema as Map<String, Any?>).toKimiToolSchema()
+                                    }
+                                    else -> QwenToolSchema(type = "object", properties = emptyMap(), required = emptyList())
+                                }
                             )
                         )
                     },

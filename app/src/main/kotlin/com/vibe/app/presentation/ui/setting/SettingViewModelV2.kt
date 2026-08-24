@@ -3,6 +3,8 @@ package com.vibe.app.presentation.ui.setting
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vibe.app.data.database.entity.PlatformV2
+import com.vibe.app.data.dto.OpenRouterModel
+import com.vibe.app.data.network.OpenRouterModelsAPI
 import com.vibe.app.data.repository.SettingRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -18,7 +20,8 @@ import kotlinx.coroutines.launch
 
 @HiltViewModel
 class SettingViewModelV2 @Inject constructor(
-    private val settingRepository: SettingRepository
+    private val settingRepository: SettingRepository,
+    private val openRouterModelsAPI: OpenRouterModelsAPI
 ) : ViewModel() {
 
 
@@ -78,9 +81,41 @@ class SettingViewModelV2 @Inject constructor(
 
 
 
+    // ============================
+    // OpenRouter Models
+    // ============================
+
+
+    private val _models =
+        MutableStateFlow<List<OpenRouterModel>>(emptyList())
+
+    val models: StateFlow<List<OpenRouterModel>> =
+        _models.asStateFlow()
+
+
+
+    private val _isLoading =
+        MutableStateFlow(false)
+
+    val isLoading: StateFlow<Boolean> =
+        _isLoading.asStateFlow()
+
+
+
+    private val _isFreeFilter =
+        MutableStateFlow(true)
+
+    val isFreeFilter: StateFlow<Boolean> =
+        _isFreeFilter.asStateFlow()
+
+
+
     init {
+
         fetchPlatforms()
+
         fetchDebugMode()
+
     }
 
 
@@ -88,7 +123,9 @@ class SettingViewModelV2 @Inject constructor(
     fun setApiProvider(
         provider: String
     ) {
+
         _apiProvider.value = provider
+
     }
 
 
@@ -96,7 +133,9 @@ class SettingViewModelV2 @Inject constructor(
     fun setApiKey(
         key: String
     ) {
+
         _apiKey.value = key
+
     }
 
 
@@ -104,12 +143,58 @@ class SettingViewModelV2 @Inject constructor(
     fun setCustomApiUrl(
         url: String
     ) {
+
         _customApiUrl.value = url
+
     }
 
 
 
-    fun saveApiSettings() {
+    fun fetchModels(
+        apiKey: String,
+        isFreeOnly: Boolean
+    ) {
+
+        viewModelScope.launch {
+
+
+            _isLoading.value = true
+
+            _isFreeFilter.value = isFreeOnly
+
+
+
+            try {
+
+                val result =
+                    openRouterModelsAPI.fetchOpenRouterModels(
+                        apiKey = apiKey,
+                        isFreeOnly = isFreeOnly
+                    )
+
+
+                _models.value = result
+
+
+            } catch (e: Exception) {
+
+
+                _models.value =
+                    emptyList()
+
+
+            } finally {
+
+
+                _isLoading.value = false
+
+
+            }
+
+        }
+
+    }
+        fun saveApiSettings() {
 
         viewModelScope.launch {
 
@@ -120,6 +205,7 @@ class SettingViewModelV2 @Inject constructor(
             )
 
         }
+
     }
 
 
@@ -134,7 +220,9 @@ class SettingViewModelV2 @Inject constructor(
             _platformState.update {
                 platforms
             }
+
         }
+
     }
 
 
@@ -145,10 +233,13 @@ class SettingViewModelV2 @Inject constructor(
 
         viewModelScope.launch {
 
+
             if (platform.enabled) {
+
 
                 val allPlatforms =
                     settingRepository.fetchPlatformV2s()
+
 
                 val othersEnabled =
                     allPlatforms.filter {
@@ -156,13 +247,17 @@ class SettingViewModelV2 @Inject constructor(
                     }
 
 
+
                 othersEnabled.forEach {
 
                     settingRepository.updatePlatformV2(
-                        it.copy(enabled = false)
+                        it.copy(
+                            enabled = false
+                        )
                     )
 
                 }
+
 
 
                 if (othersEnabled.isNotEmpty()) {
@@ -172,16 +267,22 @@ class SettingViewModelV2 @Inject constructor(
                     )
 
                 }
+
             }
+
 
 
             settingRepository.addPlatformV2(
                 platform
             )
 
+
             fetchPlatforms()
+
         }
+
     }
+
 
 
 
@@ -191,13 +292,18 @@ class SettingViewModelV2 @Inject constructor(
 
         viewModelScope.launch {
 
+
             settingRepository.updatePlatformV2(
                 platform
             )
 
+
             fetchPlatforms()
+
         }
+
     }
+
 
 
 
@@ -207,13 +313,18 @@ class SettingViewModelV2 @Inject constructor(
 
         viewModelScope.launch {
 
+
             settingRepository.deletePlatformV2(
                 platform
             )
 
+
             fetchPlatforms()
+
         }
+
     }
+
 
 
 
@@ -221,34 +332,47 @@ class SettingViewModelV2 @Inject constructor(
         platformId: Int
     ) {
 
+
         val platform =
             _platformState.value.find {
+
                 it.id == platformId
+
             } ?: return
+
 
 
         val enable =
             !platform.enabled
 
 
+
         if (enable) {
+
 
             viewModelScope.launch {
 
+
                 val others =
                     _platformState.value.filter {
+
                         it.enabled &&
                         it.id != platformId
+
                     }
+
 
 
                 others.forEach {
 
                     settingRepository.updatePlatformV2(
-                        it.copy(enabled = false)
+                        it.copy(
+                            enabled = false
+                        )
                     )
 
                 }
+
 
 
                 settingRepository.updatePlatformV2(
@@ -256,6 +380,7 @@ class SettingViewModelV2 @Inject constructor(
                         enabled = true
                     )
                 )
+
 
 
                 if (others.isNotEmpty()) {
@@ -267,42 +392,62 @@ class SettingViewModelV2 @Inject constructor(
                 }
 
 
+
                 fetchPlatforms()
+
             }
 
+
         } else {
+
 
             updatePlatform(
                 platform.copy(
                     enabled = false
                 )
             )
+
         }
+
     }
 
 
 
-    fun openThemeDialog() =
+
+    fun openThemeDialog() {
+
         _dialogState.update {
+
             it.copy(
                 isThemeDialogOpen = true
             )
+
         }
 
+    }
 
 
-    fun closeThemeDialog() =
+
+
+    fun closeThemeDialog() {
+
         _dialogState.update {
+
             it.copy(
                 isThemeDialogOpen = false
             )
+
         }
+
+    }
+
 
 
 
     fun openDeleteDialog(
         platformId: Int
-    ) =
+    ) {
+
         _dialogState.update {
 
             it.copy(
@@ -312,9 +457,13 @@ class SettingViewModelV2 @Inject constructor(
 
         }
 
+    }
 
 
-    fun closeDeleteDialog() =
+
+
+    fun closeDeleteDialog() {
+
         _dialogState.update {
 
             it.copy(
@@ -324,59 +473,88 @@ class SettingViewModelV2 @Inject constructor(
 
         }
 
+    }
+
+
 
 
     fun confirmDelete() {
 
+
         _dialogState.value.platformToDelete?.let { id ->
+
 
             _platformState.value
                 .find {
+
                     it.id == id
+
                 }
                 ?.let {
+
                     deletePlatform(it)
+
                 }
+
         }
 
 
+
         closeDeleteDialog()
+
     }
+
 
 
 
     fun toggleDebugMode() {
 
+
         val value =
             !_debugMode.value
 
 
+
         _debugMode.update {
+
             value
+
         }
+
 
 
         viewModelScope.launch {
 
+
             settingRepository.updateDebugMode(
                 value
             )
+
         }
+
     }
+
 
 
 
     private fun fetchDebugMode() {
 
+
         viewModelScope.launch {
+
 
             _debugMode.update {
 
+
                 settingRepository.getDebugMode()
 
+
             }
+
         }
+
     }
+
 
 
 
@@ -389,4 +567,5 @@ class SettingViewModelV2 @Inject constructor(
         val platformToDelete: Int? = null
 
     )
+
 }

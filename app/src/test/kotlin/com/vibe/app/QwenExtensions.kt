@@ -28,8 +28,8 @@ fun Map<String, JsonElement>.toQwenChatToolSchema(): QwenToolSchema {
 fun AgentModelRequest.toQwenToolChoice(): String? {
     if (this.tools.isEmpty()) return null
     return when (this.policy.toolChoiceMode) {
-        AgentToolChoiceMode.AUTO -> "auto"
-        AgentToolChoiceMode.REQUIRED -> "required"
+        AgentToolChoiceMode.AUTO,
+        AgentToolChoiceMode.REQUIRED -> "auto"
         AgentToolChoiceMode.NONE -> "none"
     }
 }

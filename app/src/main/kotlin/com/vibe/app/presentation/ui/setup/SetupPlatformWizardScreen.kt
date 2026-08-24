@@ -1,5 +1,6 @@
 package com.vibe.app.presentation.ui.setup
 
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
@@ -22,10 +23,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -46,7 +50,6 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import android.widget.Toast
 import com.vibe.app.R
 import com.vibe.app.data.model.ClientType
 import com.vibe.app.presentation.ui.setup.SetupViewModelV2.Companion.WIZARD_STEP_API_KEY
@@ -80,6 +83,9 @@ fun SetupPlatformWizardScreen(
 
     val modelState =
         setupViewModel.model.collectAsStateWithLifecycle()
+
+    val isFreePlanState =
+        setupViewModel.isFreePlan.collectAsStateWithLifecycle()
 
 
     val context = LocalContext.current
@@ -116,7 +122,7 @@ fun SetupPlatformWizardScreen(
                         apiUrlState.value.isNotBlank()
 
                 WIZARD_STEP_API_KEY ->
-                    true
+                    apiKeyState.value.isNotBlank()
 
                 WIZARD_STEP_MODEL ->
                     modelState.value.isNotBlank()
@@ -248,11 +254,17 @@ fun SetupPlatformWizardScreen(
                             setupViewModel.model
                                 .collectAsStateWithLifecycle()
 
+                        val isFreePlan by
+                            isFreePlanState
+
 
                         ModelStep(
                             model = currentModel,
                             onModelChange =
-                                setupViewModel::updateModel
+                                setupViewModel::updateModel,
+                            isFreePlan = isFreePlan,
+                            onPlanTypeChange =
+                                setupViewModel::updatePlanType
                         )
                     }
                 }
@@ -453,6 +465,8 @@ private fun StepLabel(
         )
     }
 }
+
+
 @Composable
 private fun BasicsStep(
     clientType: ClientType?,
@@ -742,10 +756,14 @@ private fun ApiKeyStep(
         }
     }
 }
+
+
 @Composable
 private fun ModelStep(
     model: String,
     onModelChange: (String) -> Unit,
+    isFreePlan: Boolean,
+    onPlanTypeChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
 
@@ -795,7 +813,30 @@ private fun ModelStep(
 
 
         Spacer(
-            modifier = Modifier.height(24.dp)
+            modifier = Modifier.height(20.dp)
+        )
+
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            FilterChip(
+                selected = isFreePlan,
+                onClick = { onPlanTypeChange(true) },
+                label = { Text("مجاني (Free)") }
+            )
+
+            FilterChip(
+                selected = !isFreePlan,
+                onClick = { onPlanTypeChange(false) },
+                label = { Text("مدفوع (Paid)") }
+            )
+        }
+
+
+        Spacer(
+            modifier = Modifier.height(16.dp)
         )
 
 
@@ -879,7 +920,7 @@ private fun WizardNavigationButtons(
     ) {
 
 
-        androidx.compose.material3.OutlinedButton(
+        OutlinedButton(
 
             onClick = onBack,
 
@@ -908,7 +949,7 @@ private fun WizardNavigationButtons(
 
 
 
-        androidx.compose.material3.Button(
+        Button(
 
             onClick = onNext,
 

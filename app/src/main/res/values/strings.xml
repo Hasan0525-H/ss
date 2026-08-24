@@ -560,4 +560,38 @@
         System Default
     </string>
 
+    <!-- ChatScreen & ThinkingBlock missing strings added -->
+    <string name="image_input_not_supported">Image input is not supported by this platform</string>
+    <string name="some_platforms_disabled">Some platforms are disabled</string>
+    <string name="add_api_key_to_start_chatting">Add an API key to start chatting</string>
+    <string name="clear_chat_history_title">Clear chat history</string>
+    <string name="clear_chat_history_message">Are you sure you want to clear the chat history?</string>
+    <string name="notification_permission_title">Notification Permission</string>
+    <string name="notification_permission_rationale">Notifications are needed to keep you updated on build progress.</string>
+    <string name="notification_permission_grant">Grant</string>
+    <string name="notification_permission_skip">Skip</string>
+    <string name="turn_undo_done_toast">Last turn undone</string>
+    <string name="turn_undo_failed_toast">Failed to undo last turn</string>
+    <string name="unknown">Unknown</string>
+    <string name="add_api_key">Add API Key</string>
+    <string name="options">Options</string>
+    <string name="update_project_name">Update Project Name</string>
+    <string name="install_apk">Install APK</string>
+    <string name="export_chat">Export Chat</string>
+    <string name="export_source_code">Export Source Code</string>
+    <string name="export_apk">Export APKs</string>
+    <string name="scroll_to_bottom_icon">Scroll to bottom</string>
+    <string name="select_image">Select Image</string>
+    <string name="ask_a_question">Ask a question...</string>
+    <string name="stop">Stop</string>
+    <string name="send">Send</string>
+    <string name="tool_calling">Calling %1$s...</string>
+    <string name="tool_result_ok">%1$s completed</string>
+    <string name="tool_result_error">%1$s failed</string>
+    <string name="hide_thinking">Hide thinking</string>
+    <string name="view_thinking">View thinking</string>
+    <string name="thinking_in_progress">Thinking...</string>
+    <string name="collapse">Collapse</string>
+    <string name="expand">Expand</string>
+
 </resources>

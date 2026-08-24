@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import com.vibe.app.data.database.entity.PlatformV2
+import com.vibe.app.data.dto.OpenRouterModel
+import com.vibe.app.data.network.OpenRouterModelsAPI
 import com.vibe.app.data.repository.SettingRepository
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -19,6 +21,7 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class PlatformSettingViewModel @Inject constructor(
     private val settingRepository: SettingRepository,
+    private val openRouterModelsAPI: OpenRouterModelsAPI,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -47,6 +50,14 @@ class PlatformSettingViewModel @Inject constructor(
             val platform = platforms.firstOrNull { it.uid == platformUid }
             _platformState.update { platform }
         }
+    }
+
+    /**
+     * جلب النماذج (مفعلة التصفية للمجاني، أو المدفوع وترتيبها تصاعدياً حسب السعر)
+     */
+    suspend fun fetchOpenRouterModels(isFreeOnly: Boolean): List<OpenRouterModel> {
+        val apiKey = _platformState.value?.token ?: return emptyList()
+        return openRouterModelsAPI.fetchOpenRouterModels(apiKey, isFreeOnly)
     }
 
     fun toggleEnabled() {

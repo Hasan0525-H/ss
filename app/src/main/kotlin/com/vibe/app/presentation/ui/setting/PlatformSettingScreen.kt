@@ -230,9 +230,10 @@ fun PlatformSettingScreen(
                     settingViewModel
                 )
 
+                // تم تعديل الاستدعاء هنا ليتطابق تماماً مع دالة ModelDialog في ملف الحوارات
                 ModelDialog(
                     dialogState = dialogState,
-                    currentModel = platformData.model,
+                    model = platformData.model,
                     settingViewModel = settingViewModel
                 )
 

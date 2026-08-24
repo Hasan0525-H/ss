@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 
@@ -94,7 +95,7 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                             function = QwenFunctionDefinition(
                                 name = tool.name,
                                 description = tool.description,
-                                parameters = tool.inputSchema.toQwenChatToolSchema()
+                                parameters = tool.inputSchema.toQwenChatToolSchema(json)
                             )
                         )
                     },
@@ -238,10 +239,16 @@ fun String.toQwenChatCompletionsBaseUrl(): String {
     return if (trimmed.endsWith("/v1")) trimmed else "$trimmed/v1"
 }
 
-fun Map<String, Any?>.toQwenChatToolSchema(): QwenToolSchema {
+fun JsonElement.toQwenChatToolSchema(json: Json): QwenToolSchema {
+    val jsonObject = this as? JsonObject ?: buildJsonObject {}
+    val propertiesObj = jsonObject["properties"] as? JsonObject ?: buildJsonObject {}
+    val propertiesMap = propertiesObj.toMap()
+
     @Suppress("UNCHECKED_CAST")
-    val propertiesMap = this["properties"] as? Map<String, JsonElement> ?: emptyMap()
-    val requiredList = this["required"] as? List<String> ?: emptyList()
+    val requiredList = (jsonObject["required"] as? List<*>)
+        ?.mapNotNull { it?.toString()?.replace("\"", "") }
+        ?: emptyList()
+
     return QwenToolSchema(
         type = "object",
         properties = propertiesMap,

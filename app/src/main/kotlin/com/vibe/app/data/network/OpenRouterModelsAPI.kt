@@ -1,19 +1,27 @@
 package com.vibe.app.data.network
 
 import com.vibe.app.data.dto.OpenRouterModelsResponse
-import retrofit2.http.GET
-import retrofit2.http.Header
-import retrofit2.http.Query
+import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.request.parameter
+import javax.inject.Inject
 
-interface OpenRouterModelsAPI {
-
+class OpenRouterModelsAPI @Inject constructor(
+    private val client: HttpClient
+) {
     /**
      * جلب قائمة جميع الموديلات المتاحة من OpenRouter
      * مع إمكانية الترتيب حسب السعر (من الأدنى إلى الأعلى)
      */
-    @GET("api/v1/models")
     suspend fun getModels(
-        @Header("Authorization") token: String,
-        @Query("sort") sort: String? = null
-    ): OpenRouterModelsResponse
+        token: String,
+        sort: String? = null
+    ): OpenRouterModelsResponse {
+        return client.get("https://openrouter.ai/api/v1/models") {
+            header("Authorization", token)
+            sort?.let { parameter("sort", it) }
+        }.body()
+    }
 }

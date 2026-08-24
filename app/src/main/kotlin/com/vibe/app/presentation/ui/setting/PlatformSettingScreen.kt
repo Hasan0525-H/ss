@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.vibe.app.R
+import com.vibe.app.data.database.entity.PlatformV2
 import com.vibe.app.data.model.ClientType
 import com.vibe.app.presentation.common.SettingItem
 import com.vibe.app.presentation.ui.components.PlatformTopAppBar
@@ -40,7 +41,7 @@ fun PlatformSettingScreen(
             }
         )
 
-    val platform =
+    val platform: PlatformV2? =
         settingViewModel.platformState
             .collectAsStateWithLifecycle()
             .value
@@ -85,8 +86,7 @@ fun PlatformSettingScreen(
                 PlatformTopAppBar(
                     title = platformData.name,
                     onBackClick = onNavigationClick,
-                    onDeleteClick =
-                        settingViewModel::openDeleteDialog
+                    onDeleteClick = { settingViewModel.openDeleteDialog() }
                 )
             }
         ) { padding ->
@@ -118,8 +118,7 @@ fun PlatformSettingScreen(
                         platformData.name,
                     enabled =
                         platformData.enabled,
-                    onItemClick =
-                        settingViewModel::openPlatformNameDialog
+                    onItemClick = { settingViewModel.openPlatformNameDialog() }
                 )
 
                 SettingItem(
@@ -132,8 +131,7 @@ fun PlatformSettingScreen(
                         platformData.apiUrl,
                     enabled =
                         platformData.enabled,
-                    onItemClick =
-                        settingViewModel::openApiUrlDialog
+                    onItemClick = { settingViewModel.openApiUrlDialog() }
                 )
 
                 SettingItem(
@@ -151,8 +149,7 @@ fun PlatformSettingScreen(
                             "Configured",
                     enabled =
                         platformData.enabled,
-                    onItemClick =
-                        settingViewModel::openApiTokenDialog
+                    onItemClick = { settingViewModel.openApiTokenDialog() }
                 )
 
                 SettingItem(
@@ -165,8 +162,7 @@ fun PlatformSettingScreen(
                         platformData.model,
                     enabled =
                         platformData.enabled,
-                    onItemClick =
-                        settingViewModel::openApiModelDialog
+                    onItemClick = { settingViewModel.openApiModelDialog() }
                 )
 
                 val reasoningDisabled =
@@ -192,8 +188,7 @@ fun PlatformSettingScreen(
                     enabled =
                         platformData.enabled &&
                                 !reasoningDisabled,
-                    onItemClick =
-                        settingViewModel::openTemperatureDialog
+                    onItemClick = { settingViewModel.openTemperatureDialog() }
                 )
 
                 SettingItem(
@@ -209,28 +204,26 @@ fun PlatformSettingScreen(
                     enabled =
                         platformData.enabled &&
                                 !reasoningDisabled,
-                    onItemClick =
-                        settingViewModel::openTopPDialog
+                    onItemClick = { settingViewModel.openTopPDialog() }
                 )
 
                 PlatformNameDialog(
-                    dialogState,
-                    platformData.name,
-                    settingViewModel
+                    dialogState = dialogState,
+                    initialValue = platformData.name,
+                    settingViewModel = settingViewModel
                 )
 
                 APIUrlDialog(
-                    dialogState,
-                    platformData.apiUrl,
-                    settingViewModel
+                    dialogState = dialogState,
+                    initialValue = platformData.apiUrl,
+                    settingViewModel = settingViewModel
                 )
 
                 APIKeyDialog(
-                    dialogState,
-                    settingViewModel
+                    dialogState = dialogState,
+                    settingViewModel = settingViewModel
                 )
 
-                // تم تعديل الاستدعاء هنا ليتطابق تماماً مع دالة ModelDialog في ملف الحوارات
                 ModelDialog(
                     dialogState = dialogState,
                     model = platformData.model,
@@ -238,20 +231,20 @@ fun PlatformSettingScreen(
                 )
 
                 TemperatureDialog(
-                    dialogState,
-                    platformData.temperature,
-                    settingViewModel
+                    dialogState = dialogState,
+                    temperature = platformData.temperature,
+                    settingViewModel = settingViewModel
                 )
 
                 TopPDialog(
-                    dialogState,
-                    platformData.topP,
-                    settingViewModel
+                    dialogState = dialogState,
+                    topP = platformData.topP,
+                    settingViewModel = settingViewModel
                 )
 
                 DeletePlatformDialog(
-                    dialogState,
-                    settingViewModel
+                    dialogState = dialogState,
+                    settingViewModel = settingViewModel
                 )
             }
         }

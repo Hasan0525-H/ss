@@ -4,7 +4,6 @@ import com.vibe.app.data.dto.qwen.request.QwenChatCompletionRequest
 import com.vibe.app.data.dto.qwen.request.QwenChatMessage
 import com.vibe.app.data.dto.qwen.request.QwenFunctionDefinition
 import com.vibe.app.data.dto.qwen.request.QwenTool
-import com.vibe.app.data.dto.qwen.request.QwenToolSchema
 import com.vibe.app.data.dto.qwen.request.qwenTextContent
 import com.vibe.app.data.network.OpenAIAPI
 import com.vibe.app.feature.agent.AgentMessageRole
@@ -95,7 +94,7 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                             function = QwenFunctionDefinition(
                                 name = tool.name,
                                 description = tool.description,
-                                parameters = tool.inputSchema.toQwenChatToolSchema(json)
+                                parameters = tool.inputSchema
                             )
                         )
                     },
@@ -237,23 +236,6 @@ Do NOT assume you already know the file contents — always use tools to read an
 fun String.toQwenChatCompletionsBaseUrl(): String {
     val trimmed = this.trim().trimEnd('/')
     return if (trimmed.endsWith("/v1")) trimmed else "$trimmed/v1"
-}
-
-fun JsonElement.toQwenChatToolSchema(json: Json): QwenToolSchema {
-    val jsonObject = this as? JsonObject ?: buildJsonObject {}
-    val propertiesObj = jsonObject["properties"] as? JsonObject ?: buildJsonObject {}
-    val propertiesMap = propertiesObj.toMap()
-
-    @Suppress("UNCHECKED_CAST")
-    val requiredList = (jsonObject["required"] as? List<*>)
-        ?.mapNotNull { it?.toString()?.replace("\"", "") }
-        ?: emptyList()
-
-    return QwenToolSchema(
-        type = "object",
-        properties = propertiesMap,
-        required = requiredList
-    )
 }
 
 fun AgentModelRequest.toQwenToolChoice(): String? {

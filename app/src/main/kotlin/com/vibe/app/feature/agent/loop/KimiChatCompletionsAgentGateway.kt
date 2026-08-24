@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 
@@ -100,12 +101,10 @@ class KimiChatCompletionsAgentGateway @Inject constructor(
                                 description = tool.description,
                                 parameters = when (val schema = tool.inputSchema) {
                                     is QwenToolSchema -> schema
+                                    is JsonElement -> schema.toKimiToolSchema()
                                     is Map<*, *> -> {
                                         @Suppress("UNCHECKED_CAST")
                                         (schema as Map<String, Any?>).toKimiToolSchema()
-                                    }
-                                    is JsonElement -> {
-                                        QwenToolSchema(type = "object", properties = emptyMap(), required = emptyList())
                                     }
                                     else -> QwenToolSchema(type = "object", properties = emptyMap(), required = emptyList())
                                 }
@@ -233,6 +232,23 @@ class KimiChatCompletionsAgentGateway @Inject constructor(
 fun String.toKimiBaseUrl(): String {
     val trimmed = this.trim().trimEnd('/')
     return if (trimmed.endsWith("/v1")) trimmed else "$trimmed/v1"
+}
+
+fun JsonElement.toKimiToolSchema(): QwenToolSchema {
+    val jsonObject = this as? JsonObject ?: buildJsonObject {}
+    val propertiesObj = jsonObject["properties"] as? JsonObject ?: buildJsonObject {}
+    val propertiesMap = propertiesObj.toMap()
+
+    @Suppress("UNCHECKED_CAST")
+    val requiredList = (jsonObject["required"] as? List<*>)
+        ?.mapNotNull { it?.toString()?.replace("\"", "") }
+        ?: emptyList()
+
+    return QwenToolSchema(
+        type = "object",
+        properties = propertiesMap,
+        required = requiredList
+    )
 }
 
 fun Map<String, Any?>.toKimiToolSchema(): QwenToolSchema {

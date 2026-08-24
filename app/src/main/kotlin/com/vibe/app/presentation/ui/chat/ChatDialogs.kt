@@ -20,10 +20,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
-import com.vibe.app.R
 import com.vibe.app.data.database.entity.MessageV2
 
 @Composable
@@ -46,15 +44,15 @@ fun ChatModelDialog(
         modifier = Modifier
             .widthIn(max = screenWidth - 40.dp)
             .heightIn(max = screenHeight - 80.dp),
-        title = { Text(text = stringResource(R.string.chat_models)) },
+        title = { Text(text = "Chat Models") },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 Text(
-                    text = stringResource(R.string.chat_models_description),
+                    text = "Please specify the models for each platform.",
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                 )
                 platformOrder.forEach { platformUid ->
-                    val platformName = platformNames[platformUid] ?: stringResource(R.string.unknown)
+                    val platformName = platformNames[platformUid] ?: "Unknown"
                     OutlinedTextField(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -64,9 +62,9 @@ fun ChatModelDialog(
                             models = models.toMutableMap().apply { put(platformUid, value) }
                         },
                         singleLine = true,
-                        label = { Text(text = stringResource(R.string.chat_model_for_platform, platformName)) },
+                        label = { Text(text = "Model for $platformName") },
                         supportingText = {
-                            Text(stringResource(R.string.model_supporting))
+                            Text("Enter model name (e.g., gpt-4)")
                         }
                     )
                 }
@@ -83,12 +81,12 @@ fun ChatModelDialog(
                     )
                 }
             ) {
-                Text(stringResource(R.string.update_chat_models))
+                Text("Update Models")
             }
         },
         dismissButton = {
             TextButton(onClick = onDismissRequest) {
-                Text(stringResource(R.string.cancel))
+                Text("Cancel")
             }
         }
     )
@@ -110,7 +108,7 @@ fun ProjectNameDialog(
         modifier = Modifier
             .widthIn(max = screenWidth - 40.dp)
             .heightIn(max = screenHeight - 80.dp),
-        title = { Text(text = stringResource(R.string.project_name)) },
+        title = { Text(text = "Project Name") },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 OutlinedTextField(
@@ -122,11 +120,11 @@ fun ProjectNameDialog(
                     isError = projectName.length > 50,
                     supportingText = {
                         if (projectName.length > 50) {
-                            Text(stringResource(R.string.project_name_length_limit, projectName.length))
+                            Text("Project name is too long (${projectName.length}/50)")
                         }
                     },
                     onValueChange = { projectName = it },
-                    label = { Text(stringResource(R.string.project_name)) }
+                    label = { Text("Project Name") }
                 )
             }
         },
@@ -139,14 +137,14 @@ fun ProjectNameDialog(
                     onDismissRequest()
                 }
             ) {
-                Text(stringResource(R.string.update))
+                Text("Update")
             }
         },
         dismissButton = {
             TextButton(
                 onClick = onDismissRequest
             ) {
-                Text(stringResource(R.string.cancel))
+                Text("Cancel")
             }
         }
     )
@@ -168,7 +166,7 @@ fun ChatQuestionEditDialog(
         modifier = Modifier
             .widthIn(max = screenWidth - 40.dp)
             .heightIn(max = screenHeight - 80.dp),
-        title = { Text(text = stringResource(R.string.edit_question)) },
+        title = { Text(text = "Edit Question") },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState())
@@ -180,7 +178,7 @@ fun ChatQuestionEditDialog(
                         .padding(horizontal = 20.dp, vertical = 16.dp),
                     value = question,
                     onValueChange = { question = it },
-                    label = { Text(stringResource(R.string.user_message)) }
+                    label = { Text("User Message") }
                 )
             }
         },
@@ -190,14 +188,14 @@ fun ChatQuestionEditDialog(
                 enabled = question.isNotBlank() && question != initialQuestion.content,
                 onClick = { onConfirmRequest(initialQuestion.copy(content = question)) }
             ) {
-                Text(stringResource(R.string.confirm))
+                Text("Confirm")
             }
         },
         dismissButton = {
             TextButton(
                 onClick = onDismissRequest
             ) {
-                Text(stringResource(R.string.cancel))
+                Text("Cancel")
             }
         }
     )

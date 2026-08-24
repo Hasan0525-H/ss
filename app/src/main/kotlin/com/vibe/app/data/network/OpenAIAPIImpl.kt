@@ -1,5 +1,7 @@
 package com.vibe.app.data.network
 
+import com.vibe.app.data.dto.OpenRouterModel
+import com.vibe.app.data.dto.OpenRouterModelsResponse
 import com.vibe.app.data.dto.openai.request.ChatCompletionRequest
 import com.vibe.app.data.dto.openai.request.ResponsesRequest
 import com.vibe.app.data.dto.openai.response.ChatCompletionChunk
@@ -14,6 +16,7 @@ import com.vibe.app.feature.diagnostic.ModelRequestDiagnosticContext
 import io.ktor.client.call.body
 import io.ktor.client.request.accept
 import io.ktor.client.request.bearerAuth
+import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.preparePost
 import io.ktor.client.request.setBody
@@ -52,6 +55,28 @@ class OpenAIAPIImpl @Inject constructor(
             "OPEN_ROUTER", "OPENROUTER" -> "https://openrouter.ai/api/"
             "CUSTOM" -> customUrl?.trim()?.trimEnd('/') ?: ""
             else -> customUrl?.trim()?.trimEnd('/') ?: "https://openrouter.ai/api/"
+        }
+    }
+
+    override suspend fun fetchOpenRouterModels(
+        apiKey: String,
+        isFreeOnly: Boolean
+    ): List<OpenRouterModel> {
+        val endpoint = "https://openrouter.ai/api/v1/models"
+        return try {
+            val response: String = networkClient().get(endpoint) {
+                header("Authorization", "Bearer $apiKey")
+                applyProviderHeaders(this)
+            }.body()
+
+            val parsedResponse = NetworkClient.json.decodeFromString<OpenRouterModelsResponse>(response)
+            if (isFreeOnly) {
+                parsedResponse.data.filter { it.pricing?.isFree == true }
+            } else {
+                parsedResponse.data
+            }
+        } catch (e: Exception) {
+            emptyList()
         }
     }
 

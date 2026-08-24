@@ -22,7 +22,7 @@ fun ModelDialog(
     var selectedModel by remember { mutableStateOf(currentModel) }
     var expanded by remember { mutableStateOf(false) }
 
-    // جلب النماذج عند تغيير نوع الفلتر
+    // جلب النماذج عند تغيير نوع الفلتر (مجاني / مدفوع)
     LaunchedEffect(isFreeOnly) {
         isLoading = true
         modelsList = settingViewModel.fetchOpenRouterModels(isFreeOnly)

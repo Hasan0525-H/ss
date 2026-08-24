@@ -2,17 +2,26 @@ package com.vibe.app.data.dto.qwen.request
 
 import com.vibe.app.feature.agent.AgentModelRequest
 import com.vibe.app.feature.agent.AgentToolChoiceMode
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 
 fun String.toQwenChatCompletionsBaseUrl(): String {
     val trimmed = this.trim().trimEnd('/')
     return if (trimmed.endsWith("/v1")) trimmed else "$trimmed/v1"
 }
 
-fun Map<String, Any?>.toQwenChatToolSchema(): QwenToolSchema {
+fun Map<String, JsonElement>.toQwenChatToolSchema(): QwenToolSchema {
+    val propertiesObj = this["properties"] as? JsonObject
+    val propertiesMap = propertiesObj?.toMap() ?: emptyMap()
+
+    val requiredList = (this["required"] as? List<*>)
+        ?.mapNotNull { it?.toString()?.replace("\"", "") }
+        ?: emptyList()
+
     return QwenToolSchema(
         type = "object",
-        properties = this["properties"] as? Map<String, Any?> ?: emptyMap(),
-        required = this["required"] as? List<String> ?: emptyList()
+        properties = propertiesMap,
+        required = requiredList
     )
 }
 

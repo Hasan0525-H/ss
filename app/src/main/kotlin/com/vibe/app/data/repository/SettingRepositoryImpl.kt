@@ -4,16 +4,19 @@ import com.vibe.app.data.database.dao.ChatPlatformModelV2Dao
 import com.vibe.app.data.database.dao.PlatformV2Dao
 import com.vibe.app.data.database.entity.PlatformV2
 import com.vibe.app.data.datastore.SettingDataSource
+import com.vibe.app.data.dto.OpenRouterModel
 import com.vibe.app.data.dto.ThemeSetting
 import com.vibe.app.data.model.DynamicTheme
 import com.vibe.app.data.model.ThemeMode
+import com.vibe.app.data.network.OpenRouterModelsAPI
 import javax.inject.Inject
 
 
 class SettingRepositoryImpl @Inject constructor(
     private val settingDataSource: SettingDataSource,
     private val platformV2Dao: PlatformV2Dao,
-    private val chatPlatformModelV2Dao: ChatPlatformModelV2Dao
+    private val chatPlatformModelV2Dao: ChatPlatformModelV2Dao,
+    private val openRouterModelsAPI: OpenRouterModelsAPI
 ) : SettingRepository {
 
 
@@ -91,6 +94,47 @@ class SettingRepositoryImpl @Inject constructor(
         id: Int
     ): PlatformV2? =
         platformV2Dao.getPlatform(id)
+
+
+
+    override suspend fun fetchOpenRouterModels(
+        apiKey: String,
+        isFreeOnly: Boolean
+    ): List<OpenRouterModel> {
+
+        val authHeader =
+            if (apiKey.startsWith("Bearer ")) {
+                apiKey
+            } else {
+                "Bearer $apiKey"
+            }
+
+        val sortParam =
+            if (!isFreeOnly) {
+                "pricing-low-to-high"
+            } else {
+                null
+            }
+
+        val response =
+            openRouterModelsAPI.getModels(
+                token = authHeader,
+                sort = sortParam
+            )
+
+        val models =
+            response.data
+
+        return if (isFreeOnly) {
+            models.filter {
+                it.pricing?.isFree == true
+            }
+        } else {
+            models.filter {
+                it.pricing?.isFree == false
+            }
+        }
+    }
 
 
 

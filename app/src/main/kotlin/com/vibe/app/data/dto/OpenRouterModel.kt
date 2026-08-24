@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class OpenRouterModelsResponse(
     @SerialName("data")
-    val data: List<OpenRouterModel>
+    val data: List<OpenRouterModel> = emptyList()
 )
 
 @Serializable
@@ -15,7 +15,7 @@ data class OpenRouterModel(
     val id: String,
 
     @SerialName("name")
-    val name: String,
+    val name: String? = null,
 
     @SerialName("pricing")
     val pricing: OpenRouterPricing? = null
@@ -29,6 +29,16 @@ data class OpenRouterPricing(
     @SerialName("completion")
     val completion: String? = "0"
 ) {
+    val promptPriceDouble: Double
+        get() = prompt?.toDoubleOrNull() ?: 0.0
+
+    val completionPriceDouble: Double
+        get() = completion?.toDoubleOrNull() ?: 0.0
+
+    val averagePrice: Double
+        get() = (promptPriceDouble + completionPriceDouble) / 2.0
+
     val isFree: Boolean
-        get() = (prompt == "0" || prompt == "0.0") && (completion == "0" || completion == "0.0")
+        get() = (prompt == "0" || prompt == "0.0" || promptPriceDouble == 0.0) &&
+                (completion == "0" || completion == "0.0" || completionPriceDouble == 0.0)
 }

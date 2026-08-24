@@ -1,37 +1,113 @@
 package com.vibe.app.feature.settings
 
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import com.vibe.app.data.dto.OpenRouterModel
-import com.vibe.app.data.network.OpenRouterModelsAPI
-import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
-import javax.inject.Inject
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 
-@HiltViewModel
-class SettingsViewModel @Inject constructor(
-    private val openRouterModelsAPI: OpenRouterModelsAPI
-) : ViewModel() {
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ModelSelectionScreen(
+    apiKey: String,
+    viewModel: SettingsViewModel
+) {
+    val models by viewModel.models.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val isFreeFilter by viewModel.isFreeFilter.collectAsState()
 
-    private val _models = MutableStateFlow<List<OpenRouterModel>>(emptyList())
-    val models: StateFlow<List<OpenRouterModel>> = _models.asStateFlow()
+    var expanded by remember { mutableStateOf(false) }
+    var selectedModelId by remember { mutableStateOf("") }
 
-    private val _isLoading = MutableStateFlow(false)
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+    // جلب الموديلات المجانية تلقائياً فور توفر مفتاح API
+    LaunchedEffect(apiKey) {
+        if (apiKey.isNotBlank()) {
+            viewModel.fetchModels(apiKey = apiKey, isFreeOnly = true)
+        }
+    }
 
-    private val _isFreeFilter = MutableStateFlow(true)
-    val isFreeFilter: StateFlow<Boolean> = _isFreeFilter.asStateFlow()
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // أزرار التبديل الفوري بين المجاني والمدفوع
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            FilterChip(
+                selected = isFreeFilter,
+                onClick = { viewModel.fetchModels(apiKey, isFreeOnly = true) },
+                label = { Text("مجاني (Free)") },
+                modifier = Modifier.weight(1f)
+            )
+            FilterChip(
+                selected = !isFreeFilter,
+                onClick = { viewModel.fetchModels(apiKey, isFreeOnly = false) },
+                label = { Text("مدفوع (Paid)") },
+                modifier = Modifier.weight(1f)
+            )
+        }
 
-    fun fetchModels(apiKey: String, isFreeOnly: Boolean) {
-        _isFreeFilter.value = isFreeOnly
-        viewModelScope.launch {
-            _isLoading.value = true
-            val fetchedModels = openRouterModelsAPI.fetchOpenRouterModels(apiKey, isFreeOnly)
-            _models.value = fetchedModels
-            _isLoading.value = false
+        // القائمة المنسدلة لاختيار الموديل المطلوبة
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = !expanded }
+        ) {
+            OutlinedTextField(
+                value = selectedModelId,
+                onValueChange = { selectedModelId = it },
+                label = { Text("Model") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth(),
+                readOnly = true
+            )
+
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                if (isLoading) {
+                    DropdownMenuItem(
+                        text = { CircularProgressIndicator(modifier = Modifier.size(24.dp)) },
+                        onClick = {}
+                    )
+                } else if (models.isEmpty()) {
+                    DropdownMenuItem(
+                        text = { Text("لا توجد موديلات متاحة") },
+                        onClick = {}
+                    )
+                } else {
+                    models.forEach { model ->
+                        val priceLabel = if (isFreeFilter) {
+                            "مجاني"
+                        } else {
+                            "$${model.pricing?.averagePrice ?: 0.0}/1K"
+                        }
+
+                        DropdownMenuItem(
+                            text = {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(text = model.id, modifier = Modifier.weight(1f))
+                                    Text(text = priceLabel, style = MaterialTheme.typography.bodySmall)
+                                }
+                            },
+                            onClick = {
+                                selectedModelId = model.id
+                                expanded = false
+                            }
+                        )
+                    }
+                }
+            }
         }
     }
 }

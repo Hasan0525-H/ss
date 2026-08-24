@@ -251,13 +251,13 @@ Do NOT assume you already know the file contents — always use tools to read an
     }
 }
 
-// دوال الامتداد الخاصة بـ Qwen لمنع أخطاء Unresolved reference
-private fun String.toQwenChatCompletionsBaseUrl(): String {
+// دوال الامتداد بصيغة عامة (public) لضمان رؤيتها داخل الملف وحل مشاكل الـ Unresolved reference
+fun String.toQwenChatCompletionsBaseUrl(): String {
     val trimmed = this.trim().trimEnd('/')
     return if (trimmed.endsWith("/v1")) trimmed else "$trimmed/v1"
 }
 
-private fun Map<String, Any?>.toQwenChatToolSchema(): QwenToolSchema {
+fun Map<String, Any?>.toQwenChatToolSchema(): QwenToolSchema {
     return QwenToolSchema(
         type = "object",
         properties = this["properties"] as? Map<String, Any?> ?: emptyMap(),
@@ -265,7 +265,7 @@ private fun Map<String, Any?>.toQwenChatToolSchema(): QwenToolSchema {
     )
 }
 
-private fun AgentModelRequest.toQwenToolChoice(): String? {
+fun AgentModelRequest.toQwenToolChoice(): String? {
     if (this.tools.isEmpty()) return null
     return when (this.policy.toolChoiceMode) {
         AgentToolChoiceMode.AUTO -> "auto"

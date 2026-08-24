@@ -104,6 +104,9 @@ class KimiChatCompletionsAgentGateway @Inject constructor(
                                         @Suppress("UNCHECKED_CAST")
                                         (schema as Map<String, Any?>).toKimiToolSchema()
                                     }
+                                    is JsonElement -> {
+                                        QwenToolSchema(type = "object", properties = emptyMap(), required = emptyList())
+                                    }
                                     else -> QwenToolSchema(type = "object", properties = emptyMap(), required = emptyList())
                                 }
                             )

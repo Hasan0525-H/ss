@@ -1,5 +1,6 @@
 package com.vibe.app.data.network
 
+import com.vibe.app.data.dto.OpenRouterModel
 import com.vibe.app.data.dto.openai.request.ChatCompletionRequest
 import com.vibe.app.data.dto.openai.request.ResponsesRequest
 import com.vibe.app.data.dto.openai.response.ChatCompletionChunk
@@ -46,6 +47,18 @@ interface OpenAIAPI {
         type: String,
         customUrl: String? = null
     )
+
+
+
+    /**
+     * جلب قائمة الموديلات المتاحة من OpenRouter
+     * @param apiKey مفتاح API الخاص بالمستخدم
+     * @param isFreeOnly تحديد ما إذا كان المطلوب جلب الموديلات المجانية فقط أو جميع الموديلات مرتبة
+     */
+    suspend fun fetchOpenRouterModels(
+        apiKey: String,
+        isFreeOnly: Boolean = false
+    ): List<OpenRouterModel>
 
 
 

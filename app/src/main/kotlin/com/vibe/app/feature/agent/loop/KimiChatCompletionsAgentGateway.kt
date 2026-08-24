@@ -230,13 +230,13 @@ class KimiChatCompletionsAgentGateway @Inject constructor(
     }
 }
 
-// دوال الامتداد الخاصة بـ Kimi لمنع أخطاء Unresolved reference
-private fun String.toKimiBaseUrl(): String {
+// دوال الامتداد بصيغة عامة (public) لضمان رؤيتها ومنع أخطاء Unresolved reference
+fun String.toKimiBaseUrl(): String {
     val trimmed = this.trim().trimEnd('/')
     return if (trimmed.endsWith("/v1")) trimmed else "$trimmed/v1"
 }
 
-private fun Map<String, Any?>.toKimiToolSchema(): QwenToolSchema {
+fun Map<String, Any?>.toKimiToolSchema(): QwenToolSchema {
     return QwenToolSchema(
         type = "object",
         properties = this["properties"] as? Map<String, Any?> ?: emptyMap(),

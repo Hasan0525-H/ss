@@ -1,11 +1,11 @@
 package com.vibe.app.data.dto.qwen.request
 
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonElement
 
 @Serializable
 data class QwenToolSchema(
     val type: String = "object",
-    val properties: Map<String, Any?> = emptyMap(),
+    val properties: Map<String, JsonElement> = emptyMap(),
     val required: List<String> = emptyList()
 )

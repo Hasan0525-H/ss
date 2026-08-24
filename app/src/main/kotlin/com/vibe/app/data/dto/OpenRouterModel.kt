@@ -1,28 +1,32 @@
 package com.vibe.app.data.dto
 
-import com.google.gson.annotations.SerializedName
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
+@Serializable
 data class OpenRouterModelsResponse(
-    @SerializedName("data")
+    @SerialName("data")
     val data: List<OpenRouterModel>
 )
 
+@Serializable
 data class OpenRouterModel(
-    @SerializedName("id")
+    @SerialName("id")
     val id: String,
 
-    @SerializedName("name")
+    @SerialName("name")
     val name: String,
 
-    @SerializedName("pricing")
+    @SerialName("pricing")
     val pricing: OpenRouterPricing? = null
 )
 
+@Serializable
 data class OpenRouterPricing(
-    @SerializedName("prompt")
+    @SerialName("prompt")
     val prompt: String? = "0",
 
-    @SerializedName("completion")
+    @SerialName("completion")
     val completion: String? = "0"
 ) {
     val isFree: Boolean

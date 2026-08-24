@@ -6,6 +6,7 @@ import com.vibe.app.data.dto.qwen.request.QwenChatCompletionRequest
 import com.vibe.app.data.dto.qwen.request.QwenChatMessage
 import com.vibe.app.data.dto.qwen.request.QwenFunctionDefinition
 import com.vibe.app.data.dto.qwen.request.QwenTool
+import com.vibe.app.data.dto.qwen.request.QwenToolSchema
 import com.vibe.app.data.dto.qwen.request.qwenTextContent
 import com.vibe.app.data.network.OpenAIAPI
 import com.vibe.app.feature.agent.AgentMessageRole
@@ -227,4 +228,18 @@ class KimiChatCompletionsAgentGateway @Inject constructor(
         }
         return messages
     }
+}
+
+// دوال الامتداد المفقودة لمنع أخطاء Unresolved reference
+private fun String.toKimiBaseUrl(): String {
+    val trimmed = this.trim().trimEnd('/')
+    return if (trimmed.endsWith("/v1")) trimmed else "$trimmed/v1"
+}
+
+private fun Map<String, Any?>.toKimiToolSchema(): QwenToolSchema {
+    return QwenToolSchema(
+        type = "object",
+        properties = this["properties"] as? Map<String, Any?> ?: emptyMap(),
+        required = this["required"] as? List<String> ?: emptyList()
+    )
 }

@@ -272,6 +272,6 @@ class AnthropicMessagesAgentGateway @Inject constructor(
     }
 
     companion object {
-        private const valDEFAULT_MAX_TOKENS = 16000
+        private const val DEFAULT_MAX_TOKENS = 16000
     }
 }

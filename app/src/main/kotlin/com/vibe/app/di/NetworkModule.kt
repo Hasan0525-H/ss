@@ -12,9 +12,11 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.serialization.kotlinx.json.json
+import kotlinx.serialization.json.Json
 import javax.inject.Singleton
 
 
@@ -50,6 +52,29 @@ object NetworkModule {
 
     @Provides
     @Singleton
+    fun provideKtorHttpClient(): HttpClient {
+
+        return HttpClient(OkHttp) {
+
+            install(ContentNegotiation) {
+
+                json(
+                    Json {
+                        ignoreUnknownKeys = true
+                        coerceInputValues = true
+                    }
+                )
+
+            }
+
+        }
+
+    }
+
+
+
+    @Provides
+    @Singleton
     fun provideOpenAIAPI(
         networkClient: NetworkClient,
         diagnosticLogger: ChatDiagnosticLogger
@@ -69,13 +94,11 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOpenRouterModelsAPI(): OpenRouterModelsAPI {
+    fun provideOpenRouterModelsAPI(
+        httpClient: HttpClient
+    ): OpenRouterModelsAPI {
 
-        return Retrofit.Builder()
-            .baseUrl("https://openrouter.ai/")
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-            .create(OpenRouterModelsAPI::class.java)
+        return OpenRouterModelsAPI(httpClient)
 
     }
 

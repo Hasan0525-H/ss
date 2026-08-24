@@ -6,7 +6,6 @@ import com.vibe.app.data.dto.qwen.request.QwenChatCompletionRequest
 import com.vibe.app.data.dto.qwen.request.QwenChatMessage
 import com.vibe.app.data.dto.qwen.request.QwenFunctionDefinition
 import com.vibe.app.data.dto.qwen.request.QwenTool
-import com.vibe.app.data.dto.qwen.request.QwenToolSchema
 import com.vibe.app.data.dto.qwen.request.qwenTextContent
 import com.vibe.app.data.network.OpenAIAPI
 import com.vibe.app.feature.agent.AgentMessageRole
@@ -23,8 +22,6 @@ import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 
@@ -99,15 +96,7 @@ class KimiChatCompletionsAgentGateway @Inject constructor(
                             function = QwenFunctionDefinition(
                                 name = tool.name,
                                 description = tool.description,
-                                parameters = when (val schema = tool.inputSchema) {
-                                    is QwenToolSchema -> schema
-                                    is JsonElement -> schema.toKimiToolSchema()
-                                    is Map<*, *> -> {
-                                        @Suppress("UNCHECKED_CAST")
-                                        (schema as Map<String, Any?>).toKimiToolSchema()
-                                    }
-                                    else -> QwenToolSchema(type = "object", properties = emptyMap(), required = emptyList())
-                                }
+                                parameters = tool.inputSchema
                             )
                         )
                     },
@@ -232,32 +221,4 @@ class KimiChatCompletionsAgentGateway @Inject constructor(
 fun String.toKimiBaseUrl(): String {
     val trimmed = this.trim().trimEnd('/')
     return if (trimmed.endsWith("/v1")) trimmed else "$trimmed/v1"
-}
-
-fun JsonElement.toKimiToolSchema(): QwenToolSchema {
-    val jsonObject = this as? JsonObject ?: buildJsonObject {}
-    val propertiesObj = jsonObject["properties"] as? JsonObject ?: buildJsonObject {}
-    val propertiesMap = propertiesObj.toMap()
-
-    @Suppress("UNCHECKED_CAST")
-    val requiredList = (jsonObject["required"] as? List<*>)
-        ?.mapNotNull { it?.toString()?.replace("\"", "") }
-        ?: emptyList()
-
-    return QwenToolSchema(
-        type = "object",
-        properties = propertiesMap,
-        required = requiredList
-    )
-}
-
-fun Map<String, Any?>.toKimiToolSchema(): QwenToolSchema {
-    @Suppress("UNCHECKED_CAST")
-    val propertiesMap = this["properties"] as? Map<String, JsonElement> ?: emptyMap()
-    val requiredList = this["required"] as? List<String> ?: emptyList()
-    return QwenToolSchema(
-        type = "object",
-        properties = propertiesMap,
-        required = requiredList
-    )
 }

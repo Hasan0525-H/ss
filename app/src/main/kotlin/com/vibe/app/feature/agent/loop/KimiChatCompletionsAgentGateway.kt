@@ -23,6 +23,7 @@ import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 
@@ -230,16 +231,18 @@ class KimiChatCompletionsAgentGateway @Inject constructor(
     }
 }
 
-// دوال الامتداد بصيغة عامة (public) لضمان رؤيتها ومنع أخطاء Unresolved reference
 fun String.toKimiBaseUrl(): String {
     val trimmed = this.trim().trimEnd('/')
     return if (trimmed.endsWith("/v1")) trimmed else "$trimmed/v1"
 }
 
 fun Map<String, Any?>.toKimiToolSchema(): QwenToolSchema {
+    @Suppress("UNCHECKED_CAST")
+    val propertiesMap = this["properties"] as? Map<String, JsonElement> ?: emptyMap()
+    val requiredList = this["required"] as? List<String> ?: emptyList()
     return QwenToolSchema(
         type = "object",
-        properties = this["properties"] as? Map<String, Any?> ?: emptyMap(),
-        required = this["required"] as? List<String> ?: emptyList()
+        properties = propertiesMap,
+        required = requiredList
     )
 }

@@ -1,6 +1,7 @@
 package com.vibe.app.data.repository
 
 import com.vibe.app.data.database.entity.PlatformV2
+import com.vibe.app.data.dto.OpenRouterModel
 import com.vibe.app.data.dto.ThemeSetting
 
 interface SettingRepository {
@@ -33,6 +34,13 @@ interface SettingRepository {
     ): PlatformV2?
 
 
+    // OpenRouter Models Integration
+
+    suspend fun fetchOpenRouterModels(
+        apiKey: String,
+        isFreeOnly: Boolean
+    ): List<OpenRouterModel>
+
 
     // Debug mode
 
@@ -41,7 +49,6 @@ interface SettingRepository {
     suspend fun updateDebugMode(
         enabled: Boolean
     )
-
 
 
     // API Settings

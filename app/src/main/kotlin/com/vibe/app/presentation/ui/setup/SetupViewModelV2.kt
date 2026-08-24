@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vibe.app.data.ModelConstants
 import com.vibe.app.data.database.entity.PlatformV2
+import com.vibe.app.data.dto.OpenRouterModel
 import com.vibe.app.data.model.ClientType
 import com.vibe.app.data.repository.SettingRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -24,6 +25,13 @@ sealed class SaveStatus {
     data object Saving : SaveStatus()
     data object Success : SaveStatus()
     data class Error(val message: String) : SaveStatus()
+}
+
+sealed class ModelsFetchStatus {
+    data object Idle : ModelsFetchStatus()
+    data object Loading : ModelsFetchStatus()
+    data class Success(val models: List<OpenRouterModel>) : ModelsFetchStatus()
+    data class Error(val message: String) : ModelsFetchStatus()
 }
 
 
@@ -89,6 +97,13 @@ class SetupViewModelV2 @Inject constructor(
         _isFreePlan.asStateFlow()
 
 
+    private val _modelsFetchStatus =
+        MutableStateFlow<ModelsFetchStatus>(ModelsFetchStatus.Idle)
+
+    val modelsFetchStatus: StateFlow<ModelsFetchStatus> =
+        _modelsFetchStatus.asStateFlow()
+
+
     private val _saveStatus =
         MutableStateFlow<SaveStatus>(SaveStatus.Idle)
 
@@ -135,7 +150,8 @@ class SetupViewModelV2 @Inject constructor(
 
         _isFreePlan.value = true
 
-        // البدء بالخطوة الأولى: الأساسيات والـ API Key
+        _modelsFetchStatus.value = ModelsFetchStatus.Idle
+
         _wizardStep.value = WIZARD_STEP_BASICS
     }
 
@@ -162,12 +178,45 @@ class SetupViewModelV2 @Inject constructor(
 
     fun updatePlanType(isFree: Boolean) {
         _isFreePlan.value = isFree
+        if (_selectedClientType.value == ClientType.OPEN_ROUTER && _apiKey.value.isNotBlank()) {
+            fetchModels()
+        }
+    }
+
+
+    fun fetchModels() {
+        val currentApiKey = _apiKey.value.trim()
+        if (currentApiKey.isBlank()) return
+
+        viewModelScope.launch {
+            _modelsFetchStatus.value = ModelsFetchStatus.Loading
+            try {
+                val fetchedModels = settingRepository.fetchOpenRouterModels(
+                    apiKey = currentApiKey,
+                    isFreeOnly = _isFreePlan.value
+                )
+                _modelsFetchStatus.value = ModelsFetchStatus.Success(fetchedModels)
+                if (fetchedModels.isNotEmpty()) {
+                    _model.value = fetchedModels.first().id
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to fetch OpenRouter models", e)
+                _modelsFetchStatus.value = ModelsFetchStatus.Error(
+                    e.message ?: "فشل في جلب قائمة الموديلات"
+                )
+            }
+        }
     }
 
 
     fun nextWizardStep() {
+        if (!canProceedFromStep(_wizardStep.value)) return
+
+        if (_wizardStep.value == WIZARD_STEP_API_KEY && _selectedClientType.value == ClientType.OPEN_ROUTER) {
+            fetchModels()
+        }
         _wizardStep.update {
-            it + 1
+            minOf(WIZARD_TOTAL_STEPS - 1, it + 1)
         }
     }
 
@@ -188,6 +237,7 @@ class SetupViewModelV2 @Inject constructor(
         _apiKey.value = ""
         _model.value = ""
         _isFreePlan.value = true
+        _modelsFetchStatus.value = ModelsFetchStatus.Idle
     }
 
 

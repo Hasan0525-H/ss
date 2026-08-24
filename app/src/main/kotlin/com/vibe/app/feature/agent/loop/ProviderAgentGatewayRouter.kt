@@ -8,7 +8,6 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 
-
 /**
  * Routes agent model requests based on the selected platform type.
  *
@@ -23,27 +22,19 @@ class ProviderAgentGatewayRouter @Inject constructor(
     private val openAiGateway: OpenAiResponsesAgentGateway,
 ) : AgentModelGateway {
 
-
     override suspend fun streamTurn(
         request: AgentModelRequest
     ): Flow<AgentModelEvent> {
-
-
-        return when (
-            request.platform.compatibleType
-        ) {
-
-
+        return when (request.platform.compatibleType) {
             ClientType.OPEN_ROUTER ->
                 openAiGateway.streamTurn(request)
-
-
 
             ClientType.CUSTOM ->
                 openAiGateway.streamTurn(request)
 
+            // تمت إضافة فرع else لضمان اكتمال عبارة when وتغطية بقية المزودين
+            else ->
+                openAiGateway.streamTurn(request)
         }
-
     }
-
 }

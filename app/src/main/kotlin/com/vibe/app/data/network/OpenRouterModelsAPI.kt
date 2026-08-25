@@ -15,11 +15,11 @@ class OpenRouterModelsAPI @Inject constructor(
 
 
     /**
-     * جلب أحدث قائمة موديلات OpenRouter
+     * جلب أحدث موديلات OpenRouter
      *
      * isFreeOnly:
-     * true  = المجانية فقط
-     * false = المدفوعة فقط مرتبة من الأرخص للأغلى
+     * true  -> موديلات مجانية فقط
+     * false -> موديلات مدفوعة فقط مرتبة حسب السعر
      */
     suspend fun fetchOpenRouterModels(
         apiKey: String,
@@ -94,7 +94,7 @@ class OpenRouterModelsAPI @Inject constructor(
 
 
     /**
-     * جلب كل الموديلات بدون فلترة
+     * جلب جميع الموديلات بدون فلترة
      */
     suspend fun getModels(
         token: String

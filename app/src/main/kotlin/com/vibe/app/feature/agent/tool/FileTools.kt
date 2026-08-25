@@ -181,19 +181,16 @@ class WriteProjectFileTool @Inject constructor(
             workspace.writeTextFile(path, content)
 
             val file = File(workspace.rootDir, path)
+            val success = file.exists() && file.length() > 0L
 
-            // الحماية: التحقق من وجود الملف وكتابة محتوى بعد عملية الإنشاء
-            if (file.exists() && file.length() > 0L) {
-                call.result(
-                    buildJsonObject {
-                        put("success", JsonPrimitive(true))
-                        put("path", JsonPrimitive(path))
-                        put("bytesWritten", JsonPrimitive(file.length()))
-                    },
-                )
-            } else {
-                call.errorResult("File creation verification failed for path: $path")
-            }
+            call.result(
+                output = buildJsonObject {
+                    put("success", JsonPrimitive(success))
+                    put("path", JsonPrimitive(path))
+                    put("bytesWritten", JsonPrimitive(file.length()))
+                },
+                isError = !success,
+            )
         } catch (e: Exception) {
             call.errorResult(e.message ?: "Failed to write project file")
         }

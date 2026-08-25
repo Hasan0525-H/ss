@@ -4,7 +4,7 @@ import com.vibe.app.feature.agent.AgentLoopRequest
 import com.vibe.app.feature.agent.AgentModelRequest
 import com.vibe.app.feature.agent.AgentModelEvent
 import com.vibe.app.feature.agent.AgentLoopEvent
-import com.vibe.app.feature.agent.tool.AgentToolDefinition
+import com.vibe.app.feature.agent.AgentToolDefinition
 
 
 fun AgentLoopRequest.toModelRequest(
@@ -15,14 +15,9 @@ fun AgentLoopRequest.toModelRequest(
         platform = platform,
         instructions = systemPrompt,
         tools = tools,
-
         diagnosticContext = diagnosticContext,
-
         policy = policy,
-
-        fullConversation = messages,
-
-        iteration = 0
+        conversation = conversation
     )
 }
 
@@ -36,24 +31,20 @@ fun AgentModelEvent.toLoopEvent(): AgentLoopEvent {
                 delta = delta
             )
 
-
         is AgentModelEvent.ThinkingDelta ->
             AgentLoopEvent.ThinkingDelta(
                 delta = delta
             )
-
 
         is AgentModelEvent.ToolCallReady ->
             AgentLoopEvent.ToolExecutionStarted(
                 call = call
             )
 
-
         is AgentModelEvent.Completed ->
             AgentLoopEvent.LoopCompleted(
-                finalText = finalText ?: ""
+                finalText = ""
             )
-
 
         is AgentModelEvent.Failed ->
             AgentLoopEvent.LoopFailed(

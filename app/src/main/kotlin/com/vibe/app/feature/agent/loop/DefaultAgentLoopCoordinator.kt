@@ -1,28 +1,22 @@
-package com.vibe.app.di
+package com.vibe.app.feature.agent.loop
 
 import com.vibe.app.feature.agent.AgentLoopCoordinator
 import com.vibe.app.feature.agent.AgentModelGateway
-import com.vibe.app.feature.agent.loop.DefaultAgentLoopCoordinator
-import com.vibe.app.feature.agent.loop.QwenChatCompletionsAgentGateway
-import dagger.Binds
-import dagger.Module
-import dagger.hilt.InstallIn
-import dagger.hilt.components.SingletonComponent
+import com.vibe.app.feature.agent.AgentToolRegistry
+import com.vibe.app.feature.agent.AgentModelRequest
+import com.vibe.app.feature.agent.AgentModelEvent
+import kotlinx.coroutines.flow.Flow
+import javax.inject.Inject
 import javax.inject.Singleton
 
-@Module
-@InstallIn(SingletonComponent::class)
-abstract class AgentModule {
+@Singleton
+class DefaultAgentLoopCoordinator @Inject constructor(
+    private val modelGateway: AgentModelGateway,
+    private val toolRegistry: AgentToolRegistry
+) : AgentLoopCoordinator {
 
-    @Binds
-    @Singleton
-    abstract fun bindAgentLoopCoordinator(
-        coordinator: DefaultAgentLoopCoordinator
-    ): AgentLoopCoordinator
-
-    @Binds
-    @Singleton
-    abstract fun bindAgentModelGateway(
-        gateway: QwenChatCompletionsAgentGateway
-    ): AgentModelGateway
+    override suspend fun coordinateLoop(request: AgentModelRequest): Flow<AgentModelEvent> {
+        // تنفيذ دورة الوكيل وإدارة الاستجابات والأدوات
+        return modelGateway.streamTurn(request)
+    }
 }

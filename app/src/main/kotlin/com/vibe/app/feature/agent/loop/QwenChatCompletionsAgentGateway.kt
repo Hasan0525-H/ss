@@ -6,6 +6,7 @@ import com.vibe.app.data.dto.qwen.request.QwenFunctionDefinition
 import com.vibe.app.data.dto.qwen.request.QwenTool
 import com.vibe.app.data.dto.qwen.request.qwenTextContent
 import com.vibe.app.data.network.OpenAIAPI
+import com.vibe.app.data.preferences.LanguageManager
 import com.vibe.app.feature.agent.AgentMessageRole
 import com.vibe.app.feature.agent.AgentModelEvent
 import com.vibe.app.feature.agent.AgentModelGateway
@@ -29,6 +30,7 @@ import kotlinx.serialization.json.buildJsonObject
 class QwenChatCompletionsAgentGateway @Inject constructor(
     private val openAIAPI: OpenAIAPI,
     private val diagnosticLogger: ChatDiagnosticLogger,
+    private val languageManager: LanguageManager,
 ) : AgentModelGateway {
 
 
@@ -431,7 +433,7 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
 
                     append("\n\n")
                     append(
-                        TOOL_REQUIRED_INSTRUCTION
+                        toolRequiredInstruction()
                     )
 
 
@@ -525,14 +527,34 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
     }
 
 
+    private fun toolRequiredInstruction(): String {
+        return if (languageManager.language.value == "ar") {
+            """
+أنت وكيل برمجة مستقل.
 
-    companion object {
+قواعد اللغة:
+- استخدم اللغة العربية في جميع الردود.
+- اكتب الشروحات بالعربية.
+- اكتب تعليقات الكود بالعربية.
+- اجعل رسائل البناء والاختبار بالعربية.
 
+عند طلب إنشاء تطبيق:
+- يجب عليك استخدام write_project_file.
+- لا تشرح للمستخدم ما يجب فعله.
+- نفذ الأدوات بنفسك.
+- لا ترسل رد نصي بدون تنفيذ الأدوات.
 
-        private const val TOOL_REQUIRED_INSTRUCTION =
-
+الرد النصي فقط يعتبر فاشلاً.
+"""
+        } else {
             """
 You are an autonomous coding agent.
+
+Language rules:
+- Use English in all responses.
+- Write explanations in English.
+- Write code comments in English.
+- Write build and testing reports in English.
 
 For every application creation request:
 - You MUST call write_project_file.
@@ -543,7 +565,12 @@ For every application creation request:
 
 A text-only response is invalid.
 """
+        }
+    }
 
+
+
+    companion object {
 
 
         private const val TOOL_ENCOURAGE_INSTRUCTION =

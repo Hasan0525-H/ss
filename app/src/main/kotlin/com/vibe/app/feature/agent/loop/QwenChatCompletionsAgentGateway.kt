@@ -131,6 +131,10 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
         var finishReason: String? = null
         var streamError: String? = null
 
+        // متغيرات تتبع الحلقة لتجنب التكرار المفرغ
+        var lastAssistantText = ""
+        var repeatCount = 0
+
 
 
         openAIAPI.streamQwenChatCompletion(
@@ -212,6 +216,21 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
             choice.delta?.content
                 ?.takeIf { it.isNotEmpty() }
                 ?.let { delta ->
+
+                    // منطق كشف الحلقة وتوقفها
+                    if (delta == lastAssistantText) {
+                        repeatCount++
+                    } else {
+                        lastAssistantText = delta
+                        repeatCount = 0
+                    }
+
+                    if (repeatCount >= 3) {
+                        emit(
+                            AgentModelEvent.Failed("Model repeated the same response multiple times")
+                        )
+                        return@flow
+                    }
 
                     trace.markOutput(delta)
 
@@ -510,12 +529,16 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
         private const val TOOL_REQUIRED_INSTRUCTION =
 
             """
-## MANDATORY TOOL USE
+You are an autonomous coding agent.
 
-You MUST call at least one tool in your response.
-Do NOT reply with only text.
-Analyze the user's request and use the appropriate tools.
-Every response MUST include one or more tool calls.
+For every application creation request:
+- You MUST call write_project_file.
+- Do not explain.
+- Do not tell the user to use tools.
+- Do not output instructions.
+- Execute the tools yourself.
+
+A text-only response is invalid.
 """
 
 
@@ -570,10 +593,9 @@ fun AgentModelRequest.toQwenToolChoice(): String? {
 
 
 
-        // Qwen لا يدعم required
-        // نستخدم auto مع TOOL_REQUIRED_INSTRUCTION
+        // تم تعديلها لتجبر النموذج على استخدام الأدوات فعلياً
         AgentToolChoiceMode.REQUIRED ->
-            "auto"
+            "required"
 
 
 

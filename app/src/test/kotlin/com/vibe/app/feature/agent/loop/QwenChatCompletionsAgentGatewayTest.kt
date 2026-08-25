@@ -60,3 +60,20 @@ class QwenChatCompletionsAgentGatewayTest {
         policy = AgentLoopPolicy(toolChoiceMode = toolChoiceMode),
     )
 }
+
+fun AgentModelRequest.toQwenToolChoice(): String? {
+    if (tools.isEmpty()) {
+        return null
+    }
+
+    return when (policy.toolChoiceMode) {
+        AgentToolChoiceMode.AUTO ->
+            "auto"
+
+        AgentToolChoiceMode.REQUIRED ->
+            "auto"
+
+        AgentToolChoiceMode.NONE ->
+            "none"
+    }
+}

@@ -10,6 +10,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -41,27 +42,13 @@ fun PlatformSettingScreen(
             }
         )
 
-    val platform: PlatformV2? =
-        settingViewModel.platformState
-            .collectAsStateWithLifecycle()
-            .value
-
-    val dialogState =
-        settingViewModel.dialogState
-            .collectAsStateWithLifecycle()
-            .value
-
-    val isDeleted =
-        settingViewModel.isDeleted
-            .collectAsStateWithLifecycle()
-            .value
+    val platform by settingViewModel.platformState.collectAsStateWithLifecycle()
+    val dialogState by settingViewModel.dialogState.collectAsStateWithLifecycle()
+    val isDeleted by settingViewModel.isDeleted.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
 
-    val switchedHint =
-        stringResource(
-            R.string.switched_platform_hint
-        )
+    val switchedHint = stringResource(R.string.switched_platform_hint)
 
     LaunchedEffect(Unit) {
         settingViewModel.switchedPlatformEvent.collect { name ->
@@ -91,18 +78,13 @@ fun PlatformSettingScreen(
             }
         ) { padding ->
             Column(
-                modifier =
-                    Modifier
-                        .padding(padding)
-                        .verticalScroll(scrollState)
+                modifier = Modifier
+                    .padding(padding)
+                    .verticalScroll(scrollState)
             ) {
                 PreferenceSwitchWithContainer(
-                    title =
-                        stringResource(
-                            R.string.enable_api
-                        ),
-                    isChecked =
-                        platformData.enabled,
+                    title = stringResource(R.string.enable_api),
+                    isChecked = platformData.enabled,
                     onCheckedChange = {
                         settingViewModel.toggleEnabled()
                     }
@@ -110,100 +92,58 @@ fun PlatformSettingScreen(
 
                 SettingItem(
                     modifier = Modifier.height(64.dp),
-                    title =
-                        stringResource(
-                            R.string.platform_name
-                        ),
-                    description =
-                        platformData.name,
-                    enabled =
-                        platformData.enabled,
+                    title = stringResource(R.string.platform_name),
+                    description = platformData.name,
+                    enabled = platformData.enabled,
                     onItemClick = { settingViewModel.openPlatformNameDialog() }
                 )
 
                 SettingItem(
                     modifier = Modifier.height(64.dp),
-                    title =
-                        stringResource(
-                            R.string.api_url
-                        ),
-                    description =
-                        platformData.apiUrl,
-                    enabled =
-                        platformData.enabled,
+                    title = stringResource(R.string.api_url),
+                    description = platformData.apiUrl,
+                    enabled = platformData.enabled,
                     onItemClick = { settingViewModel.openApiUrlDialog() }
                 )
 
                 SettingItem(
                     modifier = Modifier.height(64.dp),
-                    title =
-                        stringResource(
-                            R.string.api_key
-                        ),
-                    description =
-                        if (platformData.token.isNullOrBlank())
-                            stringResource(
-                                R.string.not_set
-                            )
-                        else
-                            "Configured",
-                    enabled =
-                        platformData.enabled,
+                    title = stringResource(R.string.api_key),
+                    description = if (platformData.token.isNullOrBlank())
+                        stringResource(R.string.not_set)
+                    else
+                        "Configured",
+                    enabled = platformData.enabled,
                     onItemClick = { settingViewModel.openApiTokenDialog() }
                 )
 
                 SettingItem(
                     modifier = Modifier.height(64.dp),
-                    title =
-                        stringResource(
-                            R.string.model
-                        ),
-                    description =
-                        platformData.model,
-                    enabled =
-                        platformData.enabled,
+                    title = stringResource(R.string.model),
+                    description = platformData.model,
+                    enabled = platformData.enabled,
                     onItemClick = { settingViewModel.openApiModelDialog() }
                 )
 
                 val reasoningDisabled =
-                    platformData.compatibleType ==
-                            ClientType.OPENAI &&
+                    platformData.compatibleType == ClientType.OPENAI &&
                             platformData.reasoning
 
-                val notSet =
-                    stringResource(
-                        R.string.not_set
-                    )
+                val notSet = stringResource(R.string.not_set)
 
                 SettingItem(
                     modifier = Modifier.height(64.dp),
-                    title =
-                        stringResource(
-                            R.string.temperature
-                        ),
-                    description =
-                        platformData.temperature
-                            ?.toString()
-                            ?: notSet,
-                    enabled =
-                        platformData.enabled &&
-                                !reasoningDisabled,
+                    title = stringResource(R.string.temperature),
+                    description = platformData.temperature?.toString() ?: notSet,
+                    enabled = platformData.enabled && !reasoningDisabled,
                     onItemClick = { settingViewModel.openTemperatureDialog() }
                 )
 
                 SettingItem(
                     modifier = Modifier.height(64.dp),
-                    title =
-                        stringResource(
-                            R.string.top_p
-                        ),
-                    description =
-                        platformData.topP
-                            ?.toString()
-                            ?: notSet,
-                    enabled =
-                        platformData.enabled &&
-                                !reasoningDisabled,
+                    title = stringResource(R.string.top_p),
+                    description = platformData.topP?.toString() ?: notSet,
+                    enabled = platformData.enabled && !reasoningDisabled,
                     onItemClick = { settingViewModel.openTopPDialog() }
                 )
 

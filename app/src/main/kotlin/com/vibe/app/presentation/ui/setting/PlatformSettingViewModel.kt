@@ -210,6 +210,15 @@ class PlatformSettingViewModel @Inject constructor(
         }
     }
 
+    fun updateSystemPrompt(prompt: String) {
+        _platformState.value?.let { platform ->
+            updatePlatform(
+                platform.copy(systemPrompt = prompt.trim())
+            )
+            closeSystemPromptDialog()
+        }
+    }
+
     fun openPlatformNameDialog() =
         _dialogState.update { it.copy(isPlatformNameDialogOpen = true) }
 

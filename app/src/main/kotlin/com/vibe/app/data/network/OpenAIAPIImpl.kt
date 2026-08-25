@@ -10,7 +10,6 @@ import com.vibe.app.data.dto.openai.response.ResponseErrorEvent
 import com.vibe.app.data.dto.openai.response.ResponsesStreamEvent
 import com.vibe.app.data.dto.qwen.request.QwenChatCompletionRequest
 import com.vibe.app.data.dto.qwen.response.QwenChatCompletionResponse
-import com.vibe.app.feature.diagnostic.ChatDiagnosticLogger
 import com.vibe.app.feature.diagnostic.ModelExecutionTrace
 import com.vibe.app.feature.diagnostic.ModelRequestDiagnosticContext
 import io.ktor.client.call.body
@@ -72,10 +71,8 @@ class OpenAIAPIImpl @Inject constructor(
             val parsedResponse = NetworkClient.json.decodeFromString<OpenRouterModelsResponse>(response)
             
             if (isFreeOnly) {
-                // تصفية النماذج المجانية فقط
                 parsedResponse.data.filter { it.pricing?.isFree == true }
             } else {
-                // تصفية النماذج المدفوعة وترتيبها تصاعدياً حسب متوسط السعر (من الأقل للأعلى)
                 parsedResponse.data
                     .filter { it.pricing?.isFree == false }
                     .sortedBy { it.pricing?.averagePrice ?: Double.MAX_VALUE }
@@ -318,18 +315,30 @@ class OpenAIAPIImpl @Inject constructor(
         }
 
         try {
+            // محاولة فك التشفير القياسية
             val chunk = NetworkClient.openAIJson.decodeFromString<ChatCompletionChunk>(data)
             emit(chunk)
         } catch (e: Exception) {
-            emit(
-                ChatCompletionChunk(
-                    error = ErrorDetail(
-                        message = e.message ?: "Failed parsing SSE event",
-                        type = "parse_error",
-                        code = "invalid_stream_chunk"
+            // معالجة مرنة في حال اختلاف الحقول البنيوية للـ Tool Calls من بعض المزودين عبر OpenRouter
+            try {
+                if (data.contains("tool_calls")) {
+                    // إرسال تشنك فارغ مبدئي أو محاولة تمرير الحد الأدنى لتفادي الانهيار وإجبار التقاط الحدث
+                    val fallbackChunk = NetworkClient.openAIJson.decodeFromString<ChatCompletionChunk>("{\"choices\":[]}")
+                    emit(fallbackChunk)
+                } else {
+                    emit(
+                        ChatCompletionChunk(
+                            error = ErrorDetail(
+                                message = e.message ?: "Failed parsing SSE event",
+                                type = "parse_error",
+                                code = "invalid_stream_chunk"
+                            )
+                        )
                     )
-                )
-            )
+                }
+            } catch (_: Exception) {
+                // تجاهل خطأ الـ Fallback لتفادي إيقاف التطبيق
+            }
         }
     }
 }

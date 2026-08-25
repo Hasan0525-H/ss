@@ -106,7 +106,8 @@ class OpenAIAPIImpl @Inject constructor(
         trace: ModelExecutionTrace?,
     ): Flow<ChatCompletionChunk> = flow {
         val endpoint = buildEndpoint("/v1/chat/completions")
-        val requestBody = NetworkClient.json.encodeToJsonElement(request).toString()
+        // استخدام openAIJson بدلاً من NetworkClient.json لتوحيد صيغة تسلسل الحقول والأدوات
+        val requestBody = NetworkClient.openAIJson.encodeToJsonElement(request).toString()
 
         try {
             networkClient()
@@ -166,7 +167,7 @@ class OpenAIAPIImpl @Inject constructor(
         trace: ModelExecutionTrace?,
     ): QwenChatCompletionResponse {
         val endpoint = buildEndpoint("/v1/chat/completions")
-        val requestBody = NetworkClient.json.encodeToJsonElement(request).toString()
+        val requestBody = NetworkClient.openAIJson.encodeToJsonElement(request).toString()
 
         return try {
             networkClient()
@@ -187,7 +188,7 @@ class OpenAIAPIImpl @Inject constructor(
                             )
                         )
                     }
-                    NetworkClient.json.decodeFromString<QwenChatCompletionResponse>(body)
+                    NetworkClient.openAIJson.decodeFromString<QwenChatCompletionResponse>(body)
                 }
         } catch (e: Exception) {
             QwenChatCompletionResponse(

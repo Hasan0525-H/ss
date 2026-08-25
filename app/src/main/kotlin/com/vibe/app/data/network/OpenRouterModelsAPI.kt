@@ -6,54 +6,132 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.header
-import io.ktor.client.request.parameter
 import javax.inject.Inject
+
 
 class OpenRouterModelsAPI @Inject constructor(
     private val client: HttpClient
 ) {
+
+
     /**
-     * جلب قائمة الموديلات من OpenRouter مع إمكانية الفلترة
-     * بين المجاني والمدفوع (مع ترتيب المدفوع تصاعدياً حسب السعر)
+     * جلب أحدث قائمة موديلات OpenRouter
+     *
+     * isFreeOnly:
+     * true  = المجانية فقط
+     * false = المدفوعة فقط مرتبة من الأرخص للأغلى
      */
     suspend fun fetchOpenRouterModels(
         apiKey: String,
         isFreeOnly: Boolean
     ): List<OpenRouterModel> {
-        return try {
-            val formattedToken = if (apiKey.startsWith("Bearer ")) apiKey else "Bearer $apiKey"
-            
-            val response: OpenRouterModelsResponse = client.get("https://openrouter.ai/api/v1/models") {
-                header("Authorization", formattedToken)
-                header("HTTP-Referer", "https://vibe.app")
-                header("X-Title", "Vibe App")
+
+
+        val formattedToken =
+            if (apiKey.startsWith("Bearer ")) {
+                apiKey
+            } else {
+                "Bearer $apiKey"
+            }
+
+
+
+        val response: OpenRouterModelsResponse =
+            client.get(
+                "https://openrouter.ai/api/v1/models"
+            ) {
+
+                header(
+                    "Authorization",
+                    formattedToken
+                )
+
+                header(
+                    "HTTP-Referer",
+                    "https://vibe.app"
+                )
+
+                header(
+                    "X-Title",
+                    "Vibe App"
+                )
+
             }.body()
 
-            if (isFreeOnly) {
-                // تصفية النماذج المجانية فقط
-                response.data.filter { it.pricing?.isFree == true }
-            } else {
-                // تصفية النماذج المدفوعة وترتيبها تصاعدياً من الأقل سعراً للأعلى
-                response.data
-                    .filter { it.pricing?.isFree == false }
-                    .sortedBy { it.pricing?.averagePrice ?: Double.MAX_VALUE }
-            }
-        } catch (e: Exception) {
-            emptyList()
+
+
+        return if (isFreeOnly) {
+
+
+            response.data
+                .filter {
+                    it.pricing?.isFree == true
+                }
+                .sortedBy {
+                    it.name ?: it.id
+                }
+
+
+        } else {
+
+
+            response.data
+                .filter {
+                    it.pricing?.isFree == false
+                }
+                .sortedBy {
+
+                    it.pricing
+                        ?.averagePrice
+                        ?: Double.MAX_VALUE
+
+                }
+
         }
+
     }
 
+
+
     /**
-     * جلب الاستجابة الخام للموديلات مباشرة عند الحاجة
+     * جلب كل الموديلات بدون فلترة
      */
     suspend fun getModels(
-        token: String,
-        sort: String? = null
+        token: String
     ): OpenRouterModelsResponse {
-        val formattedToken = if (token.startsWith("Bearer ")) token else "Bearer $token"
-        return client.get("https://openrouter.ai/api/v1/models") {
-            header("Authorization", formattedToken)
-            sort?.let { parameter("sort", it) }
+
+
+        val formattedToken =
+            if (token.startsWith("Bearer ")) {
+                token
+            } else {
+                "Bearer $token"
+            }
+
+
+
+        return client.get(
+            "https://openrouter.ai/api/v1/models"
+        ) {
+
+
+            header(
+                "Authorization",
+                formattedToken
+            )
+
+            header(
+                "HTTP-Referer",
+                "https://vibe.app"
+            )
+
+            header(
+                "X-Title",
+                "Vibe App"
+            )
+
         }.body()
+
     }
+
 }

@@ -10,6 +10,7 @@ import com.vibe.app.data.dto.openai.response.ResponseErrorEvent
 import com.vibe.app.data.dto.openai.response.ResponsesStreamEvent
 import com.vibe.app.data.dto.qwen.request.QwenChatCompletionRequest
 import com.vibe.app.data.dto.qwen.response.QwenChatCompletionResponse
+import com.vibe.app.feature.diagnostic.ChatDiagnosticLogger
 import com.vibe.app.feature.diagnostic.ModelExecutionTrace
 import com.vibe.app.feature.diagnostic.ModelRequestDiagnosticContext
 import io.ktor.client.call.body
@@ -25,12 +26,14 @@ import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import io.ktor.utils.io.readUTF8Line
 import javax.inject.Inject
+import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.encodeToJsonElement
 
+@Singleton
 class OpenAIAPIImpl @Inject constructor(
     private val networkClient: NetworkClient,
     private val diagnosticLogger: ChatDiagnosticLogger,
@@ -315,14 +318,11 @@ class OpenAIAPIImpl @Inject constructor(
         }
 
         try {
-            // محاولة فك التشفير القياسية
             val chunk = NetworkClient.openAIJson.decodeFromString<ChatCompletionChunk>(data)
             emit(chunk)
         } catch (e: Exception) {
-            // معالجة مرنة في حال اختلاف الحقول البنيوية للـ Tool Calls من بعض المزودين عبر OpenRouter
             try {
                 if (data.contains("tool_calls")) {
-                    // إرسال تشنك فارغ مبدئي أو محاولة تمرير الحد الأدنى لتفادي الانهيار وإجبار التقاط الحدث
                     val fallbackChunk = NetworkClient.openAIJson.decodeFromString<ChatCompletionChunk>("{\"choices\":[]}")
                     emit(fallbackChunk)
                 } else {
@@ -337,7 +337,6 @@ class OpenAIAPIImpl @Inject constructor(
                     )
                 }
             } catch (_: Exception) {
-                // تجاهل خطأ الـ Fallback لتفادي إيقاف التطبيق
             }
         }
     }

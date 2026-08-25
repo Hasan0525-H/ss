@@ -131,7 +131,6 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
         var finishReason: String? = null
         var streamError: String? = null
 
-        // متغيرات تتبع الحلقة لتجنب التكرار المفرغ
         var lastAssistantText = ""
         var repeatCount = 0
 
@@ -217,7 +216,6 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                 ?.takeIf { it.isNotEmpty() }
                 ?.let { delta ->
 
-                    // منطق كشف الحلقة وتوقفها
                     if (delta == lastAssistantText) {
                         repeatCount++
                     } else {
@@ -593,7 +591,6 @@ fun AgentModelRequest.toQwenToolChoice(): String? {
 
 
 
-        // تم تعديلها لتجبر النموذج على استخدام الأدوات فعلياً
         AgentToolChoiceMode.REQUIRED ->
             "required"
 

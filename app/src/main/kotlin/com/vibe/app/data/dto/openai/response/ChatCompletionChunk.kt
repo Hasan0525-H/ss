@@ -30,10 +30,25 @@ data class Choice(
     val index: Int,
 
     @SerialName("delta")
-    val delta: Delta,
+    val delta: Delta? = null,
+
+    @SerialName("message")
+    val message: Message? = null, // تمت الإضافه لدعم استقبال الـ message والـ tool_calls النهائية
 
     @SerialName("finish_reason")
     val finishReason: String? = null
+)
+
+@Serializable
+data class Message(
+    @SerialName("role")
+    val role: String? = null,
+
+    @SerialName("content")
+    val content: String? = null,
+
+    @SerialName("tool_calls")
+    val toolCalls: List<DeltaToolCall>? = null
 )
 
 @Serializable

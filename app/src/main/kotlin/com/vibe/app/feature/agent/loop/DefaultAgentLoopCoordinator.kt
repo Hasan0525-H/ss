@@ -5,8 +5,8 @@ import com.vibe.app.feature.agent.AgentModelGateway
 import com.vibe.app.feature.agent.AgentToolRegistry
 import com.vibe.app.feature.agent.AgentLoopRequest
 import com.vibe.app.feature.agent.AgentLoopEvent
-import com.vibe.app.feature.agent.toModelRequest // تأكد من استيراد دوال الامتداد بشكل صحيح
-import com.vibe.app.feature.agent.toLoopEvent  // تأكد من استيراد دوال الامتداد بشكل صحيح
+import com.vibe.app.feature.agent.loop.toModelRequest
+import com.vibe.app.feature.agent.loop.toLoopEvent
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.collect
@@ -30,9 +30,7 @@ class DefaultAgentLoopCoordinator @Inject constructor(
         modelGateway
             .streamTurn(modelRequest)
             .collect { event ->
-                emit(
-                    event.toLoopEvent()
-                )
+                emit(event.toLoopEvent())
             }
     }
 }

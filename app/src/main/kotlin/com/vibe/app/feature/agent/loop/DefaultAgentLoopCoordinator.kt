@@ -132,8 +132,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                     )
                 }
             }.onFailure { e ->
-                // Swallow — a prepare failure must not crash the turn. Continue
-                // in GREENFIELD without memo / snapshot.
                 request.diagnosticContext?.copy(platformUid = request.platform.uid)?.let { ctx ->
                     diagnosticLogger.logAgentLoopEvent(
                         context = ctx,
@@ -149,16 +147,17 @@ class DefaultAgentLoopCoordinator @Inject constructor(
             }
         }
 
-        // ─── TOOL LOOP (existing body, wrapped in try / finally) ──────────────────
-        // collectedToolResults is hoisted here so FINALIZE can inspect it.
+        // ─── TOOL LOOP ────────────────────────────────────────────────────────────
         val collectedToolResults = mutableListOf<AgentToolResult>()
+
+        // متغيرات متتبعة لمنع التكرار المفرغ (Loop Detection Variables)
+        var lastToolSignature = ""
+        var repeatedToolCount = 0
 
         try {
             var previousResponseId: String? = null
             val initialConversation = buildInitialConversation(request)
-            // delta: new items to send for this turn (used by stateful providers like OpenAI)
             var conversationDelta: List<AgentConversationItem> = initialConversation
-            // fullConversation: the entire accumulated history (used by stateless providers like Anthropic)
             val fullConversation = initialConversation.toMutableList()
             var currentPlan: AgentPlan? = null
 
@@ -182,8 +181,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                 var failureMessage: String? = null
                 var turnReasoningContent: String? = null
 
-                // Force tool use on the first iteration so the model cannot skip directly to
-                // a text-only answer (which happens on turn 3+ when it has seen prior exchanges).
                 val effectivePolicy = if (iteration == 1 && request.tools.isNotEmpty()) {
                     request.policy.copy(toolChoiceMode = AgentToolChoiceMode.REQUIRED)
                 } else {
@@ -310,8 +307,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                     return@flow
                 }
 
-                // Append the assistant's turn (text + tool calls) to the full history so stateless
-                // providers can reconstruct the complete conversation on the next turn.
                 fullConversation += AgentConversationItem(
                     role = AgentMessageRole.ASSISTANT,
                     text = outputBuilder.toString().trim().takeIf { it.isNotEmpty() },
@@ -346,8 +341,7 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                             startedAt = toolStartedAt,
                         )
                     }
-                    // WriteInterceptor: mark that this turn mutated the workspace so FINALIZE
-                    // knows to capture a post-turn snapshot of the resulting state.
+
                     if (turnContext != null && call.name in WRITE_TOOL_NAMES && !turnContext.firstWriteDone) {
                         turnContext.firstWriteDone = true
                     }
@@ -373,7 +367,7 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                     }
                     pendingToolResults += result
                     collectedToolResults += result
-                    // WriteInterceptor: track affected/deleted file paths for snapshot metadata.
+
                     if (turnContext != null && !result.isError) {
                         runCatching {
                             when (call.name) {
@@ -385,11 +379,8 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                                     val path = call.arguments.requireString("path")
                                     turnContext.deletedFiles += path
                                 }
-                                // icon tools: commit was triggered above; paths not tracked individually
                             }
                         }
-                        // Path-extraction failures are silent — worst case, affectedFiles is empty
-                        // and the UI shows a snapshot without per-file detail. Not a correctness issue.
                     }
                     request.diagnosticContext?.copy(platformUid = request.platform.uid)?.let { diagnosticContext ->
                         diagnosticLogger.logAgentToolFinished(
@@ -400,7 +391,7 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                         )
                     }
                     emit(AgentLoopEvent.ToolExecutionFinished(iteration, result))
-                    // Handle plan tool results
+
                     when (call.name) {
                         "create_plan" -> {
                             parsePlanFromToolResult(result, iteration)?.let { plan ->
@@ -419,7 +410,37 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                     }
                 }
 
-                // Build tool result items and append to full history.
+                // ─── حماية ضد التكرار (Loop Prevention Guard) ──────────────────
+                val currentSignature = pendingToolResults.joinToString("|") { 
+                    "${it.toolName}:${it.output}" 
+                }
+                if (currentSignature.isNotEmpty() && currentSignature == lastToolSignature) {
+                    repeatedToolCount++
+                } else {
+                    repeatedToolCount = 0
+                    lastToolSignature = currentSignature
+                }
+
+                if (repeatedToolCount >= 3) {
+                    val loopMessage = "Agent stuck repeating the same failed actions/output consecutively."
+                    request.diagnosticContext?.copy(platformUid = request.platform.uid)?.let { ctx ->
+                        diagnosticLogger.logAgentLoopEvent(
+                            context = ctx,
+                            action = "loop_failed",
+                            level = DiagnosticLevels.ERROR,
+                            summary = loopMessage,
+                            payload = buildJsonObject {
+                                put("action", "loop_failed")
+                                put("reason", "loop_detected")
+                                put("iteration", iteration)
+                            },
+                        )
+                    }
+                    emit(AgentLoopEvent.LoopFailed(message = loopMessage, iteration = iteration))
+                    return@flow
+                }
+                // ──────────────────────────────────────────────────────────────
+
                 val toolResultItems = pendingToolResults.map { result ->
                     AgentConversationItem(
                         role = AgentMessageRole.TOOL,
@@ -429,13 +450,10 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                     )
                 }
                 fullConversation += toolResultItems
-
-                // For stateful providers (OpenAI), only the tool results are needed as the delta.
                 conversationDelta = toolResultItems
             }
 
-            // All iterations exhausted — give the model one final chance to produce a summary
-            // instead of hard-failing. Inject a wind-down message and force text-only response.
+            // Wind-down fallback
             request.diagnosticContext?.copy(platformUid = request.platform.uid)?.let { ctx ->
                 diagnosticLogger.logAgentLoopEvent(
                     context = ctx,
@@ -537,9 +555,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
             // ─── FINALIZE ─────────────────────────────────────────────────────────
             if (turnContext != null) {
                 runCatching {
-                    // A turn "succeeded" if at least one run_build_pipeline tool call returned
-                    // isError=false. If no build tool was called, buildSucceeded=false so the
-                    // snapshot is still finalized (for edit-only turns) but memo is not updated.
                     val buildSucceeded = collectedToolResults.any {
                         it.toolName == "run_build_pipeline" && !it.isError
                     }
@@ -561,9 +576,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                             )
                         }
                     }
-                    // Capture the POST-turn workspace state so the snapshot labeled "turn N"
-                    // represents the result of turn N. Skip for edit-free turns — finalize()
-                    // is a no-op when nothing was committed.
                     if (turnContext.firstWriteDone) {
                         runCatching { turnContext.snapshotHandle.commit() }
                             .onFailure { e ->
@@ -618,23 +630,11 @@ class DefaultAgentLoopCoordinator @Inject constructor(
         }
     }
 
-    /**
-     * Build the initial conversation from Room-persisted messages, applying
-     * cross-turn compaction (Phase A) to keep the context within budget.
-     *
-     * Room messages are flat USER/ASSISTANT text pairs. A single assistant
-     * message can be hundreds of KB (full agent loop output from 30 iterations).
-     * Phase A applies recency-weighted truncation so older turns are summarized
-     * while the most recent turn retains more detail.
-     */
     private fun buildInitialConversation(request: AgentLoopRequest): List<AgentConversationItem> {
         val items = mutableListOf<AgentConversationItem>()
 
         request.userMessages.forEachIndexed { index, userMessage ->
             items += userMessage.toAgentConversationItem()
-            // Prefer an assistant message from the current platform; if the user has
-            // switched models mid-chat, fall back to any platform's reply so the new
-            // model still sees what was already done (avoids repeating work).
             val assistantsForTurn = request.assistantMessages.getOrNull(index).orEmpty()
             val assistantForTurn = assistantsForTurn
                 .firstOrNull { it.platformType == request.platform.uid }
@@ -647,27 +647,15 @@ class DefaultAgentLoopCoordinator @Inject constructor(
         return compactCrossTurnHistory(items, request)
     }
 
-    /**
-     * Phase A: Cross-turn compaction.
-     *
-     * Applies recency-weighted truncation to assistant messages loaded from Room
-     * (identified by having no toolCalls). Budget allocation:
-     * - 60% of initial conversation budget for system prompt + tools headroom
-     * - Most recent assistant: up to [MAX_RECENT_ASSISTANT_CHARS]
-     * - Second most recent: up to [MAX_OLDER_ASSISTANT_CHARS]
-     * - Older assistants: structural summary of ~[MAX_SUMMARY_CHARS]
-     */
     private fun compactCrossTurnHistory(
         items: List<AgentConversationItem>,
         request: AgentLoopRequest,
     ): List<AgentConversationItem> {
         val budget = ProviderContextBudget.forProvider(request.platform.compatibleType)
-        // Reserve 40% of budget for system prompt, tools, and within-loop growth
         val historyBudget = (budget.maxTokens * 0.6).toInt()
         val currentTokens = ConversationContextManager.estimateTokens(items)
         if (currentTokens <= historyBudget) return items
 
-        // Find assistant items (flat text from Room, no toolCalls) in reverse order (newest first)
         val assistantIndices = items.indices
             .filter { items[it].role == AgentMessageRole.ASSISTANT && items[it].toolCalls.isNullOrEmpty() }
             .reversed()
@@ -679,9 +667,9 @@ class DefaultAgentLoopCoordinator @Inject constructor(
             val item = result[itemIndex]
             val text = item.text ?: return@forEachIndexed
             val maxChars = when (rank) {
-                0 -> MAX_RECENT_ASSISTANT_CHARS   // most recent: keep more detail
-                1 -> MAX_OLDER_ASSISTANT_CHARS     // second recent: moderate
-                else -> MAX_SUMMARY_CHARS          // older: summary only
+                0 -> MAX_RECENT_ASSISTANT_CHARS
+                1 -> MAX_OLDER_ASSISTANT_CHARS
+                else -> MAX_SUMMARY_CHARS
             }
             if (text.length > maxChars) {
                 result[itemIndex] = item.copy(
@@ -743,7 +731,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
     }
 
     companion object {
-        /** Write-type tool names that trigger the lazy snapshot commit (WriteInterceptor). */
         private val WRITE_TOOL_NAMES: Set<String> = setOf(
             "write_project_file",
             "edit_project_file",
@@ -752,11 +739,8 @@ class DefaultAgentLoopCoordinator @Inject constructor(
             "update_project_icon_custom",
         )
 
-        /** Most recent assistant message from Room: preserve enough for continuity. */
         private const val MAX_RECENT_ASSISTANT_CHARS = 4000
-        /** Second most recent: moderate detail. */
         private const val MAX_OLDER_ASSISTANT_CHARS = 1500
-        /** Older turns: summary-level only. */
         private const val MAX_SUMMARY_CHARS = 500
     }
 
@@ -767,10 +751,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
             attachments = if (isAssistant) emptyList() else files,
             text = buildString {
                 if (isAssistant) {
-                    // Project the prior turn's tool-call log (from `thoughts`) into the
-                    // assistant text so the next iteration — especially after a model
-                    // switch — can see what happened previously without suppressing
-                    // legitimate fresh tool calls in the current turn.
                     buildTurnWorkSummary(thoughts)?.let { summary ->
                         append(summary)
                         append("\n\n")
@@ -793,7 +773,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
         context.assets.open("iteration-mode-appendix.md").bufferedReader().use { it.readText() }
     }
 
-    /** Returns the text of the current (last) user message in the request, or null if none. */
     private fun currentUserText(request: AgentLoopRequest): String? =
         request.userMessages.lastOrNull()?.content
 

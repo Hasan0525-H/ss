@@ -150,7 +150,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
         // ─── TOOL LOOP ────────────────────────────────────────────────────────────
         val collectedToolResults = mutableListOf<AgentToolResult>()
 
-        // متغيرات متتبعة لمنع التكرار المفرغ (Loop Detection Variables)
         var lastToolSignature = ""
         var repeatedToolCount = 0
 
@@ -396,7 +395,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                     }
                 }
 
-                // ─── حماية ضد التكرار (Loop Prevention Guard) ──────────────────
                 val currentSignature = pendingToolResults.joinToString("|") { 
                     "${it.toolName}:${it.output}" 
                 }
@@ -425,7 +423,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                     emit(AgentLoopEvent.LoopFailed(message = loopMessage, iteration = iteration))
                     return@flow
                 }
-                // ──────────────────────────────────────────────────────────────
 
                 val toolResultItems = pendingToolResults.map { result ->
                     AgentConversationItem(
@@ -439,7 +436,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                 conversationDelta = toolResultItems
             }
 
-            // Wind-down fallback
             request.diagnosticContext?.copy(platformUid = request.platform.uid)?.let { ctx ->
                 diagnosticLogger.logAgentLoopEvent(
                     context = ctx,
@@ -538,7 +534,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                 )
             }
         } finally {
-            // ─── FINALIZE ─────────────────────────────────────────────────────────
             if (turnContext != null) {
                 runCatching {
                     val buildSucceeded = collectedToolResults.any {
@@ -787,12 +782,26 @@ class DefaultAgentLoopCoordinator @Inject constructor(
             memo = memo,
         )
 
+        // حقن توجيه إلزامي برمجي لجعل الموديل ينفذ أدوات الإنشاء فوراً عند طلب أي تطبيق
+        val userText = currentUserText(request).orEmpty()
+        val isCreationRequest = userText.contains("ابي تطبيق", ignoreCase = true) || 
+                                userText.contains("أنشئ", ignoreCase = true) || 
+                                userText.contains("تطبيق", ignoreCase = true)
+
+        val forcedInstruction = if (isCreationRequest) {
+            "\n\n[CRITICAL DIRECTIVE]: The user wants to create a new application. You MUST NOT reply with text only or explanations. You are strictly REQUIRED to call `write_project_file` immediately in this turn to start building the core files."
+        } else {
+            ""
+        }
+
         return buildString {
             append(assembled)
             if (custom != null) {
                 append("\n\n[Additional System Prompt]\n")
                 append(custom)
             }
+            append(forcedInstruction) // حقن التوجيه الإلزامي هنا
+
             if (activePlan != null) {
                 append("\n\n[Active Plan]\n")
                 append("Goal: ${activePlan.summary}\n")

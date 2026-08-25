@@ -11,17 +11,18 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.BugReport
+import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.LargeTopAppBar
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -34,9 +35,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -64,6 +64,7 @@ import com.vibe.app.util.pinnedExitUntilCollapsedScrollBehavior
 fun SettingScreen(
     modifier: Modifier = Modifier,
     settingViewModel: SettingViewModelV2 = hiltViewModel(),
+    languageViewModel: LanguageViewModel = hiltViewModel(),
     onNavigationClick: () -> Unit,
     onNavigateToAddPlatform: () -> Unit,
     onNavigateToPlatformSetting: (String) -> Unit,
@@ -75,6 +76,8 @@ fun SettingScreen(
     )
     val platformState by settingViewModel.platformState.collectAsStateWithLifecycle()
     val dialogState by settingViewModel.dialogState.collectAsStateWithLifecycle()
+    val currentLanguage by languageViewModel.language.collectAsStateWithLifecycle()
+    
     val context = LocalContext.current
     val switchedHint = stringResource(R.string.switched_platform_hint)
 
@@ -112,7 +115,12 @@ fun SettingScreen(
                 .padding(innerPadding)
                 .verticalScroll(scrollState)
         ) {
-            // General
+            // General & Language Setting
+            LanguageSetting(
+                currentLanguage = currentLanguage,
+                onItemClick = settingViewModel::openThemeDialog // يمكنك تخصيص دالة مستقلة لفتح حوار اللغة أو استخدام حوار مخصص
+            )
+
             ThemeSetting { settingViewModel.openThemeDialog() }
 
             HorizontalDivider(
@@ -164,7 +172,7 @@ fun SettingScreen(
             )
 
             if (dialogState.isThemeDialogOpen) {
-                ThemeSettingDialog(settingViewModel)
+                ThemeSettingDialog(settingViewModel, languageViewModel)
             }
 
             if (dialogState.isDeleteDialogOpen) {
@@ -202,6 +210,27 @@ private fun SettingTopBar(
             }
         },
         scrollBehavior = scrollBehavior
+    )
+}
+
+@Composable
+fun LanguageSetting(
+    currentLanguage: String,
+    onItemClick: () -> Unit
+) {
+    SettingItem(
+        title = stringResource(R.string.language),
+        description = if (currentLanguage == "ar") stringResource(R.string.arabic) else stringResource(R.string.english),
+        onItemClick = onItemClick,
+        showTrailingIcon = true,
+        showLeadingIcon = true,
+        leadingIcon = {
+            Icon(
+                imageVector = Icons.Outlined.Language,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     )
 }
 
@@ -247,14 +276,39 @@ fun AboutPageItem(
 
 @Composable
 fun ThemeSettingDialog(
-    settingViewModel: SettingViewModelV2 = hiltViewModel()
+    settingViewModel: SettingViewModelV2 = hiltViewModel(),
+    languageViewModel: LanguageViewModel = hiltViewModel()
 ) {
     val themeViewModel = LocalThemeViewModel.current
+    val currentLanguage by languageViewModel.language.collectAsStateWithLifecycle()
+
     AlertDialog(
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState())
             ) {
+                Text(text = stringResource(R.string.language), style = MaterialTheme.typography.titleMedium)
+                Spacer(modifier = Modifier.fillMaxWidth().height(16.dp))
+                
+                RadioItem(
+                    title = stringResource(R.string.arabic),
+                    description = null,
+                    value = "ar",
+                    selected = currentLanguage == "ar"
+                ) {
+                    languageViewModel.setLanguage("ar")
+                }
+                RadioItem(
+                    title = stringResource(R.string.english),
+                    description = null,
+                    value = "en",
+                    selected = currentLanguage == "en"
+                ) {
+                    languageViewModel.setLanguage("en")
+                }
+
+                Spacer(modifier = Modifier.fillMaxWidth().height(24.dp))
+
                 Text(text = stringResource(R.string.dynamic_theme), style = MaterialTheme.typography.titleMedium)
                 Spacer(
                     modifier = Modifier

@@ -1,8 +1,12 @@
-package com.vibe.app.feature.agent
+package com.vibe.app.feature.agent.loop
 
+import com.vibe.app.feature.agent.AgentLoopRequest
+import com.vibe.app.feature.agent.AgentModelRequest
+import com.vibe.app.feature.agent.AgentModelEvent
+import com.vibe.app.feature.agent.AgentLoopEvent
 import com.vibe.app.feature.agent.tool.AgentToolDefinition
 
-// تحويل طلب حلقة الوكيل إلى طلب نموذج
+
 fun AgentLoopRequest.toModelRequest(
     tools: List<AgentToolDefinition>
 ): AgentModelRequest {
@@ -11,13 +15,18 @@ fun AgentLoopRequest.toModelRequest(
         platform = platform,
         instructions = systemPrompt,
         tools = tools,
+
         diagnosticContext = diagnosticContext,
-        policy = policy
+
+        policy = policy,
+
+        fullConversation = messages,
+
+        iteration = 0
     )
 }
 
 
-// تحويل حدث نموذج الوكيل إلى حدث حلقة الوكيل
 fun AgentModelEvent.toLoopEvent(): AgentLoopEvent {
 
     return when (this) {

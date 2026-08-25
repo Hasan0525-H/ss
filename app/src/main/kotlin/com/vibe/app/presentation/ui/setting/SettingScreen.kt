@@ -118,7 +118,7 @@ fun SettingScreen(
             // General & Language Setting
             LanguageSetting(
                 currentLanguage = currentLanguage,
-                onItemClick = settingViewModel::openThemeDialog // يمكنك تخصيص دالة مستقلة لفتح حوار اللغة أو استخدام حوار مخصص
+                onItemClick = settingViewModel::openThemeDialog
             )
 
             ThemeSetting { settingViewModel.openThemeDialog() }

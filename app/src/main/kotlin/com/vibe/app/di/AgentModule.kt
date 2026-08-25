@@ -6,6 +6,7 @@ import com.vibe.app.feature.agent.AgentToolRegistry
 import com.vibe.app.feature.agent.loop.DefaultAgentLoopCoordinator
 import com.vibe.app.feature.agent.loop.ProviderAgentGatewayRouter
 import com.vibe.app.feature.agent.tool.DefaultAgentToolRegistry
+import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -14,23 +15,23 @@ import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
-object AgentModule {
+abstract class AgentModule {
 
-    @Provides
+    @Binds
     @Singleton
-    fun provideAgentModelGateway(
-        router: ProviderAgentGatewayRouter,
-    ): AgentModelGateway = router
+    abstract fun bindAgentModelGateway(
+        router: ProviderAgentGatewayRouter
+    ): AgentModelGateway
 
-    @Provides
+    @Binds
     @Singleton
-    fun provideAgentToolRegistry(
-        registry: DefaultAgentToolRegistry,
-    ): AgentToolRegistry = registry
+    abstract fun bindAgentToolRegistry(
+        registry: DefaultAgentToolRegistry
+    ): AgentToolRegistry
 
-    @Provides
+    @Binds
     @Singleton
-    fun provideAgentLoopCoordinator(
-        coordinator: DefaultAgentLoopCoordinator,
-    ): AgentLoopCoordinator = coordinator
+    abstract fun bindAgentLoopCoordinator(
+        coordinator: DefaultAgentLoopCoordinator
+    ): AgentLoopCoordinator
 }

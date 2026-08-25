@@ -25,7 +25,6 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 
-
 @Singleton
 class QwenChatCompletionsAgentGateway @Inject constructor(
     private val openAIAPI: OpenAIAPI,
@@ -33,91 +32,47 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
     private val languageManager: LanguageManager,
 ) : AgentModelGateway {
 
-
     private val json = Json {
         ignoreUnknownKeys = true
         isLenient = true
         explicitNulls = false
     }
 
-
     override suspend fun streamTurn(
         request: AgentModelRequest
     ): Flow<AgentModelEvent> = flow {
 
-
         openAIAPI.setToken(request.platform.token)
-
-        openAIAPI.setAPIUrl(
-            request.platform.apiUrl.toQwenChatCompletionsBaseUrl()
-        )
-
-
+        openAIAPI.setAPIUrl(request.platform.apiUrl.toQwenChatCompletionsBaseUrl())
         openAIAPI.setProvider(
             type = request.platform.compatibleType.name,
             customUrl = request.platform.apiUrl
         )
 
-
         val trace = ModelExecutionTrace()
-
-        val effectiveToolChoice =
-            request.toQwenToolChoice()
-
-
-        val messages =
-            buildMessages(request)
-
+        val effectiveToolChoice = request.toQwenToolChoice()
+        val messages = buildMessages(request)
 
         trace.markRequestPrepared()
 
-
-        val requestContext =
-            request.diagnosticContext
-                ?.copy(
-                    platformUid = request.platform.uid
+        val requestContext = request.diagnosticContext
+            ?.copy(platformUid = request.platform.uid)
+            ?.let { diagnosticContext ->
+                ModelRequestDiagnosticContext(
+                    diagnosticContext = diagnosticContext,
+                    providerType = request.platform.compatibleType.toDiagnosticProviderType(),
+                    apiFamily = "chat_completions",
+                    model = request.platform.model,
+                    stream = true,
+                    reasoningEnabled = request.platform.reasoning,
+                    estimatedContextTokens = request.estimateContextTokensForDiagnostics(),
+                    messageCount = messages.size,
+                    toolCount = request.tools.size.takeIf { it > 0 },
+                    toolChoiceMode = effectiveToolChoice,
+                    systemPromptPresent = !request.instructions.isNullOrBlank(),
+                    systemPromptChars = request.instructions?.length?.takeIf { it > 0 }
                 )
-                ?.let { diagnosticContext ->
-
-                    ModelRequestDiagnosticContext(
-                        diagnosticContext = diagnosticContext,
-                        providerType =
-                            request.platform.compatibleType
-                                .toDiagnosticProviderType(),
-
-                        apiFamily = "chat_completions",
-
-                        model = request.platform.model,
-
-                        stream = true,
-
-                        reasoningEnabled =
-                            request.platform.reasoning,
-
-                        estimatedContextTokens =
-                            request.estimateContextTokensForDiagnostics(),
-
-                        messageCount =
-                            messages.size,
-
-                        toolCount =
-                            request.tools.size
-                                .takeIf { it > 0 },
-
-                        toolChoiceMode =
-                            effectiveToolChoice,
-
-                        systemPromptPresent =
-                            !request.instructions.isNullOrBlank(),
-
-                        systemPromptChars =
-                            request.instructions
-                                ?.length
-                                ?.takeIf { it > 0 }
-                    )
-                }
-
-
+            }
 
         data class ToolCallAccumulator(
             var id: String = "",
@@ -125,504 +80,215 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
             val arguments: StringBuilder = StringBuilder()
         )
 
-
-        val toolCallAccumulators =
-            mutableMapOf<Int, ToolCallAccumulator>()
-
+        val toolCallAccumulators = mutableMapOf<Int, ToolCallAccumulator>()
 
         var finishReason: String? = null
         var streamError: String? = null
-
         var lastAssistantText = ""
         var repeatCount = 0
         var shouldStopFlow = false
 
-
-
         openAIAPI.streamQwenChatCompletion(
-
             QwenChatCompletionRequest(
-
                 model = request.platform.model,
-
                 messages = messages,
-
-
-                tools =
-                    request.tools
-                        .takeIf { it.isNotEmpty() }
-                        ?.map { tool ->
-
-                            QwenTool(
-
-                                function =
-                                    QwenFunctionDefinition(
-
-                                        name = tool.name,
-
-                                        description =
-                                            tool.description,
-
-                                        parameters =
-                                            tool.inputSchema
-                                    )
+                tools = request.tools
+                    .takeIf { it.isNotEmpty() }
+                    ?.map { tool ->
+                        QwenTool(
+                            function = QwenFunctionDefinition(
+                                name = tool.name,
+                                description = tool.description,
+                                parameters = tool.inputSchema
                             )
-                        },
-
-
-                toolChoice =
-                    effectiveToolChoice,
-
-
+                        )
+                    },
+                toolChoice = effectiveToolChoice,
                 stream = true
             ),
-
-
             diagnosticContext = requestContext,
-
             trace = trace
-
         ).collect { chunk ->
 
             if (shouldStopFlow) return@collect
 
             if (chunk.error != null) {
-
-                streamError =
-                    chunk.error.message
-
-
+                streamError = chunk.error.message
                 trace.markFailed(
                     chunk.error.type ?: "provider_error",
                     chunk.error.message
                 )
-
-
                 shouldStopFlow = true
                 return@collect
             }
 
+            val choice = chunk.choices?.firstOrNull() ?: return@collect
+            finishReason = choice.finishReason ?: finishReason
 
+            val delta = choice.delta
+            val message = choice.message
 
-            val choice =
-                chunk.choices?.firstOrNull()
-                    ?: return@collect
-
-
-
-            finishReason =
-                choice.finishReason
-                    ?: finishReason
-
-
-
-            choice.delta?.content
-                ?.takeIf { it.isNotEmpty() }
-                ?.let { delta ->
-
-                    if (delta == lastAssistantText) {
-                        repeatCount++
-                    } else {
-                        lastAssistantText = delta
-                        repeatCount = 0
-                    }
-
-                    if (repeatCount >= 3) {
-                        emit(
-                            AgentModelEvent.Failed("Model repeated the same response multiple times")
-                        )
-                        shouldStopFlow = true
-                        return@let
-                    }
-
-                    trace.markOutput(delta)
-
-                    emit(
-                        AgentModelEvent.OutputDelta(delta)
-                    )
+            delta?.content?.takeIf { it.isNotEmpty() }?.let { content ->
+                if (content == lastAssistantText) {
+                    repeatCount++
+                } else {
+                    lastAssistantText = content
+                    repeatCount = 0
                 }
+
+                if (repeatCount >= 3) {
+                    emit(AgentModelEvent.Failed("Model repeated the same response multiple times"))
+                    shouldStopFlow = true
+                    return@let
+                }
+
+                trace.markOutput(content)
+                emit(AgentModelEvent.OutputDelta(content))
+            }
 
             if (shouldStopFlow) return@collect
 
-
-
-            choice.delta?.reasoningContent
-                ?.takeIf { it.isNotEmpty() }
-                ?.let { delta ->
-
-                    emit(
-                        AgentModelEvent.ThinkingDelta(delta)
-                    )
-                }
-
-
-
-            choice.delta?.toolCalls
-                ?.forEach { deltaToolCall ->
-
-
-                    val acc =
-                        toolCallAccumulators
-                            .getOrPut(
-                                deltaToolCall.index
-                            ) {
-                                ToolCallAccumulator()
-                            }
-
-
-                    deltaToolCall.id
-                        ?.let {
-                            acc.id = it
-                        }
-
-
-                    deltaToolCall.function?.name
-                        ?.let {
-                            acc.name = it
-                        }
-
-
-                    deltaToolCall.function?.arguments
-                        ?.let {
-                            acc.arguments.append(it)
-                        }
-                }
-        }
-
-
-
-        streamError?.let {
-
-            if (requestContext != null) {
-
-                diagnosticLogger.logModelResponse(
-                    requestContext,
-                    trace,
-                    success = false
-                )
-
-
-                diagnosticLogger.logLatencyBreakdown(
-                    requestContext,
-                    trace
-                )
+            delta?.reasoningContent?.takeIf { it.isNotEmpty() }?.let { reasoning ->
+                emit(AgentModelEvent.ThinkingDelta(reasoning))
             }
 
+            // دعم قراءة tool_calls سواء كانت قادمة عبر delta أو من خلال message النهائي
+            val toolCallsList = delta?.toolCalls ?: message?.toolCalls
+            toolCallsList?.forEachIndexed { index, toolCall ->
+                val acc = toolCallAccumulators.getOrPut(toolCall.index ?: index) {
+                    ToolCallAccumulator()
+                }
 
-            emit(
-                AgentModelEvent.Failed(it)
-            )
-
-
-            return@flow
+                toolCall.id?.let { acc.id = it }
+                toolCall.function?.name?.let { acc.name = it }
+                toolCall.function?.arguments?.let { acc.arguments.append(it) }
+            }
         }
 
-
-
+        streamError?.let { err ->
+            if (requestContext != null) {
+                diagnosticLogger.logModelResponse(requestContext, trace, success = false)
+                diagnosticLogger.logLatencyBreakdown(requestContext, trace)
+            }
+            emit(AgentModelEvent.Failed(err))
+            return@flow
+        }
 
         toolCallAccumulators.entries
             .sortedBy { it.key }
             .forEach { (_, acc) ->
-
-
-                val arguments =
-                    runCatching {
-
-                        json.parseToJsonElement(
-                            acc.arguments.toString()
-                        )
-
-                    }.getOrElse {
-
-
-                        buildJsonObject {
-
-                            put(
-                                "raw",
-                                JsonPrimitive(
-                                    acc.arguments.toString()
-                                )
-                            )
-                        }
+                val arguments = runCatching {
+                    json.parseToJsonElement(acc.arguments.toString())
+                }.getOrElse {
+                    buildJsonObject {
+                        put("raw", JsonPrimitive(acc.arguments.toString()))
                     }
-
-
+                }
 
                 emit(
-
                     AgentModelEvent.ToolCallReady(
-
                         AgentToolCall(
-
                             id = acc.id,
-
                             name = acc.name,
-
                             arguments = arguments
                         )
                     )
                 )
             }
 
-
-
-
         trace.finishReason = finishReason
-
         trace.markCompleted(finishReason)
 
-
-
         if (requestContext != null) {
-
-            diagnosticLogger.logModelResponse(
-                requestContext,
-                trace,
-                success = true
-            )
-
-
-            diagnosticLogger.logLatencyBreakdown(
-                requestContext,
-                trace
-            )
+            diagnosticLogger.logModelResponse(requestContext, trace, success = true)
+            diagnosticLogger.logLatencyBreakdown(requestContext, trace)
         }
 
-
-
-        emit(
-            AgentModelEvent.Completed()
-        )
+        emit(AgentModelEvent.Completed())
     }
 
+    private fun buildMessages(request: AgentModelRequest): List<QwenChatMessage> {
+        val messages = mutableListOf<QwenChatMessage>()
+        val toolRequired = request.policy.toolChoiceMode == AgentToolChoiceMode.REQUIRED
+        val hasTools = request.tools.isNotEmpty()
 
+        val systemContent = buildString {
+            request.instructions?.takeIf { it.isNotBlank() }?.let { append(it) }
 
-
-    private fun buildMessages(
-        request: AgentModelRequest
-    ): List<QwenChatMessage> {
-
-
-        val messages =
-            mutableListOf<QwenChatMessage>()
-
-
-        val toolRequired =
-            request.policy.toolChoiceMode ==
-                    AgentToolChoiceMode.REQUIRED
-
-
-        val hasTools =
-            request.tools.isNotEmpty()
-
-
-
-        val systemContent =
-            buildString {
-
-
-                request.instructions
-                    ?.takeIf { it.isNotBlank() }
-                    ?.let {
-                        append(it)
-                    }
-
-
-
-                if (toolRequired && hasTools) {
-
-                    append("\n\n")
-                    append(
-                        toolRequiredInstruction()
-                    )
-
-                    append("\n\nIMPORTANT:\nDo not write normal text.\nDo not write explanations.\nStart directly by calling write_project_file.")
-
-
-                } else if (hasTools) {
-
-
-                    append("\n\n")
-                    append(
-                        TOOL_ENCOURAGE_INSTRUCTION
-                    )
-                }
-
-            }.trim()
-
-
+            if (toolRequired && hasTools) {
+                append("\n\n")
+                append(toolRequiredInstruction())
+                append("\n\nIMPORTANT:\nDo not write normal text.\nDo not write explanations.\nStart directly by calling write_project_file.")
+            } else if (hasTools) {
+                append("\n\n")
+                append(TOOL_ENCOURAGE_INSTRUCTION)
+            }
+        }.trim()
 
         if (systemContent.isNotBlank()) {
-
             messages += QwenChatMessage(
-
                 role = "system",
-
-                content =
-                    qwenTextContent(
-                        systemContent
-                    )
+                content = qwenTextContent(systemContent)
             )
         }
 
-
-
-        request.fullConversation
-            .forEach { item ->
-
-
-                when(item.role) {
-
-
-                    AgentMessageRole.USER ->
-
-                        messages += QwenChatMessage(
-
-                            role = "user",
-
-                            content =
-                                qwenTextContent(
-                                    item.text.orEmpty()
-                                )
-                        )
-
-
-
-                    AgentMessageRole.ASSISTANT ->
-
-                        messages += QwenChatMessage(
-
-                            role = "assistant",
-
-                            content =
-                                qwenTextContent(
-                                    item.text
-                                )
-                        )
-
-
-
-                    AgentMessageRole.TOOL ->
-
-                        messages += QwenChatMessage(
-
-                            role = "tool",
-
-                            content =
-                                qwenTextContent(
-                                    item.payload?.toString()
-                                        ?: item.text.orEmpty()
-                                ),
-
-                            toolCallId =
-                                item.toolCallId
-                        )
-
-
-
-                    AgentMessageRole.SYSTEM -> Unit
-                }
+        request.fullConversation.forEach { item ->
+            when (item.role) {
+                AgentMessageRole.USER ->
+                    messages += QwenChatMessage(
+                        role = "user",
+                        content = qwenTextContent(item.text.orEmpty())
+                    )
+                AgentMessageRole.ASSISTANT ->
+                    messages += QwenChatMessage(
+                        role = "assistant",
+                        content = qwenTextContent(item.text)
+                    )
+                AgentMessageRole.TOOL ->
+                    messages += QwenChatMessage(
+                        role = "tool",
+                        content = qwenTextContent(item.payload?.toString() ?: item.text.orEmpty()),
+                        toolCallId = item.toolCallId
+                    )
+                AgentMessageRole.SYSTEM -> Unit
             }
-
-
+        }
         return messages
     }
-
 
     private fun toolRequiredInstruction(): String {
         return if (languageManager.language.value == "ar") {
             """
 أنت وكيل برمجة مستقل.
-
-قواعد اللغة:
-- استخدم اللغة العربية في جميع الردود.
-- اكتب الشروحات بالعربية.
-- اكتب تعليقات الكود بالعربية.
-- اجعل رسائل البناء والاختبار بالعربية.
-
-عند طلب إنشاء تطبيق:
-- يجب عليك استخدام write_project_file.
-- لا تشرح للمستخدم ما يجب فعله.
-- نفذ الأدوات بنفسك.
-- لا ترسل رد نصي بدون تنفيذ الأدوات.
-
-الرد نصي فقط يعتبر فاشلاً.
+قواعد اللغة: استخدم العربية في جميع الردود والشروحات وتعليقات الكود.
+عند طلب إنشاء تطبيق: يجب عليك استخدام write_project_file فوراً. لا تشرح للمستخدم، بل نفذ الأدوات بنفسك. الرد النصي وحده يعتبر فاشلاً.
 """
         } else {
             """
-You are an autonomous coding agent.
-
-Language rules:
-- Use English in all responses.
-- Write explanations in English.
-- Write code comments in English.
-- Write build and testing reports in English.
-
-For every application creation request:
-- You MUST call write_project_file.
-- Do not explain.
-- Do not tell the user to use tools.
-- Do not output instructions.
-- Execute the tools yourself.
-
-A text-only response is invalid.
+You are an autonomous coding agent. Use English in all responses and code comments.
+For every application creation request: You MUST call write_project_file. Do not explain. Execute tools yourself. A text-only response is invalid.
 """
         }
     }
 
-
-
     companion object {
-
-
-        private const val TOOL_ENCOURAGE_INSTRUCTION =
-
-            """
+        private const val TOOL_ENCOURAGE_INSTRUCTION = """
 ## IMPORTANT: Continue Using Tools
-
-You have tools available.
-When the user's request requires reading, writing, modifying project files, or building the project, use tools instead of describing what to do.
+You have tools available. Use them instead of describing what to do.
 """
     }
 }
 
-
-
-
 fun String.toQwenChatCompletionsBaseUrl(): String {
-
-    val trimmed =
-        this.trim()
-            .trimEnd('/')
-
-
-    return if (trimmed.endsWith("/v1")) {
-
-        trimmed
-
-    } else {
-
-        "$trimmed/v1"
-    }
+    val trimmed = this.trim().trimEnd('/')
+    return if (trimmed.endsWith("/v1")) trimmed else "$trimmed/v1"
 }
 
-
-
-
 fun AgentModelRequest.toQwenToolChoice(): String? {
-
-    if (tools.isEmpty()) {
-        return null
-    }
-
+    if (tools.isEmpty()) return null
     return when (policy.toolChoiceMode) {
-        AgentToolChoiceMode.AUTO ->
-            "auto"
-
-        AgentToolChoiceMode.REQUIRED ->
-            "auto"
-
-        AgentToolChoiceMode.NONE ->
-            "none"
+        AgentToolChoiceMode.AUTO -> "auto"
+        AgentToolChoiceMode.REQUIRED -> "auto"
+        AgentToolChoiceMode.NONE -> "none"
     }
 }

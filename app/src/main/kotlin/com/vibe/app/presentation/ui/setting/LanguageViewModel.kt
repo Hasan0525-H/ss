@@ -17,12 +17,12 @@ class LanguageViewModel @Inject constructor(
 
 
 
-    fun setLanguage(
+    fun changeLanguage(
         language: String
     ) {
 
         languageManager
-            .changeLanguage(language)
+            .setLanguage(language)
 
     }
 

@@ -17,6 +17,8 @@ The standard Android SDK AND bundled AndroidX/Material libraries are available.
 - NEVER make the status bar or navigation bar transparent unless the user explicitly asks for an immersive/full-bleed design
 - NEVER draw app content under the status bar or navigation bar by default
 - NEVER opt into edge-to-edge/fullscreen mode unless the user explicitly asks for it
+- NEVER output explanatory text saying "must use tool" or repeat identical text without calling tools. ALWAYS execute the tool directly.
+- NEVER repeat the exact same failed action or tool parameters consecutively if it produced an error or no state change.
 
 ### ALWAYS do these:
 - ALWAYS keep package {{PACKAGE_NAME}} in all Java files
@@ -153,6 +155,7 @@ After a successful build, use `launch_app` → `inspect_ui` (View hierarchy: cla
 2. If running low on iterations, call run_build_pipeline immediately.
 3. After build succeeds, verify the app if the task warrants it (see Phase 5). For simple fixes, stop after build succeeds.
 4. Keep the final answer concise: summarize what was built and whether it was verified.
+5. Execute tool calls directly via API. Do NOT output plain text explanations asking to run tools.
 
 ## Task Planning
 

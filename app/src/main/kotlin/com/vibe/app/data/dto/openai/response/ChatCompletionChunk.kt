@@ -33,7 +33,7 @@ data class Choice(
     val delta: Delta? = null,
 
     @SerialName("message")
-    val message: Message? = null, // تمت الإضافه لدعم استقبال الـ message والـ tool_calls النهائية
+    val message: Message? = null,
 
     @SerialName("finish_reason")
     val finishReason: String? = null

@@ -7,6 +7,7 @@ import com.vibe.app.feature.agent.AgentLoopRequest
 import com.vibe.app.feature.agent.AgentLoopEvent
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.collect
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -16,8 +17,27 @@ class DefaultAgentLoopCoordinator @Inject constructor(
     private val toolRegistry: AgentToolRegistry
 ) : AgentLoopCoordinator {
 
-    override suspend fun run(request: AgentLoopRequest): Flow<AgentLoopEvent> = flow {
-        // يمكنك هنا تحويل AgentLoopRequest إلى الطلب المناسب للـ modelGateway
-        // واستخدام toolRegistry عند الحاجة لتنفيذ الأدوات، ثم إصدار الأحداث عبر emit
+
+    override suspend fun run(
+        request: AgentLoopRequest
+    ): Flow<AgentLoopEvent> = flow {
+
+
+        val modelRequest = request.toModelRequest(
+            tools = toolRegistry.listDefinitions()
+        )
+
+
+        modelGateway
+            .streamTurn(modelRequest)
+            .collect { event ->
+
+                emit(
+                    event.toLoopEvent()
+                )
+
+            }
+
+
     }
 }

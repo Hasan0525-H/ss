@@ -16,7 +16,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
 ) : AgentLoopCoordinator {
 
     override suspend fun run(request: AgentModelRequest): Flow<AgentModelEvent> {
-        // تنفيذ دورة الوكيل وإدارة الاستجابات والأدوات
         return modelGateway.streamTurn(request)
     }
 }

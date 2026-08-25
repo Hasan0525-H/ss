@@ -29,16 +29,21 @@ data class OpenRouterPricing(
     @SerialName("completion")
     val completion: String? = "0"
 ) {
+
     val promptPriceDouble: Double
         get() = prompt?.toDoubleOrNull() ?: 0.0
+
 
     val completionPriceDouble: Double
         get() = completion?.toDoubleOrNull() ?: 0.0
 
+
     val averagePrice: Double
         get() = (promptPriceDouble + completionPriceDouble) / 2.0
 
+
     val isFree: Boolean
-        get() = (prompt == "0" || prompt == "0.0" || promptPriceDouble == 0.0) &&
-                (completion == "0" || completion == "0.0" || completionPriceDouble == 0.0)
+        get() =
+            promptPriceDouble == 0.0 &&
+            completionPriceDouble == 0.0
 }

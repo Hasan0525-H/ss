@@ -122,13 +122,19 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                 return@collect
             }
 
-            val choice = chunk.choices?.firstOrNull() ?: return@collect
+            // التحقق الآمن من وجود Choice لمنع الانهيار عند استقبال قوص فارغة مثل choices: []
+            val choice = chunk.choices?.firstOrNull()
+            if (choice == null) {
+                streamError = "Empty response from provider"
+                shouldStopFlow = true
+                return@collect
+            }
+
             finishReason = choice.finishReason ?: finishReason
 
             val delta = choice.delta
             val message = choice.message
 
-            // دعم الوصول الآمن delta?.content مع البديل من message?.content إذا لزم
             val contentValue = delta?.content ?: message?.content
             contentValue?.takeIf { it.isNotEmpty() }?.let { content ->
                 if (content == lastAssistantText) {
@@ -154,7 +160,6 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                 emit(AgentModelEvent.ThinkingDelta(reasoning))
             }
 
-            // دعم قراءة tool_calls من delta أو message بأمان
             val toolCallsList = delta?.toolCalls ?: message?.toolCalls
             toolCallsList?.forEachIndexed { index, toolCall ->
                 val acc = toolCallAccumulators.getOrPut(toolCall.index ?: index) {
@@ -167,12 +172,17 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
             }
         }
 
-        streamError?.let { err ->
+        // التحقق من وجود خطأ مسجل قبل إكمال الدورة لمنع الخروج المفاجئ في AgentSessionManager
+        if (!streamError.isNullOrBlank()) {
             if (requestContext != null) {
                 diagnosticLogger.logModelResponse(requestContext, trace, success = false)
                 diagnosticLogger.logLatencyBreakdown(requestContext, trace)
             }
-            emit(AgentModelEvent.Failed(err))
+            emit(
+                AgentModelEvent.Failed(
+                    streamError ?: "Unknown provider error"
+                )
+            )
             return@flow
         }
 

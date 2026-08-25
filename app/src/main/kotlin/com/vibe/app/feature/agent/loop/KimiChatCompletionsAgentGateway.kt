@@ -118,21 +118,21 @@ class KimiChatCompletionsAgentGateway @Inject constructor(
             val choice = chunk.choices?.firstOrNull() ?: return@collect
             finishReason = choice.finishReason ?: finishReason
 
-            choice.delta.content
+            choice.delta?.content
                 ?.takeIf { it.isNotEmpty() }
                 ?.let { delta ->
                     trace.markOutput(delta)
                     emit(AgentModelEvent.OutputDelta(delta))
                 }
 
-            choice.delta.reasoningContent
+            choice.delta?.reasoningContent
                 ?.takeIf { it.isNotEmpty() }
                 ?.let { delta ->
                     reasoningBuilder.append(delta)
                     emit(AgentModelEvent.ThinkingDelta(delta))
                 }
 
-            choice.delta.toolCalls?.forEach { deltaToolCall ->
+            choice.delta?.toolCalls?.forEach { deltaToolCall ->
                 val acc = toolCallAccumulators.getOrPut(deltaToolCall.index) {
                     ToolCallAccumulator()
                 }

@@ -52,7 +52,6 @@ class PlatformSettingViewModel @Inject constructor(
     val switchedPlatformEvent: SharedFlow<String> =
         _switchedPlatformEvent.asSharedFlow()
 
-    // --- حالة النماذج المتاحة وحالة التحميل ---
     private val _availableModels =
         MutableStateFlow<List<OpenRouterModel>>(emptyList())
     val availableModels: StateFlow<List<OpenRouterModel>> =
@@ -71,43 +70,24 @@ class PlatformSettingViewModel @Inject constructor(
 
     private fun loadPlatform() {
         viewModelScope.launch {
-            val platforms =
-                settingRepository.fetchPlatformV2s()
+            val platforms = settingRepository.fetchPlatformV2s()
+            val platform = platforms.firstOrNull { it.uid == platformUid }
 
-            val platform =
-                platforms.firstOrNull {
-                    it.uid == platformUid
-                }
+            _platformState.update { platform }
 
-            _platformState.update {
-                platform
-            }
-
-            // جلب النماذج تلقائياً عند فتح الشاشة في حال وجود توكن
             if (!platform?.token.isNullOrBlank()) {
                 loadModels(currentIsFreeFilter)
             }
         }
     }
 
-    // --- دالة جلب وتصفية وترتيب النماذج ---
     fun loadModels(isFreeOnly: Boolean) {
         currentIsFreeFilter = isFreeOnly
         viewModelScope.launch {
             _isLoadingModels.value = true
             try {
-                // تمرير isFreeOnly مباشرة لاستدعاء API الصحيح
                 val models = fetchOpenRouterModels(isFreeOnly = isFreeOnly)
-                
-                // الترتيب والتصفية حسب نوع الفلتر المختار
-                val filteredAndSorted = if (isFreeOnly) {
-                    models.filter { it.pricing?.isFree == true }
-                } else {
-                    models
-                        .filter { it.pricing?.isFree == false }
-                        .sortedBy { it.pricing?.averagePrice ?: Double.MAX_VALUE }
-                }
-                _availableModels.value = filteredAndSorted
+                _availableModels.value = models
             } catch (e: Exception) {
                 _availableModels.value = emptyList()
             } finally {
@@ -119,19 +99,11 @@ class PlatformSettingViewModel @Inject constructor(
     suspend fun fetchOpenRouterModels(
         isFreeOnly: Boolean
     ): List<OpenRouterModel> {
-        var apiKey =
-            _platformState.value?.token
+        var apiKey = _platformState.value?.token
 
         if (apiKey.isNullOrBlank()) {
-            val platforms =
-                settingRepository.fetchPlatformV2s()
-
-            apiKey =
-                platforms
-                    .firstOrNull {
-                        it.uid == platformUid
-                    }
-                    ?.token
+            val platforms = settingRepository.fetchPlatformV2s()
+            apiKey = platforms.firstOrNull { it.uid == platformUid }?.token
         }
 
         if (apiKey.isNullOrBlank()) {
@@ -150,25 +122,15 @@ class PlatformSettingViewModel @Inject constructor(
 
             if (enable) {
                 viewModelScope.launch {
-                    val allPlatforms =
-                        settingRepository.fetchPlatformV2s()
-
-                    val others =
-                        allPlatforms.filter {
-                            it.enabled && it.id != platform.id
-                        }
+                    val allPlatforms = settingRepository.fetchPlatformV2s()
+                    val others = allPlatforms.filter { it.enabled && it.id != platform.id }
 
                     others.forEach {
-                        settingRepository.updatePlatformV2(
-                            it.copy(enabled = false)
-                        )
+                        settingRepository.updatePlatformV2(it.copy(enabled = false))
                     }
 
-                    val updated =
-                        platform.copy(enabled = true)
-
+                    val updated = platform.copy(enabled = true)
                     settingRepository.updatePlatformV2(updated)
-
                     _platformState.update { updated }
 
                     if (others.isNotEmpty()) {
@@ -176,18 +138,14 @@ class PlatformSettingViewModel @Inject constructor(
                     }
                 }
             } else {
-                updatePlatform(
-                    platform.copy(enabled = false)
-                )
+                updatePlatform(platform.copy(enabled = false))
             }
         }
     }
 
     fun toggleReasoning() {
         _platformState.value?.let {
-            updatePlatform(
-                it.copy(reasoning = !it.reasoning)
-            )
+            updatePlatform(it.copy(reasoning = !it.reasoning))
         }
     }
 
@@ -201,12 +159,9 @@ class PlatformSettingViewModel @Inject constructor(
     fun updateApiToken(token: String) {
         _platformState.value?.let {
             val newToken = token.trim().takeIf { value -> value.isNotEmpty() }
-            updatePlatform(
-                it.copy(token = newToken)
-            )
+            updatePlatform(it.copy(token = newToken))
             closeApiTokenDialog()
-            
-            // إعادة جلب النماذج فور إدخال أو تحديث مفتاح API
+
             if (!newToken.isNullOrBlank()) {
                 loadModels(currentIsFreeFilter)
             }
@@ -215,54 +170,42 @@ class PlatformSettingViewModel @Inject constructor(
 
     fun updateApiModel(model: String) {
         _platformState.value?.let {
-            updatePlatform(
-                it.copy(model = model.trim())
-            )
+            updatePlatform(it.copy(model = model.trim()))
             closeApiModelDialog()
         }
     }
 
     fun updateApiUrl(url: String) {
         _platformState.value?.let {
-            updatePlatform(
-                it.copy(apiUrl = url.trim())
-            )
+            updatePlatform(it.copy(apiUrl = url.trim()))
             closeApiUrlDialog()
         }
     }
 
     fun updatePlatformName(name: String) {
         _platformState.value?.let {
-            updatePlatform(
-                it.copy(name = name.trim())
-            )
+            updatePlatform(it.copy(name = name.trim()))
             closePlatformNameDialog()
         }
     }
 
     fun updateTemperature(temperature: Float?) {
         _platformState.value?.let { platform ->
-            updatePlatform(
-                platform.copy(temperature = temperature)
-            )
+            updatePlatform(platform.copy(temperature = temperature))
             closeTemperatureDialog()
         }
     }
 
     fun updateTopP(topP: Float?) {
         _platformState.value?.let { platform ->
-            updatePlatform(
-                platform.copy(topP = topP)
-            )
+            updatePlatform(platform.copy(topP = topP))
             closeTopPDialog()
         }
     }
 
     fun updateSystemPrompt(prompt: String) {
         _platformState.value?.let { platform ->
-            updatePlatform(
-                platform.copy(systemPrompt = prompt.trim())
-            )
+            updatePlatform(platform.copy(systemPrompt = prompt.trim()))
             closeSystemPromptDialog()
         }
     }

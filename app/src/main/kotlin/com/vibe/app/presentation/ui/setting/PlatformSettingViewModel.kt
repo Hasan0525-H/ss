@@ -52,6 +52,17 @@ class PlatformSettingViewModel @Inject constructor(
     val switchedPlatformEvent: SharedFlow<String> =
         _switchedPlatformEvent.asSharedFlow()
 
+    // --- إضافة حالة النماذج المتاحة وحالة التحميل ---
+    private val _availableModels =
+        MutableStateFlow<List<OpenRouterModel>>(emptyList())
+    val availableModels: StateFlow<List<OpenRouterModel>> =
+        _availableModels.asStateFlow()
+
+    private val _isLoadingModels =
+        MutableStateFlow(false)
+    val isLoadingModels: StateFlow<Boolean> =
+        _isLoadingModels.asStateFlow()
+
     init {
         loadPlatform()
     }
@@ -68,6 +79,28 @@ class PlatformSettingViewModel @Inject constructor(
 
             _platformState.update {
                 platform
+            }
+        }
+    }
+
+    // --- دالة جلب وتصفية وترتيب النماذج ---
+    fun loadModels(isFreeOnly: Boolean) {
+        viewModelScope.launch {
+            _isLoadingModels.value = true
+            try {
+                val models = fetchOpenRouterModels(isFreeOnly = false)
+                val filteredAndSorted = if (isFreeOnly) {
+                    models.filter { it.pricing?.isFree == true }
+                } else {
+                    models
+                        .filter { it.pricing?.isFree == false }
+                        .sortedBy { it.pricing?.averagePrice ?: Double.MAX_VALUE }
+                }
+                _availableModels.value = filteredAndSorted
+            } catch (e: Exception) {
+                _availableModels.value = emptyList()
+            } finally {
+                _isLoadingModels.value = false
             }
         }
     }

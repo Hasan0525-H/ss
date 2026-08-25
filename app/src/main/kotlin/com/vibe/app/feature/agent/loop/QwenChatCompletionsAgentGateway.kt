@@ -128,7 +128,9 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
             val delta = choice.delta
             val message = choice.message
 
-            delta?.content?.takeIf { it.isNotEmpty() }?.let { content ->
+            // التعديل الثالث: استخدام الوصول الآمن delta?.content مع دعم البديل من message?.content إذا لزم
+            val contentValue = delta?.content ?: message?.content
+            contentValue?.takeIf { it.isNotEmpty() }?.let { content ->
                 if (content == lastAssistantText) {
                     repeatCount++
                 } else {
@@ -152,7 +154,7 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                 emit(AgentModelEvent.ThinkingDelta(reasoning))
             }
 
-            // دعم قراءة tool_calls سواء كانت قادمة عبر delta أو من خلال message النهائي
+            // التعديل الثاني: دعم قراءة tool_calls من delta أو message بأمان
             val toolCallsList = delta?.toolCalls ?: message?.toolCalls
             toolCallsList?.forEachIndexed { index, toolCall ->
                 val acc = toolCallAccumulators.getOrPut(toolCall.index ?: index) {

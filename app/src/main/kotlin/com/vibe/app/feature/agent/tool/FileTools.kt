@@ -158,7 +158,7 @@ class WriteProjectFileTool @Inject constructor(
 
     override val definition = AgentToolDefinition(
         name = "write_project_file",
-        description = "Create or overwrite a file in the project workspace with complete content.",
+        description = "Mandatory tool for creating Android project files. When the user requests creating or modifying files, use this tool. Do not explain steps instead of writing files.",
         inputSchema = buildJsonObject {
             put("type", JsonPrimitive("object"))
             put(

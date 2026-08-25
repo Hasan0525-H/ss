@@ -24,6 +24,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -37,7 +42,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -57,7 +64,6 @@ import com.vibe.app.presentation.ui.setup.SetupViewModelV2.Companion.WIZARD_STEP
 import com.vibe.app.presentation.ui.setup.SetupViewModelV2.Companion.WIZARD_STEP_MODEL
 import com.vibe.app.presentation.ui.setup.SetupViewModelV2.Companion.WIZARD_TOTAL_STEPS
 
-
 @Composable
 fun SetupPlatformWizardScreen(
     modifier: Modifier = Modifier,
@@ -65,7 +71,6 @@ fun SetupPlatformWizardScreen(
     onComplete: () -> Unit,
     onBackAction: () -> Unit
 ) {
-
     val wizardStepState =
         setupViewModel.wizardStep.collectAsStateWithLifecycle()
 
@@ -87,12 +92,13 @@ fun SetupPlatformWizardScreen(
     val isFreePlanState =
         setupViewModel.isFreePlan.collectAsStateWithLifecycle()
 
+    val availableModels by setupViewModel.availableModels.collectAsStateWithLifecycle()
+    val isLoadingModels by setupViewModel.isLoadingModels.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
 
     val switchedHint =
         stringResource(R.string.switched_platform_hint)
-
 
     LaunchedEffect(Unit) {
         setupViewModel.switchedPlatformEvent.collect { name ->
@@ -104,22 +110,15 @@ fun SetupPlatformWizardScreen(
         }
     }
 
-
-    val wizardStep =
-        wizardStepState.value
-
-    val selectedClientType =
-        selectedClientTypeState.value
-
+    val wizardStep = wizardStepState.value
+    val selectedClientType = selectedClientTypeState.value
 
     val canProceed by remember {
         derivedStateOf {
-
             when (wizardStepState.value) {
-
                 WIZARD_STEP_BASICS ->
                     platformNameState.value.isNotBlank() &&
-                        apiUrlState.value.isNotBlank()
+                            apiUrlState.value.isNotBlank()
 
                 WIZARD_STEP_API_KEY ->
                     apiKeyState.value.isNotBlank()
@@ -133,41 +132,29 @@ fun SetupPlatformWizardScreen(
         }
     }
 
-
     BackHandler {
-
         if (wizardStep > 0) {
-
             setupViewModel.previousWizardStep()
-
         } else {
-
             setupViewModel.resetWizard()
             onBackAction()
         }
     }
 
-
     Scaffold(
         modifier = modifier.fillMaxSize(),
-
         topBar = {
             SetupAppBar(
                 backAction = {
-
                     if (wizardStep > 0) {
-
                         setupViewModel.previousWizardStep()
-
                     } else {
-
                         setupViewModel.resetWizard()
                         onBackAction()
                     }
                 }
             )
         }
-
     ) { innerPadding ->
 
         Column(
@@ -176,141 +163,96 @@ fun SetupPlatformWizardScreen(
                 .fillMaxSize()
                 .imePadding()
         ) {
-
             WizardProgressIndicator(
                 currentStep = wizardStep,
                 totalSteps = WIZARD_TOTAL_STEPS
             )
 
-
             AnimatedContent(
                 targetState = wizardStep,
-
                 transitionSpec = {
-
                     if (targetState > initialState) {
-
                         (slideInHorizontally { it } + fadeIn()) togetherWith
-                            (slideOutHorizontally { -it } + fadeOut())
-
+                                (slideOutHorizontally { -it } + fadeOut())
                     } else {
-
                         (slideInHorizontally { -it } + fadeIn()) togetherWith
-                            (slideOutHorizontally { it } + fadeOut())
+                                (slideOutHorizontally { it } + fadeOut())
                     }
                 },
-
                 label = "wizard_step_animation",
-
                 modifier = Modifier.weight(1f)
-
             ) { step ->
-
                 when (step) {
-
                     WIZARD_STEP_BASICS -> {
-
                         val currentPlatformName by
-                            setupViewModel.platformName
-                                .collectAsStateWithLifecycle()
+                            setupViewModel.platformName.collectAsStateWithLifecycle()
 
                         val currentApiUrl by
-                            setupViewModel.apiUrl
-                                .collectAsStateWithLifecycle()
-
+                            setupViewModel.apiUrl.collectAsStateWithLifecycle()
 
                         BasicsStep(
                             clientType = selectedClientType,
                             platformName = currentPlatformName,
-                            onPlatformNameChange =
-                                setupViewModel::updatePlatformName,
-
+                            onPlatformNameChange = setupViewModel::updatePlatformName,
                             apiUrl = currentApiUrl,
-                            onApiUrlChange =
-                                setupViewModel::updateApiUrl
+                            onApiUrlChange = setupViewModel::updateApiUrl
                         )
                     }
 
-
                     WIZARD_STEP_API_KEY -> {
-
                         val currentApiKey by
-                            setupViewModel.apiKey
-                                .collectAsStateWithLifecycle()
-
+                            setupViewModel.apiKey.collectAsStateWithLifecycle()
 
                         ApiKeyStep(
                             clientType = selectedClientType,
                             apiKey = currentApiKey,
-                            onApiKeyChange =
-                                setupViewModel::updateApiKey
+                            onApiKeyChange = setupViewModel::updateApiKey
                         )
                     }
 
-
                     WIZARD_STEP_MODEL -> {
-
                         val currentModel by
-                            setupViewModel.model
-                                .collectAsStateWithLifecycle()
+                            setupViewModel.model.collectAsStateWithLifecycle()
 
-                        val isFreePlan by
-                            isFreePlanState
-
+                        val isFreePlan by isFreePlanState
 
                         ModelStep(
                             model = currentModel,
-                            onModelChange =
-                                setupViewModel::updateModel,
+                            onModelChange = setupViewModel::updateModel,
                             isFreePlan = isFreePlan,
-                            onPlanTypeChange =
-                                setupViewModel::updatePlanType
+                            onPlanTypeChange = setupViewModel::updatePlanType,
+                            availableModels = availableModels,
+                            isLoadingModels = isLoadingModels,
+                            loadModels = { isFree -> setupViewModel.loadModels(isFree) }
                         )
                     }
                 }
             }
+
             WizardNavigationButtons(
                 currentStep = wizardStep,
                 canProceed = canProceed,
-
                 onBack = {
-
                     if (wizardStep > 0) {
-
                         setupViewModel.previousWizardStep()
-
                     } else {
-
                         setupViewModel.resetWizard()
                         onBackAction()
-
                     }
                 },
-
-
                 onNext = {
-
                     if (wizardStep < WIZARD_TOTAL_STEPS - 1) {
-
                         setupViewModel.nextWizardStep()
-
                     } else {
-
                         setupViewModel.savePlatform()
                         onComplete()
-
                     }
                 },
-
-
-                isLastStep =
-                    wizardStep == WIZARD_TOTAL_STEPS - 1
+                isLastStep = wizardStep == WIZARD_TOTAL_STEPS - 1
             )
         }
     }
 }
-
-
 
 @Composable
 private fun WizardProgressIndicator(
@@ -318,81 +260,45 @@ private fun WizardProgressIndicator(
     totalSteps: Int,
     modifier: Modifier = Modifier
 ) {
-
     Column(
-
         modifier = modifier
             .fillMaxWidth()
-            .padding(
-                horizontal = 20.dp,
-                vertical = 16.dp
-            )
-
+            .padding(horizontal = 20.dp, vertical = 16.dp)
     ) {
-
         Text(
-
-            text =
-                stringResource(
-                    R.string.step_x_of_y,
-                    currentStep + 1,
-                    totalSteps
-                ),
-
-            style =
-                MaterialTheme.typography.labelMedium,
-
-            color =
-                MaterialTheme.colorScheme.onSurfaceVariant
-
+            text = stringResource(
+                R.string.step_x_of_y,
+                currentStep + 1,
+                totalSteps
+            ),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-
-        Spacer(
-            modifier = Modifier.height(8.dp)
-        )
-
+        Spacer(modifier = Modifier.height(8.dp))
 
         LinearProgressIndicator(
-
-            progress = {
-                (currentStep + 1).toFloat() / totalSteps
-            },
-
-            modifier =
-                Modifier.fillMaxWidth()
-
+            progress = { (currentStep + 1).toFloat() / totalSteps },
+            modifier = Modifier.fillMaxWidth()
         )
 
-
-        Spacer(
-            modifier = Modifier.height(8.dp)
-        )
-
+        Spacer(modifier = Modifier.height(8.dp))
 
         Row(
-
-            modifier =
-                Modifier.fillMaxWidth(),
-
-            horizontalArrangement =
-                Arrangement.SpaceBetween
-
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-
             StepLabel(
                 text = stringResource(R.string.step_basics),
                 isCompleted = currentStep > WIZARD_STEP_BASICS,
                 isCurrent = currentStep == WIZARD_STEP_BASICS
             )
 
-
             StepLabel(
                 text = stringResource(R.string.step_api_key),
                 isCompleted = currentStep > WIZARD_STEP_API_KEY,
                 isCurrent = currentStep == WIZARD_STEP_API_KEY
             )
-
 
             StepLabel(
                 text = stringResource(R.string.step_model),
@@ -403,8 +309,6 @@ private fun WizardProgressIndicator(
     }
 }
 
-
-
 @Composable
 private fun StepLabel(
     text: String,
@@ -412,60 +316,31 @@ private fun StepLabel(
     isCurrent: Boolean,
     modifier: Modifier = Modifier
 ) {
-
     Row(
-
         modifier = modifier,
-
-        verticalAlignment =
-            Alignment.CenterVertically,
-
-        horizontalArrangement =
-            Arrangement.spacedBy(4.dp)
-
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-
         if (isCompleted) {
-
             Icon(
-
-                imageVector =
-                    Icons.Default.Check,
-
+                imageVector = Icons.Default.Check,
                 contentDescription = null,
-
-                tint =
-                    MaterialTheme.colorScheme.primary,
-
-                modifier =
-                    Modifier.size(14.dp)
-
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(14.dp)
             )
         }
 
-
         Text(
-
             text = text,
-
-            style =
-                MaterialTheme.typography.labelSmall,
-
+            style = MaterialTheme.typography.labelSmall,
             color = when {
-
-                isCurrent ->
-                    MaterialTheme.colorScheme.primary
-
-                isCompleted ->
-                    MaterialTheme.colorScheme.primary
-
-                else ->
-                    MaterialTheme.colorScheme.onSurfaceVariant
+                isCurrent -> MaterialTheme.colorScheme.primary
+                isCompleted -> MaterialTheme.colorScheme.primary
+                else -> MaterialTheme.colorScheme.onSurfaceVariant
             }
         )
     }
 }
-
 
 @Composable
 private fun BasicsStep(
@@ -476,127 +351,51 @@ private fun BasicsStep(
     onApiUrlChange: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-
     Column(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(
-                rememberScrollState()
-            )
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp)
     ) {
-
         Text(
-            modifier = Modifier.semantics {
-                heading()
-            },
-
-            text = stringResource(
-                R.string.step_basics
-            ),
-
+            modifier = Modifier.semantics { heading() },
+            text = stringResource(R.string.step_basics),
             style = MaterialTheme.typography.headlineSmall
         )
 
-
-        Spacer(
-            modifier = Modifier.height(8.dp)
-        )
-
+        Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = stringResource(
-                R.string.platform_basics_description
-            ),
-
+            text = stringResource(R.string.platform_basics_description),
             style = MaterialTheme.typography.bodyMedium,
-
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-
-        Spacer(
-            modifier = Modifier.height(24.dp)
-        )
-
+        Spacer(modifier = Modifier.height(24.dp))
 
         OutlinedTextField(
             value = platformName,
-
             onValueChange = onPlatformNameChange,
-
-            label = {
-                Text(
-                    stringResource(
-                        R.string.platform_name
-                    )
-                )
-            },
-
-            placeholder = {
-                Text(
-                    stringResource(
-                        R.string.platform_name_hint
-                    )
-                )
-            },
-
+            label = { Text(stringResource(R.string.platform_name)) },
+            placeholder = { Text(stringResource(R.string.platform_name_hint)) },
             modifier = Modifier.fillMaxWidth(),
-
             singleLine = true,
-
-            supportingText = {
-                Text(
-                    stringResource(
-                        R.string.platform_name_supporting
-                    )
-                )
-            }
+            supportingText = { Text(stringResource(R.string.platform_name_supporting)) }
         )
 
-
-        Spacer(
-            modifier = Modifier.height(20.dp)
-        )
-
+        Spacer(modifier = Modifier.height(20.dp))
 
         OutlinedTextField(
             value = apiUrl,
-
             onValueChange = onApiUrlChange,
-
-            label = {
-                Text(
-                    stringResource(
-                        R.string.api_url
-                    )
-                )
-            },
-
-            placeholder = {
-                Text(
-                    stringResource(
-                        R.string.api_url_hint
-                    )
-                )
-            },
-
+            label = { Text(stringResource(R.string.api_url)) },
+            placeholder = { Text(stringResource(R.string.api_url_hint)) },
             modifier = Modifier.fillMaxWidth(),
-
             singleLine = true,
-
-            supportingText = {
-                Text(
-                    stringResource(
-                        R.string.api_url_cautions
-                    )
-                )
-            }
+            supportingText = { Text(stringResource(R.string.api_url_cautions)) }
         )
     }
 }
-
-
 
 @Composable
 private fun ApiKeyStep(
@@ -605,217 +404,110 @@ private fun ApiKeyStep(
     onApiKeyChange: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-
-    val uriHandler =
-        LocalUriHandler.current
-
+    val uriHandler = LocalUriHandler.current
 
     Column(
-
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(
-                rememberScrollState()
-            )
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp)
-
     ) {
-
-
         Text(
-            modifier = Modifier.semantics {
-                heading()
-            },
-
-            text = stringResource(
-                R.string.step_api_key
-            ),
-
+            modifier = Modifier.semantics { heading() },
+            text = stringResource(R.string.step_api_key),
             style = MaterialTheme.typography.headlineSmall
         )
 
-
-        Spacer(
-            modifier = Modifier.height(8.dp)
-        )
-
+        Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = stringResource(
-                R.string.api_key_description
-            ),
-
+            text = stringResource(R.string.api_key_description),
             style = MaterialTheme.typography.bodyMedium,
-
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-
-        Spacer(
-            modifier = Modifier.height(24.dp)
-        )
-
+        Spacer(modifier = Modifier.height(24.dp))
 
         OutlinedTextField(
-
             value = apiKey,
-
             onValueChange = onApiKeyChange,
-
-            label = {
-                Text(
-                    stringResource(
-                        R.string.api_key
-                    )
-                )
-            },
-
-            placeholder = {
-                Text(
-                    stringResource(
-                        R.string.api_key_hint
-                    )
-                )
-            },
-
+            label = { Text(stringResource(R.string.api_key)) },
+            placeholder = { Text(stringResource(R.string.api_key_hint)) },
             modifier = Modifier.fillMaxWidth(),
-
             singleLine = true,
-
-            visualTransformation =
-                PasswordVisualTransformation(),
-
-            supportingText = {
-                Text(
-                    stringResource(
-                        R.string.api_key_supporting
-                    )
-                )
-            }
+            visualTransformation = PasswordVisualTransformation(),
+            supportingText = { Text(stringResource(R.string.api_key_supporting)) }
         )
 
-
         clientType?.let { type ->
-
-            val helpUrl =
-                getApiHelpUrl(type)
-
+            val helpUrl = getApiHelpUrl(type)
 
             if (helpUrl != null) {
-
-                Spacer(
-                    modifier = Modifier.height(16.dp)
-                )
-
-
+                Spacer(modifier = Modifier.height(16.dp))
                 HorizontalDivider()
-
-
-                Spacer(
-                    modifier = Modifier.height(16.dp)
-                )
-
+                Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
-                    text = stringResource(
-                        R.string.need_help
-                    ),
-
-                    style =
-                        MaterialTheme.typography.labelLarge
+                    text = stringResource(R.string.need_help),
+                    style = MaterialTheme.typography.labelLarge
                 )
 
-
-                Spacer(
-                    modifier = Modifier.height(4.dp)
-                )
-
+                Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-
                     text = helpUrl,
-
-                    style =
-                        MaterialTheme.typography.bodySmall.copy(
-                            textDecoration =
-                                TextDecoration.Underline
-                        ),
-
-                    color =
-                        MaterialTheme.colorScheme.primary,
-
-                    modifier =
-                        Modifier.clickable {
-
-                            uriHandler.openUri(
-                                helpUrl
-                            )
-                        }
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        textDecoration = TextDecoration.Underline
+                    ),
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.clickable {
+                        uriHandler.openUri(helpUrl)
+                    }
                 )
             }
         }
     }
 }
 
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ModelStep(
     model: String,
     onModelChange: (String) -> Unit,
     isFreePlan: Boolean,
     onPlanTypeChange: (Boolean) -> Unit,
+    availableModels: List<com.vibe.app.data.model.ModelInfo>,
+    isLoadingModels: Boolean,
+    loadModels: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var isDropdownExpanded by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isFreePlan) {
+        loadModels(isFreePlan)
+    }
 
     Column(
-
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(
-                rememberScrollState()
-            )
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp)
-
     ) {
-
-
         Text(
-
-            modifier = Modifier.semantics {
-                heading()
-            },
-
-            text = stringResource(
-                R.string.step_model
-            ),
-
+            modifier = Modifier.semantics { heading() },
+            text = stringResource(R.string.step_model),
             style = MaterialTheme.typography.headlineSmall
-
         )
 
-
-        Spacer(
-            modifier = Modifier.height(8.dp)
-        )
-
+        Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-
-            text = stringResource(
-                R.string.model_description
-            ),
-
+            text = stringResource(R.string.model_description),
             style = MaterialTheme.typography.bodyMedium,
-
             color = MaterialTheme.colorScheme.onSurfaceVariant
-
         )
 
-
-        Spacer(
-            modifier = Modifier.height(20.dp)
-        )
-
+        Spacer(modifier = Modifier.height(20.dp))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -834,69 +526,85 @@ private fun ModelStep(
             )
         }
 
+        Spacer(modifier = Modifier.height(16.dp))
 
-        Spacer(
-            modifier = Modifier.height(16.dp)
-        )
+        ExposedDropdownMenuBox(
+            expanded = isDropdownExpanded,
+            onExpandedChange = { isDropdownExpanded = !isDropdownExpanded }
+        ) {
+            OutlinedTextField(
+                value = model,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text(stringResource(R.string.model)) },
+                placeholder = { Text(stringResource(R.string.model_name)) },
+                trailingIcon = {
+                    if (isLoadingModels) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = isDropdownExpanded)
+                    }
+                },
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth(),
+                singleLine = true,
+                supportingText = { Text(stringResource(R.string.model_supporting)) }
+            )
 
-
-        OutlinedTextField(
-
-            value = model,
-
-            onValueChange = onModelChange,
-
-            label = {
-                Text(
-                    stringResource(
-                        R.string.model
+            ExposedDropdownMenu(
+                expanded = isDropdownExpanded,
+                onDismissRequest = { isDropdownExpanded = false }
+            ) {
+                if (availableModels.isEmpty() && !isLoadingModels) {
+                    DropdownMenuItem(
+                        text = { Text("لا توجد نماذج متاحة") },
+                        onClick = { isDropdownExpanded = false }
                     )
-                )
-            },
+                } else {
+                    availableModels.forEach { modelInfo ->
+                        val priceText = if (modelInfo.pricing?.isFree == true) {
+                            "مجاني"
+                        } else {
+                            "\$${String.format("%.6f", modelInfo.pricing?.averagePrice)} / 1K tokens"
+                        }
 
-            placeholder = {
-                Text(
-                    stringResource(
-                        R.string.model_name
-                    )
-                )
-            },
-
-            modifier = Modifier.fillMaxWidth(),
-
-            singleLine = true,
-
-            supportingText = {
-
-                Text(
-                    stringResource(
-                        R.string.model_supporting
-                    )
-                )
+                        DropdownMenuItem(
+                            text = {
+                                Column {
+                                    Text(
+                                        text = modelInfo.name ?: modelInfo.id,
+                                        style = MaterialTheme.typography.bodyLarge
+                                    )
+                                    Text(
+                                        text = priceText,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            },
+                            onClick = {
+                                onModelChange(modelInfo.id)
+                                isDropdownExpanded = false
+                            }
+                        )
+                    }
+                }
             }
-        )
+        }
 
-
-        Spacer(
-            modifier = Modifier.height(16.dp)
-        )
-
+        Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-
-            text = stringResource(
-                R.string.model_examples
-            ),
-
+            text = stringResource(R.string.model_examples),
             style = MaterialTheme.typography.bodySmall,
-
             color = MaterialTheme.colorScheme.onSurfaceVariant
-
         )
     }
 }
-
-
 
 @Composable
 private fun WizardNavigationButtons(
@@ -907,114 +615,50 @@ private fun WizardNavigationButtons(
     isLastStep: Boolean,
     modifier: Modifier = Modifier
 ) {
-
     Row(
-
         modifier = modifier
             .fillMaxWidth()
             .padding(20.dp),
-
-        horizontalArrangement =
-            Arrangement.spacedBy(12.dp)
-
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-
-
         OutlinedButton(
-
             onClick = onBack,
-
-            modifier =
-                Modifier.weight(1f)
-
+            modifier = Modifier.weight(1f)
         ) {
-
             Text(
-
                 text = if (currentStep == 0) {
-
-                    stringResource(
-                        R.string.cancel
-                    )
-
+                    stringResource(R.string.cancel)
                 } else {
-
-                    stringResource(
-                        R.string.back
-                    )
+                    stringResource(R.string.back)
                 }
-
             )
         }
 
-
-
         Button(
-
             onClick = onNext,
-
-            modifier =
-                Modifier.weight(1f),
-
+            modifier = Modifier.weight(1f),
             enabled = canProceed
-
         ) {
-
             Text(
-
                 text = if (isLastStep) {
-
-                    stringResource(
-                        R.string.finish
-                    )
-
+                    stringResource(R.string.finish)
                 } else {
-
-                    stringResource(
-                        R.string.next
-                    )
+                    stringResource(R.string.next)
                 }
-
             )
         }
     }
 }
 
-
-
 private fun getApiHelpUrl(
     clientType: ClientType
 ): String? = when (clientType) {
-
-
-    ClientType.OPENAI ->
-        "https://platform.openai.com/account/api-keys"
-
-
-    ClientType.ANTHROPIC ->
-        "https://console.anthropic.com/settings/keys"
-
-
-    ClientType.QWEN ->
-        "https://bailian.console.aliyun.com/cn-beijing/?tab=api#/api"
-
-
-    ClientType.KIMI ->
-        "https://platform.moonshot.cn/console/api-keys"
-
-
-    ClientType.MINIMAX ->
-        "https://platform.minimaxi.com/user-center/basic-information/interface-key"
-
-
-    ClientType.DEEPSEEK ->
-        "https://platform.deepseek.com/api_keys"
-
-
-    ClientType.OPEN_ROUTER ->
-        "https://openrouter.ai/keys"
-
-
-    ClientType.CUSTOM ->
-        null
+    ClientType.OPENAI -> "https://platform.openai.com/account/api-keys"
+    ClientType.ANTHROPIC -> "https://console.anthropic.com/settings/keys"
+    ClientType.QWEN -> "https://bailian.console.aliyun.com/cn-beijing/?tab=api#/api"
+    ClientType.KIMI -> "https://platform.moonshot.cn/console/api-keys"
+    ClientType.MINIMAX -> "https://platform.minimaxi.com/user-center/basic-information/interface-key"
+    ClientType.DEEPSEEK -> "https://platform.deepseek.com/api_keys"
+    ClientType.OPEN_ROUTER -> "https://openrouter.ai/keys"
+    ClientType.CUSTOM -> null
 }

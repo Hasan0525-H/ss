@@ -15,7 +15,7 @@ class DefaultAgentLoopCoordinator @Inject constructor(
     private val toolRegistry: AgentToolRegistry
 ) : AgentLoopCoordinator {
 
-    override suspend fun coordinateLoop(request: AgentModelRequest): Flow<AgentModelEvent> {
+    override suspend fun run(request: AgentModelRequest): Flow<AgentModelEvent> {
         // تنفيذ دورة الوكيل وإدارة الاستجابات والأدوات
         return modelGateway.streamTurn(request)
     }

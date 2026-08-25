@@ -52,7 +52,7 @@ class PlatformSettingViewModel @Inject constructor(
     val switchedPlatformEvent: SharedFlow<String> =
         _switchedPlatformEvent.asSharedFlow()
 
-    // --- إضافة حالة النماذج المتاحة وحالة التحميل ---
+    // --- حالة النماذج المتاحة وحالة التحميل ---
     private val _availableModels =
         MutableStateFlow<List<OpenRouterModel>>(emptyList())
     val availableModels: StateFlow<List<OpenRouterModel>> =
@@ -62,6 +62,8 @@ class PlatformSettingViewModel @Inject constructor(
         MutableStateFlow(false)
     val isLoadingModels: StateFlow<Boolean> =
         _isLoadingModels.asStateFlow()
+
+    private var currentIsFreeFilter: Boolean = true
 
     init {
         loadPlatform()
@@ -80,14 +82,21 @@ class PlatformSettingViewModel @Inject constructor(
             _platformState.update {
                 platform
             }
+
+            // جلب النماذج تلقائياً عند فتح الشاشة في حال وجود توكن
+            if (!platform?.token.isNullOrBlank()) {
+                loadModels(currentIsFreeFilter)
+            }
         }
     }
 
     // --- دالة جلب وتصفية وترتيب النماذج ---
     fun loadModels(isFreeOnly: Boolean) {
+        currentIsFreeFilter = isFreeOnly
         viewModelScope.launch {
             _isLoadingModels.value = true
             try {
+                // جلب جميع النماذج من API مع تمرير isFreeOnly كـ false لجلب الكل وتصفيته محلياً
                 val models = fetchOpenRouterModels(isFreeOnly = false)
                 val filteredAndSorted = if (isFreeOnly) {
                     models.filter { it.pricing?.isFree == true }
@@ -189,12 +198,16 @@ class PlatformSettingViewModel @Inject constructor(
 
     fun updateApiToken(token: String) {
         _platformState.value?.let {
+            val newToken = token.trim().takeIf { value -> value.isNotEmpty() }
             updatePlatform(
-                it.copy(
-                    token = token.trim().takeIf { value -> value.isNotEmpty() }
-                )
+                it.copy(token = newToken)
             )
             closeApiTokenDialog()
+            
+            // إعادة جلب النماذج فور إدخال أو تحديث مفتاح API
+            if (!newToken.isNullOrBlank()) {
+                loadModels(currentIsFreeFilter)
+            }
         }
     }
 

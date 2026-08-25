@@ -96,8 +96,10 @@ class PlatformSettingViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoadingModels.value = true
             try {
-                // جلب جميع النماذج من API مع تمرير isFreeOnly كـ false لجلب الكل وتصفيته محلياً
-                val models = fetchOpenRouterModels(isFreeOnly = false)
+                // تمرير isFreeOnly مباشرة لاستدعاء API الصحيح
+                val models = fetchOpenRouterModels(isFreeOnly = isFreeOnly)
+                
+                // الترتيب والتصفية حسب نوع الفلتر المختار
                 val filteredAndSorted = if (isFreeOnly) {
                     models.filter { it.pricing?.isFree == true }
                 } else {

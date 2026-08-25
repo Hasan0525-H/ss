@@ -14,8 +14,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.vibe.app.R
-import com.vibe.app.data.dto.OpenRouterModel
 import com.vibe.app.util.isValidUrl
 import kotlin.math.roundToInt
 
@@ -296,14 +296,13 @@ private fun ModelDialog(
 
     var selectedModel by remember { mutableStateOf(initModel) }
     var isFreeOnly by remember { mutableStateOf(true) }
-    var modelsList by remember { mutableStateOf<List<OpenRouterModel>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(false) }
     var expanded by remember { mutableStateOf(false) }
 
+    val modelsList by settingViewModel.availableModels.collectAsStateWithLifecycle()
+    val isLoading by settingViewModel.isLoadingModels.collectAsStateWithLifecycle()
+
     LaunchedEffect(isFreeOnly) {
-        isLoading = true
-        modelsList = settingViewModel.fetchOpenRouterModels(isFreeOnly)
-        isLoading = false
+        settingViewModel.loadModels(isFreeOnly)
     }
 
     AlertDialog(

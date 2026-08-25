@@ -6,6 +6,7 @@ import com.vibe.app.feature.agent.AgentToolContext
 import com.vibe.app.feature.agent.AgentToolDefinition
 import com.vibe.app.feature.agent.AgentToolResult
 import com.vibe.app.feature.project.ProjectManager
+import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.serialization.json.JsonArray
@@ -179,7 +180,7 @@ class WriteProjectFileTool @Inject constructor(
             val workspace = projectManager.openWorkspace(context.projectId)
             workspace.writeTextFile(path, content)
 
-            val file = workspace.getFile(path)
+            val file = File(workspace.rootDir, path)
 
             // الحماية: التحقق من وجود الملف وكتابة محتوى بعد عملية الإنشاء
             if (file.exists() && file.length() > 0L) {

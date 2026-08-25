@@ -1,386 +1,330 @@
 package com.vibe.app.feature.agent.loop
 
-import android.content.Context
-import dagger.hilt.android.qualifiers.ApplicationContext
-import com.vibe.app.data.database.entity.MessageV2
-import com.vibe.app.feature.agent.AgentConversationItem
-import com.vibe.app.feature.agent.AgentLoopCoordinator
-import com.vibe.app.feature.agent.AgentLoopEvent
-import com.vibe.app.feature.agent.AgentLoopRequest
+import com.vibe.app.data.dto.qwen.request.QwenChatCompletionRequest
+import com.vibe.app.data.dto.qwen.request.QwenChatMessage
+import com.vibe.app.data.dto.qwen.request.QwenFunctionDefinition
+import com.vibe.app.data.dto.qwen.request.QwenTool
+import com.vibe.app.data.dto.qwen.request.qwenTextContent
+import com.vibe.app.data.network.OpenAIAPI
+import com.vibe.app.data.preferences.LanguageManager
 import com.vibe.app.feature.agent.AgentMessageRole
 import com.vibe.app.feature.agent.AgentModelEvent
 import com.vibe.app.feature.agent.AgentModelGateway
 import com.vibe.app.feature.agent.AgentModelRequest
+import com.vibe.app.feature.agent.AgentToolCall
 import com.vibe.app.feature.agent.AgentToolChoiceMode
-import com.vibe.app.feature.agent.AgentToolRegistry
-import com.vibe.app.feature.agent.AgentToolResult
-import com.vibe.app.feature.agent.loop.compaction.CompactionStrategyType
-import com.vibe.app.feature.agent.loop.compaction.ConversationCompactor
-import com.vibe.app.feature.agent.loop.compaction.ProviderContextBudget
-import com.vibe.app.feature.agent.loop.iteration.AgentMode
-import com.vibe.app.feature.agent.loop.iteration.IterationModeDetector
-import com.vibe.app.feature.agent.loop.iteration.PromptAssembler
 import com.vibe.app.feature.diagnostic.ChatDiagnosticLogger
-import com.vibe.app.feature.diagnostic.DiagnosticLevels
-import com.vibe.app.feature.project.ProjectManager
-import com.vibe.app.feature.project.VibeProjectDirs
-import com.vibe.app.feature.project.memo.MemoLoader
-import com.vibe.app.feature.project.memo.OutlineGenerator
-import com.vibe.app.feature.project.memo.ProjectMemo
-import com.vibe.app.feature.project.snapshot.SnapshotManager
-import com.vibe.app.feature.project.snapshot.SnapshotType
+import com.vibe.app.feature.diagnostic.ModelExecutionTrace
+import com.vibe.app.feature.diagnostic.ModelRequestDiagnosticContext
+import com.vibe.app.feature.diagnostic.toDiagnosticProviderType
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import com.vibe.app.feature.agent.AgentPlan
-import com.vibe.app.feature.agent.AgentPlanStep
-import com.vibe.app.feature.agent.PlanStepStatus
-import com.vibe.app.feature.agent.tool.requireString
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.int
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.put
+
 
 @Singleton
-class DefaultAgentLoopCoordinator @Inject constructor(
-    @ApplicationContext private val context: Context,
-    private val agentModelGateway: AgentModelGateway,
-    private val agentToolRegistry: AgentToolRegistry,
+class QwenChatCompletionsAgentGateway @Inject constructor(
+    private val openAIAPI: OpenAIAPI,
     private val diagnosticLogger: ChatDiagnosticLogger,
-    private val projectManager: ProjectManager,
-    private val conversationCompactor: ConversationCompactor,
-    private val snapshotManager: SnapshotManager,
-    private val iterationModeDetector: IterationModeDetector,
-    private val memoLoader: MemoLoader,
-    private val outlineGenerator: OutlineGenerator,
-) : AgentLoopCoordinator {
+    private val languageManager: LanguageManager,
+) : AgentModelGateway {
 
-    override suspend fun run(request: AgentLoopRequest): Flow<AgentLoopEvent> = flow {
-        val loopStartedAt = System.currentTimeMillis()
-        emit(
-            AgentLoopEvent.LoopStarted(
-                chatId = request.chatId,
-                platformUid = request.platform.uid,
-            ),
+    private val json = Json {
+        ignoreUnknownKeys = true
+        isLenient = true
+        explicitNulls = false
+    }
+
+    override suspend fun streamTurn(
+        request: AgentModelRequest
+    ): Flow<AgentModelEvent> = flow {
+
+        openAIAPI.setToken(request.platform.token)
+        openAIAPI.setAPIUrl(request.platform.apiUrl.toQwenChatCompletionsBaseUrl())
+        openAIAPI.setProvider(
+            type = request.platform.compatibleType.name,
+            customUrl = request.platform.apiUrl
         )
-        request.diagnosticContext?.copy(platformUid = request.platform.uid)?.let { ctx ->
-            diagnosticLogger.logAgentLoopEvent(
-                context = ctx,
-                action = "loop_started",
-                summary = "Agent loop started (max=${request.policy.maxIterations}, tools=${request.tools.size})",
-                payload = buildJsonObject {
-                    put("action", "loop_started")
-                    put("maxIterations", request.policy.maxIterations)
-                    put("toolCount", request.tools.size)
-                    put("conversationItemCount", request.userMessages.size + request.assistantMessages.size)
-                    put("startedAt", loopStartedAt)
-                },
+
+        val trace = ModelExecutionTrace()
+        val effectiveToolChoice = request.toQwenToolChoice()
+        val messages = buildMessages(request)
+
+        trace.markRequestPrepared()
+
+        val requestContext = request.diagnosticContext
+            ?.copy(platformUid = request.platform.uid)
+            ?.let { diagnosticContext ->
+                ModelRequestDiagnosticContext(
+                    diagnosticContext = diagnosticContext,
+                    providerType = request.platform.compatibleType.toDiagnosticProviderType(),
+                    apiFamily = "chat_completions",
+                    model = request.platform.model,
+                    stream = true,
+                    reasoningEnabled = request.platform.reasoning,
+                    estimatedContextTokens = request.estimateContextTokensForDiagnostics(),
+                    messageCount = messages.size,
+                    toolCount = request.tools.size.takeIf { it > 0 },
+                    toolChoiceMode = effectiveToolChoice,
+                    systemPromptPresent = !request.instructions.isNullOrBlank(),
+                    systemPromptChars = request.instructions?.length?.takeIf { it > 0 }
+                )
+            }
+
+        data class ToolCallAccumulator(
+            var id: String = "",
+            var name: String = "",
+            val arguments: StringBuilder = StringBuilder()
+        )
+
+        val toolCallAccumulators = mutableMapOf<Int, ToolCallAccumulator>()
+
+        var finishReason: String? = null
+        var streamError: String? = null
+        var lastAssistantText = ""
+        var repeatCount = 0
+        var shouldStopFlow = false
+
+        openAIAPI.streamQwenChatCompletion(
+            QwenChatCompletionRequest(
+                model = request.platform.model,
+                messages = messages,
+                tools = request.tools
+                    .takeIf { it.isNotEmpty() }
+                    ?.map { tool ->
+                        QwenTool(
+                            function = QwenFunctionDefinition(
+                                name = tool.name,
+                                description = tool.description,
+                                parameters = tool.inputSchema
+                            )
+                        )
+                    },
+                toolChoice = effectiveToolChoice,
+                stream = true
+            ),
+            diagnosticContext = requestContext,
+            trace = trace
+        ).collect { chunk ->
+
+            if (shouldStopFlow) return@collect
+
+            if (chunk.error != null) {
+                streamError = chunk.error.message
+                trace.markFailed(
+                    chunk.error.type ?: "provider_error",
+                    chunk.error.message
+                )
+                shouldStopFlow = true
+                return@collect
+            }
+
+            val choice = chunk.choices?.firstOrNull() ?: return@collect
+
+            finishReason = choice.finishReason ?: finishReason
+
+            choice.delta?.content
+                ?.takeIf { it.isNotEmpty() }
+                ?.let { delta ->
+                    if (delta == lastAssistantText) {
+                        repeatCount++
+                    } else {
+                        lastAssistantText = delta
+                        repeatCount = 0
+                    }
+
+                    if (repeatCount >= 3) {
+                        emit(AgentModelEvent.Failed("Model repeated the same response multiple times"))
+                        shouldStopFlow = true
+                        return@let
+                    }
+
+                    trace.markOutput(delta)
+                    emit(AgentModelEvent.OutputDelta(delta))
+                }
+
+            if (shouldStopFlow) return@collect
+
+            choice.delta?.reasoningContent
+                ?.takeIf { it.isNotEmpty() }
+                ?.let { delta ->
+                    emit(AgentModelEvent.ThinkingDelta(delta))
+                }
+
+            choice.delta?.toolCalls
+                ?.forEach { deltaToolCall ->
+                    val acc = toolCallAccumulators.getOrPut(deltaToolCall.index) {
+                        ToolCallAccumulator()
+                    }
+
+                    deltaToolCall.id?.let { acc.id = it }
+                    deltaToolCall.function?.name?.let { acc.name = it }
+                    deltaToolCall.function?.arguments?.let { acc.arguments.append(it) }
+                }
+        }
+
+        streamError?.let {
+            if (requestContext != null) {
+                diagnosticLogger.logModelResponse(requestContext, trace, success = false)
+                diagnosticLogger.logLatencyBreakdown(requestContext, trace)
+            }
+            emit(AgentModelEvent.Failed(it))
+            return@flow
+        }
+
+        toolCallAccumulators.entries
+            .sortedBy { it.key }
+            .forEach { (_, acc) ->
+                val arguments = runCatching {
+                    json.parseToJsonElement(acc.arguments.toString())
+                }.getOrElse {
+                    buildJsonObject {
+                        put("raw", JsonPrimitive(acc.arguments.toString()))
+                    }
+                }
+
+                emit(
+                    AgentModelEvent.ToolCallReady(
+                        AgentToolCall(
+                            id = acc.id,
+                            name = acc.name,
+                            arguments = arguments
+                        )
+                    )
+                )
+            }
+
+        trace.finishReason = finishReason
+        trace.markCompleted(finishReason)
+
+        if (requestContext != null) {
+            diagnosticLogger.logModelResponse(requestContext, trace, success = true)
+            diagnosticLogger.logLatencyBreakdown(requestContext, trace)
+        }
+
+        emit(AgentModelEvent.Completed())
+    }
+
+    private fun buildMessages(request: AgentModelRequest): List<QwenChatMessage> {
+        val messages = mutableListOf<QwenChatMessage>()
+        val toolRequired = request.policy.toolChoiceMode == AgentToolChoiceMode.REQUIRED
+        val hasTools = request.tools.isNotEmpty()
+
+        val systemContent = buildString {
+            request.instructions?.takeIf { it.isNotBlank() }?.let { append(it) }
+
+            if (toolRequired && hasTools) {
+                append("\n\n")
+                append(toolRequiredInstruction())
+                append("\n\nIMPORTANT:\nDo not write normal text.\nDo not write explanations.\nStart directly by calling write_project_file.")
+            } else if (hasTools) {
+                append("\n\n")
+                append(TOOL_ENCOURAGE_INSTRUCTION)
+            }
+        }.trim()
+
+        if (systemContent.isNotBlank()) {
+            messages += QwenChatMessage(
+                role = "system",
+                content = qwenTextContent(systemContent)
             )
         }
 
-        // ─── PREPARE ──────────────────────────────────────────────────────────────
-        val projectId = request.projectId
-        var turnContext: TurnContext? = null
-        var mode: AgentMode = AgentMode.GREENFIELD
-        var memo: ProjectMemo? = null
-
-        if (!projectId.isNullOrBlank()) {
-            runCatching {
-                val workspace = projectManager.openWorkspace(projectId)
-                val vibeDirs = VibeProjectDirs.fromWorkspaceRoot(workspace.rootDir)
-                    .also { it.ensureCreated() }
-                snapshotManager.recoverPendingRestore(projectId, workspace.rootDir, vibeDirs)
-                mode = iterationModeDetector.detect(projectId, vibeDirs)
-                if (mode == AgentMode.ITERATE) {
-                    memo = memoLoader.load(vibeDirs)
-                }
-                val priorTurnCount = snapshotManager.list(projectId, vibeDirs)
-                    .count { it.type == SnapshotType.TURN }
-                val nextTurnIndex = priorTurnCount + 1
-                val label = currentUserText(request).orEmpty().take(40)
-                val handle = snapshotManager.prepare(
-                    projectId = projectId,
-                    workspaceRoot = workspace.rootDir,
-                    vibeDirs = vibeDirs,
-                    type = SnapshotType.TURN,
-                    label = label,
-                    turnIndex = nextTurnIndex,
-                )
-                turnContext = TurnContext(
-                    projectId = projectId,
-                    workspaceRoot = workspace.rootDir,
-                    vibeDirs = vibeDirs,
-                    mode = mode,
-                    snapshotHandle = handle,
-                    turnIndex = nextTurnIndex,
-                )
-            }.onFailure { }
-        }
-
-        // ─── TOOL LOOP ────────────────────────────────────────────────────────────
-        val collectedToolResults = mutableListOf<AgentToolResult>()
-        var lastToolSignature = ""
-        var repeatedToolCount = 0
-
-        try {
-            var previousResponseId: String? = null
-            val initialConversation = buildInitialConversation(request)
-            var conversationDelta: List<AgentConversationItem> = initialConversation
-            val fullConversation = initialConversation.toMutableList()
-            var currentPlan: AgentPlan? = null
-
-            for (iteration in 1..request.policy.maxIterations) {
-                emit(AgentLoopEvent.ModelTurnStarted(iteration))
-                
-                val pendingToolResults = mutableListOf<AgentToolResult>()
-                val pendingCalls = mutableListOf<com.vibe.app.feature.agent.AgentToolCall>()
-                val outputBuilder = StringBuilder()
-                var failureMessage: String? = null
-                var turnReasoningContent: String? = null
-
-                val effectivePolicy = if (iteration == 1 && request.tools.isNotEmpty()) {
-                    request.policy.copy(toolChoiceMode = AgentToolChoiceMode.REQUIRED)
-                } else {
-                    request.policy
-                }
-
-                val compactionResult = conversationCompactor.compact(
-                    items = fullConversation.toList(),
-                    clientType = request.platform.compatibleType,
-                    platform = request.platform,
-                )
-
-                agentModelGateway.streamTurn(
-                    AgentModelRequest(
-                        platform = request.platform,
-                        diagnosticContext = request.diagnosticContext?.copy(platformUid = request.platform.uid),
-                        conversation = conversationDelta,
-                        fullConversation = compactionResult.items,
-                        instructions = buildInstructions(request, currentPlan, mode, memo),
-                        tools = request.tools,
-                        policy = effectivePolicy,
-                        previousResponseId = previousResponseId,
-                    ),
-                ).collect { event ->
-                    when (event) {
-                        is AgentModelEvent.ThinkingDelta -> emit(AgentLoopEvent.ThinkingDelta(iteration, event.delta))
-                        is AgentModelEvent.OutputDelta -> {
-                            outputBuilder.append(event.delta)
-                            emit(AgentLoopEvent.OutputDelta(iteration, event.delta))
-                        }
-                        is AgentModelEvent.ToolCallReady -> {
-                            pendingCalls += event.call
-                            emit(AgentLoopEvent.ToolCallDiscovered(iteration, event.call))
-                        }
-                        is AgentModelEvent.Completed -> {
-                            previousResponseId = event.responseId ?: previousResponseId
-                            if (event.reasoningContent != null) turnReasoningContent = event.reasoningContent
-                        }
-                        is AgentModelEvent.Failed -> failureMessage = event.message
-                    }
-                }
-
-                if (failureMessage != null) {
-                    emit(AgentLoopEvent.LoopFailed(message = failureMessage, iteration = iteration))
-                    return@flow
-                }
-
-                // **الآلية الاحتياطية (Fallback Guard)**: إذا كان النموذج يطلب إنشاء تطبيق ولم يستدعِ أي أداة في الدورة الأولى، نقوم بحقن أداة ولادة تلقائية لمنع الفشل
-                val userText = currentUserText(request).orEmpty()
-                val isCreationRequest = userText.contains("ابي تطبيق", ignoreCase = true) || 
-                                        userText.contains("أنشئ", ignoreCase = true) || 
-                                        userText.contains("تطبيق", ignoreCase = true)
-
-                if (pendingCalls.isEmpty() && iteration == 1 && isCreationRequest) {
-                    val fallbackCall = com.vibe.app.feature.agent.AgentToolCall(
-                        id = "fallback_write_file_id",
-                        name = "write_project_file",
-                        arguments = buildJsonObject {
-                            put("path", JsonPrimitive("app/src/main/java/com/vibe/generated/MainActivity.kt"))
-                            put("content", JsonPrimitive("package com.vibe.generated\n\nimport android.app.Activity\nimport android.os.Bundle\n\nclass MainActivity : Activity() {\n    override fun onCreate(savedInstanceState: Bundle?) {\n        super.onCreate(savedInstanceState)\n    }\n}"))
-                        }
+        request.fullConversation.forEach { item ->
+            when (item.role) {
+                AgentMessageRole.USER ->
+                    messages += QwenChatMessage(
+                        role = "user",
+                        content = qwenTextContent(item.text.orEmpty())
                     )
-                    pendingCalls += fallbackCall
-                    emit(AgentLoopEvent.ToolCallDiscovered(iteration, fallbackCall))
-                }
-
-                if (pendingCalls.isEmpty()) {
-                    emit(
-                        AgentLoopEvent.LoopCompleted(
-                            finalText = outputBuilder.toString().trim(),
-                            toolResults = collectedToolResults.toList(),
-                        ),
+                AgentMessageRole.ASSISTANT ->
+                    messages += QwenChatMessage(
+                        role = "assistant",
+                        content = qwenTextContent(item.text)
                     )
-                    return@flow
-                }
-
-                fullConversation += AgentConversationItem(
-                    role = AgentMessageRole.ASSISTANT,
-                    text = outputBuilder.toString().trim().takeIf { it.isNotEmpty() },
-                    toolCalls = pendingCalls.toList(),
-                    reasoningContent = turnReasoningContent,
-                )
-
-                pendingCalls.forEach { call ->
-                    val tool = agentToolRegistry.findTool(call.name)
-                    if (tool == null) {
-                        val result = AgentToolResult(
-                            toolCallId = call.id,
-                            toolName = call.name,
-                            output = buildJsonObject { put("error", JsonPrimitive("Tool not found: ${call.name}")) },
-                            isError = true,
-                        )
-                        pendingToolResults += result
-                        collectedToolResults += result
-                        emit(AgentLoopEvent.ToolExecutionFinished(iteration, result))
-                        return@forEach
-                    }
-
-                    emit(AgentLoopEvent.ToolExecutionStarted(iteration, call))
-                    val toolStartedAt = System.currentTimeMillis()
-
-                    if (turnContext != null && call.name in WRITE_TOOL_NAMES && !turnContext.firstWriteDone) {
-                        turnContext.firstWriteDone = true
-                    }
-                    val result = runCatching {
-                        tool.execute(
-                            call = call,
-                            context = com.vibe.app.feature.agent.AgentToolContext(
-                                chatId = request.chatId,
-                                platformUid = request.platform.uid,
-                                iteration = iteration,
-                                projectId = request.projectId ?: "",
-                            ),
-                        )
-                    }.getOrElse { error ->
-                        AgentToolResult(
-                            toolCallId = call.id,
-                            toolName = call.name,
-                            output = buildJsonObject { put("error", JsonPrimitive(error.message ?: "Tool execution failed")) },
-                            isError = true,
-                        )
-                    }
-                    pendingToolResults += result
-                    collectedToolResults += result
-
-                    if (turnContext != null && !result.isError) {
-                        runCatching {
-                            when (call.name) {
-                                "write_project_file", "edit_project_file" -> {
-                                    val path = call.arguments.requireString("path")
-                                    turnContext.writtenFiles += path
-                                }
-                                "delete_project_file" -> {
-                                    val path = call.arguments.requireString("path")
-                                    turnContext.deletedFiles += path
-                                }
-                            }
-                        }
-                    }
-                    emit(AgentLoopEvent.ToolExecutionFinished(iteration, result))
-                }
-
-                val toolResultItems = pendingToolResults.map { result ->
-                    AgentConversationItem(
-                        role = AgentMessageRole.TOOL,
-                        toolCallId = result.toolCallId,
-                        toolName = result.toolName,
-                        payload = result.output,
+                AgentMessageRole.TOOL ->
+                    messages += QwenChatMessage(
+                        role = "tool",
+                        content = qwenTextContent(item.payload?.toString() ?: item.text.orEmpty()),
+                        toolCallId = item.toolCallId
                     )
-                }
-                fullConversation += toolResultItems
-                conversationDelta = toolResultItems
-            }
-
-            emit(AgentLoopEvent.LoopCompleted(finalText = "تم إرسال وإنشاء الملفات بنجاح.", toolResults = collectedToolResults.toList()))
-
-        } finally {
-            if (turnContext != null) {
-                runCatching {
-                    val buildSucceeded = collectedToolResults.any { it.toolName == "run_build_pipeline" && !it.isError }
-                    if (turnContext.firstWriteDone) {
-                        runCatching { turnContext.snapshotHandle.commit() }
-                    }
-                    turnContext.snapshotHandle.finalize(
-                        buildSucceeded = buildSucceeded,
-                        affectedFiles = turnContext.writtenFiles.toList(),
-                        deletedFiles = turnContext.deletedFiles.toList(),
-                    )
-                    snapshotManager.enforceRetention(turnContext.projectId, turnContext.vibeDirs)
-                }
+                AgentMessageRole.SYSTEM -> Unit
             }
         }
+        return messages
     }
 
-    private fun buildInitialConversation(request: AgentLoopRequest): List<AgentConversationItem> {
-        val items = mutableListOf<AgentConversationItem>()
-        request.userMessages.forEachIndexed { index, userMessage ->
-            items += userMessage.toAgentConversationItem()
-            val assistantsForTurn = request.assistantMessages.getOrNull(index).orEmpty()
-            val assistantForTurn = assistantsForTurn.firstOrNull { it.platformType == request.platform.uid }
-                ?: assistantsForTurn.firstOrNull { it.content.isNotBlank() }
-            if (assistantForTurn != null && assistantForTurn.content.isNotBlank()) {
-                items += assistantForTurn.toAgentConversationItem()
-            }
-        }
-        return items
-    }
+    private fun toolRequiredInstruction(): String {
+        return if (languageManager.language.value == "ar") {
+            """
+أنت وكيل برمجة مستقل.
 
-    private fun parsePlanFromToolResult(result: AgentToolResult, iteration: Int): AgentPlan? = null
-    private fun updatePlanFromToolResult(plan: AgentPlan, result: AgentToolResult): AgentPlan? = null
+قواعد اللغة:
+- استخدم اللغة العربية في جميع الردود.
+- اكتب الشروحات بالعربية.
+- اكتب تعليقات الكود بالعربية.
+- اجعل رسائل البناء والاختبار بالعربية.
+
+عند طلب إنشاء تطبيق:
+- يجب عليك استخدام write_project_file.
+- لا تشرح للمستخدم ما يجب فعله.
+- نفذ الأدوات بنفسك.
+- لا ترسل رد نصي بدون تنفيذ الأدوات.
+
+الرد نصي فقط يعتبر فاشلاً.
+"""
+        } else {
+            """
+You are an autonomous coding agent.
+
+Language rules:
+- Use English in all responses.
+- Write explanations in English.
+- Write code comments in English.
+- Write build and testing reports in English.
+
+For every application creation request:
+- You MUST call write_project_file.
+- Do not explain.
+- Do not tell the user to use tools.
+- Do not output instructions.
+- Execute the tools yourself.
+
+A text-only response is invalid.
+"""
+        }
+    }
 
     companion object {
-        private val WRITE_TOOL_NAMES: Set<String> = setOf(
-            "write_project_file",
-            "edit_project_file",
-            "delete_project_file",
-            "update_project_icon",
-            "update_project_icon_custom",
-        )
-        private const val MAX_RECENT_ASSISTANT_CHARS = 4000
-        private const val MAX_OLDER_ASSISTANT_CHARS = 1500
-        private const val MAX_SUMMARY_CHARS = 500
+        private const val TOOL_ENCOURAGE_INSTRUCTION = """
+## IMPORTANT: Continue Using Tools
+
+You have tools available.
+When the user's request requires reading, writing, modifying project files, or building the project, use tools instead of describing what to do.
+"""
     }
+}
 
-    private fun MessageV2.toAgentConversationItem(): AgentConversationItem {
-        val isAssistant = platformType != null
-        return AgentConversationItem(
-            role = if (isAssistant) AgentMessageRole.ASSISTANT else AgentMessageRole.USER,
-            attachments = if (isAssistant) emptyList() else files,
-            text = buildString {
-                append(content)
-                if (files.isNotEmpty()) {
-                    append("\n\n[Files]\n")
-                    append(files.joinToString(separator = "\n"))
-                }
-            }.trim(),
-        )
+fun String.toQwenChatCompletionsBaseUrl(): String {
+    val trimmed = this.trim().trimEnd('/')
+    return if (trimmed.endsWith("/v1")) {
+        trimmed
+    } else {
+        "$trimmed/v1"
     }
+}
 
-    private val promptTemplate: String by lazy {
-        context.assets.open("agent-system-prompt.md").bufferedReader().use { it.readText() }
+fun AgentModelRequest.toQwenToolChoice(): String? {
+    if (tools.isEmpty()) {
+        return null
     }
-
-    private val iterationAppendix: String by lazy {
-        context.assets.open("iteration-mode-appendix.md").bufferedReader().use { it.readText() }
-    }
-
-    private fun currentUserText(request: AgentLoopRequest): String? =
-        request.userMessages.lastOrNull()?.content
-
-    private suspend fun buildInstructions(
-        request: AgentLoopRequest,
-        activePlan: AgentPlan? = null,
-        mode: AgentMode = AgentMode.GREENFIELD,
-        memo: ProjectMemo? = null,
-    ): String {
-        val packageName = request.projectId?.let { "com.vibe.generated.p$it" } ?: "com.vibe.generated.emptyactivity"
-        val packagePath = packageName.replace('.', '/')
-        val basePrompt = promptTemplate.replace("{{PACKAGE_NAME}}", packageName).replace("{{PACKAGE_PATH}}", packagePath)
-        return PromptAssembler.assemble(basePrompt = basePrompt, iterationAppendix = iterationAppendix, mode = mode, memo = memo)
+    return when (policy.toolChoiceMode) {
+        AgentToolChoiceMode.AUTO -> "auto"
+        AgentToolChoiceMode.REQUIRED -> "auto"
+        AgentToolChoiceMode.NONE -> "none"
     }
 }

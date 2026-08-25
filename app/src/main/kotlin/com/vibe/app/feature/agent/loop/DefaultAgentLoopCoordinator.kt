@@ -1,4 +1,4 @@
-package com.vibe.app.feature.agent.loop
+package com.vibe.app.data.dto.qwen.request
 
 import com.vibe.app.data.dto.qwen.request.QwenChatCompletionRequest
 import com.vibe.app.data.dto.qwen.request.QwenChatMessage
@@ -24,7 +24,6 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
-
 
 @Singleton
 class QwenChatCompletionsAgentGateway @Inject constructor(
@@ -124,55 +123,54 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
             }
 
             val choice = chunk.choices?.firstOrNull() ?: return@collect
-
             finishReason = choice.finishReason ?: finishReason
 
-            choice.delta?.content
-                ?.takeIf { it.isNotEmpty() }
-                ?.let { delta ->
-                    if (delta == lastAssistantText) {
-                        repeatCount++
-                    } else {
-                        lastAssistantText = delta
-                        repeatCount = 0
-                    }
+            val delta = choice.delta
+            val message = choice.message
 
-                    if (repeatCount >= 3) {
-                        emit(AgentModelEvent.Failed("Model repeated the same response multiple times"))
-                        shouldStopFlow = true
-                        return@let
-                    }
-
-                    trace.markOutput(delta)
-                    emit(AgentModelEvent.OutputDelta(delta))
+            delta?.content?.takeIf { it.isNotEmpty() }?.let { content ->
+                if (content == lastAssistantText) {
+                    repeatCount++
+                } else {
+                    lastAssistantText = content
+                    repeatCount = 0
                 }
+
+                if (repeatCount >= 3) {
+                    emit(AgentModelEvent.Failed("Model repeated the same response multiple times"))
+                    shouldStopFlow = true
+                    return@let
+                }
+
+                trace.markOutput(content)
+                emit(AgentModelEvent.OutputDelta(content))
+            }
 
             if (shouldStopFlow) return@collect
 
-            choice.delta?.reasoningContent
-                ?.takeIf { it.isNotEmpty() }
-                ?.let { delta ->
-                    emit(AgentModelEvent.ThinkingDelta(delta))
+            delta?.reasoningContent?.takeIf { it.isNotEmpty() }?.let { reasoning ->
+                emit(AgentModelEvent.ThinkingDelta(reasoning))
+            }
+
+            // دعم استخراج tool_calls سواء من delta أو من message النهائي
+            val toolCallsList = delta?.toolCalls ?: message?.toolCalls
+            toolCallsList?.forEachIndexed { index, toolCall ->
+                val acc = toolCallAccumulators.getOrPut(toolCall.index ?: index) {
+                    ToolCallAccumulator()
                 }
 
-            choice.delta?.toolCalls
-                ?.forEach { deltaToolCall ->
-                    val acc = toolCallAccumulators.getOrPut(deltaToolCall.index) {
-                        ToolCallAccumulator()
-                    }
-
-                    deltaToolCall.id?.let { acc.id = it }
-                    deltaToolCall.function?.name?.let { acc.name = it }
-                    deltaToolCall.function?.arguments?.let { acc.arguments.append(it) }
-                }
+                toolCall.id?.let { acc.id = it }
+                toolCall.function?.name?.let { acc.name = it }
+                toolCall.function?.arguments?.let { acc.arguments.append(it) }
+            }
         }
 
-        streamError?.let {
+        streamError?.let { err ->
             if (requestContext != null) {
                 diagnosticLogger.logModelResponse(requestContext, trace, success = false)
                 diagnosticLogger.logLatencyBreakdown(requestContext, trace)
             }
-            emit(AgentModelEvent.Failed(it))
+            emit(AgentModelEvent.Failed(err))
             return@flow
         }
 

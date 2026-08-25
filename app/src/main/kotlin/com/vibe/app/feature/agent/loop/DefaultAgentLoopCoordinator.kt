@@ -16,8 +16,9 @@ class DefaultAgentLoopCoordinator @Inject constructor(
 ) : AgentLoopCoordinator {
 
     override suspend fun run(request: AgentLoopRequest): Flow<AgentLoopEvent> {
-        // يمكنك تعديل المنطق هنا بناءً على طلبات الـ loop والـ modelGateway
-        // كمثال أساسي:
-        // return modelGateway.streamTurn(...)
+        // سيتم إضافة المنطق التشغيلي الخاص بالـ loop هنا.
+        // على سبيل المثال، التعامل مع طلبات ال agent وتكرارها.
+        // للبدء، يمكنك إرجاع Flow مناسب بناءً على متطلباتك.
+        TODO("Not yet implemented")
     }
 }

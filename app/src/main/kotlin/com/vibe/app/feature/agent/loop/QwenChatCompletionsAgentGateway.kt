@@ -436,6 +436,9 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                         toolRequiredInstruction()
                     )
 
+                    // تعديل إضافي لضمان تجنب الرد النصي البحتاً مع Qwen
+                    append("\n\nIMPORTANT:\nDo not write normal text.\nDo not write explanations.\nStart directly by calling write_project_file.")
+
 
                 } else if (hasTools) {
 
@@ -609,24 +612,17 @@ fun String.toQwenChatCompletionsBaseUrl(): String {
 
 fun AgentModelRequest.toQwenToolChoice(): String? {
 
-
     if (tools.isEmpty()) {
         return null
     }
 
-
     return when (policy.toolChoiceMode) {
-
-
         AgentToolChoiceMode.AUTO ->
             "auto"
 
-
-
         AgentToolChoiceMode.REQUIRED ->
-            "required"
-
-
+            // التعديل هنا: بعض مزودي Qwen لا يدعمون صيغة "required" حرفياً عبر Chat Completions ويتجاهلونها أو يفشلون، لذا نوجهها كـ "auto" مع تعزيز التعليمات النصية للبرومبت لجعل النموذج يستدعي الأدوات إلزامياً.
+            "auto"
 
         AgentToolChoiceMode.NONE ->
             "none"

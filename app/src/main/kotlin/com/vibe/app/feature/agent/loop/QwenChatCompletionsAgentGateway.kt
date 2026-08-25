@@ -133,6 +133,7 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
 
         var lastAssistantText = ""
         var repeatCount = 0
+        var shouldStopFlow = false
 
 
 
@@ -181,7 +182,7 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
 
         ).collect { chunk ->
 
-
+            if (shouldStopFlow) return@collect
 
             if (chunk.error != null) {
 
@@ -195,6 +196,7 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                 )
 
 
+                shouldStopFlow = true
                 return@collect
             }
 
@@ -227,7 +229,8 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                         emit(
                             AgentModelEvent.Failed("Model repeated the same response multiple times")
                         )
-                        return@flow
+                        shouldStopFlow = true
+                        return@let
                     }
 
                     trace.markOutput(delta)
@@ -236,6 +239,8 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                         AgentModelEvent.OutputDelta(delta)
                     )
                 }
+
+            if (shouldStopFlow) return@collect
 
 
 

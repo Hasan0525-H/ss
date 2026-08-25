@@ -16,6 +16,13 @@ class LanguageManager @Inject constructor(
 ) {
 
 
+    private val preferences =
+        context.getSharedPreferences(
+            "language_settings",
+            Context.MODE_PRIVATE
+        )
+
+
     private val _language =
         MutableStateFlow(
             getLanguage()
@@ -27,49 +34,45 @@ class LanguageManager @Inject constructor(
 
 
 
-    fun changeLanguage(
+    fun setLanguage(
         language: String
     ) {
 
-        _language.value = language
-
-
-        AppCompatDelegate.setApplicationLocales(
-            LocaleListCompat.forLanguageTags(
-                language
-            )
-        )
-
-
-        context
-            .getSharedPreferences(
-                "settings",
-                Context.MODE_PRIVATE
-            )
-            .edit()
+        preferences.edit()
             .putString(
                 "language",
                 language
             )
             .apply()
 
+
+        _language.value = language
+
+
+        AppCompatDelegate
+            .setApplicationLocales(
+                LocaleListCompat.forLanguageTags(
+                    language
+                )
+            )
+    }
+
+
+
+    fun getCurrentLanguage(): String {
+        return _language.value
     }
 
 
 
     private fun getLanguage(): String {
 
-        return context
-            .getSharedPreferences(
-                "settings",
-                Context.MODE_PRIVATE
-            )
+        return preferences
             .getString(
                 "language",
-                "en"
+                "ar"
             )
-            ?: "en"
-
+            ?: "ar"
     }
 
 }

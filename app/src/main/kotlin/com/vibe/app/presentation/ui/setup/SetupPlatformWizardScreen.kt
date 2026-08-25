@@ -59,6 +59,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.vibe.app.R
 import com.vibe.app.data.model.ClientType
+import com.vibe.app.data.model.ModelInfo
 import com.vibe.app.presentation.ui.setup.SetupViewModelV2.Companion.WIZARD_STEP_API_KEY
 import com.vibe.app.presentation.ui.setup.SetupViewModelV2.Companion.WIZARD_STEP_BASICS
 import com.vibe.app.presentation.ui.setup.SetupViewModelV2.Companion.WIZARD_STEP_MODEL
@@ -71,34 +72,19 @@ fun SetupPlatformWizardScreen(
     onComplete: () -> Unit,
     onBackAction: () -> Unit
 ) {
-    val wizardStepState =
-        setupViewModel.wizardStep.collectAsStateWithLifecycle()
+    val wizardStep by setupViewModel.wizardStep.collectAsStateWithLifecycle()
+    val selectedClientType by setupViewModel.selectedClientType.collectAsStateWithLifecycle()
+    val platformName by setupViewModel.platformName.collectAsStateWithLifecycle()
+    val apiUrl by setupViewModel.apiUrl.collectAsStateWithLifecycle()
+    val apiKey by setupViewModel.apiKey.collectAsStateWithLifecycle()
+    val model by setupViewModel.model.collectAsStateWithLifecycle()
+    val isFreePlan by setupViewModel.isFreePlan.collectAsStateWithLifecycle()
 
-    val selectedClientTypeState =
-        setupViewModel.selectedClientType.collectAsStateWithLifecycle()
-
-    val platformNameState =
-        setupViewModel.platformName.collectAsStateWithLifecycle()
-
-    val apiUrlState =
-        setupViewModel.apiUrl.collectAsStateWithLifecycle()
-
-    val apiKeyState =
-        setupViewModel.apiKey.collectAsStateWithLifecycle()
-
-    val modelState =
-        setupViewModel.model.collectAsStateWithLifecycle()
-
-    val isFreePlanState =
-        setupViewModel.isFreePlan.collectAsStateWithLifecycle()
-
-    val availableModels by setupViewModel.availableModels.collectAsStateWithLifecycle()
-    val isLoadingModels by setupViewModel.isLoadingModels.collectAsStateWithLifecycle()
+    val availableModels: List<ModelInfo> by setupViewModel.availableModels.collectAsStateWithLifecycle(initialValue = emptyList())
+    val isLoadingModels: Boolean by setupViewModel.isLoadingModels.collectAsStateWithLifecycle(initialValue = false)
 
     val context = LocalContext.current
-
-    val switchedHint =
-        stringResource(R.string.switched_platform_hint)
+    val switchedHint = stringResource(R.string.switched_platform_hint)
 
     LaunchedEffect(Unit) {
         setupViewModel.switchedPlatformEvent.collect { name ->
@@ -110,24 +96,13 @@ fun SetupPlatformWizardScreen(
         }
     }
 
-    val wizardStep = wizardStepState.value
-    val selectedClientType = selectedClientTypeState.value
-
     val canProceed by remember {
         derivedStateOf {
-            when (wizardStepState.value) {
-                WIZARD_STEP_BASICS ->
-                    platformNameState.value.isNotBlank() &&
-                            apiUrlState.value.isNotBlank()
-
-                WIZARD_STEP_API_KEY ->
-                    apiKeyState.value.isNotBlank()
-
-                WIZARD_STEP_MODEL ->
-                    modelState.value.isNotBlank()
-
-                else ->
-                    false
+            when (wizardStep) {
+                WIZARD_STEP_BASICS -> platformName.isNotBlank() && apiUrl.isNotBlank()
+                WIZARD_STEP_API_KEY -> apiKey.isNotBlank()
+                WIZARD_STEP_MODEL -> model.isNotBlank()
+                else -> false
             }
         }
     }
@@ -156,7 +131,6 @@ fun SetupPlatformWizardScreen(
             )
         }
     ) { innerPadding ->
-
         Column(
             modifier = Modifier
                 .padding(innerPadding)
@@ -184,40 +158,26 @@ fun SetupPlatformWizardScreen(
             ) { step ->
                 when (step) {
                     WIZARD_STEP_BASICS -> {
-                        val currentPlatformName by
-                            setupViewModel.platformName.collectAsStateWithLifecycle()
-
-                        val currentApiUrl by
-                            setupViewModel.apiUrl.collectAsStateWithLifecycle()
-
                         BasicsStep(
                             clientType = selectedClientType,
-                            platformName = currentPlatformName,
+                            platformName = platformName,
                             onPlatformNameChange = setupViewModel::updatePlatformName,
-                            apiUrl = currentApiUrl,
+                            apiUrl = apiUrl,
                             onApiUrlChange = setupViewModel::updateApiUrl
                         )
                     }
 
                     WIZARD_STEP_API_KEY -> {
-                        val currentApiKey by
-                            setupViewModel.apiKey.collectAsStateWithLifecycle()
-
                         ApiKeyStep(
                             clientType = selectedClientType,
-                            apiKey = currentApiKey,
+                            apiKey = apiKey,
                             onApiKeyChange = setupViewModel::updateApiKey
                         )
                     }
 
                     WIZARD_STEP_MODEL -> {
-                        val currentModel by
-                            setupViewModel.model.collectAsStateWithLifecycle()
-
-                        val isFreePlan by isFreePlanState
-
                         ModelStep(
-                            model = currentModel,
+                            model = model,
                             onModelChange = setupViewModel::updateModel,
                             isFreePlan = isFreePlan,
                             onPlanTypeChange = setupViewModel::updatePlanType,
@@ -476,7 +436,7 @@ private fun ModelStep(
     onModelChange: (String) -> Unit,
     isFreePlan: Boolean,
     onPlanTypeChange: (Boolean) -> Unit,
-    availableModels: List<com.vibe.app.data.model.ModelInfo>,
+    availableModels: List<ModelInfo>,
     isLoadingModels: Boolean,
     loadModels: (Boolean) -> Unit,
     modifier: Modifier = Modifier
@@ -569,7 +529,7 @@ private fun ModelStep(
                         val priceText = if (modelInfo.pricing?.isFree == true) {
                             "مجاني"
                         } else {
-                            "\$${String.format("%.6f", modelInfo.pricing?.averagePrice)} / 1K tokens"
+                            "\$${String.format("%.6f", modelInfo.pricing?.averagePrice ?: 0.0)} / 1K tokens"
                         }
 
                         DropdownMenuItem(

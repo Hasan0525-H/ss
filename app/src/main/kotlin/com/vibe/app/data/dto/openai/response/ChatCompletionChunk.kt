@@ -27,10 +27,10 @@ data class ChatCompletionChunk(
 @Serializable
 data class Choice(
     @SerialName("index")
-    val index: Int,
+    val index: Int = 0,
 
     @SerialName("delta")
-    val delta: Delta? = null,
+    val delta: Delta? = null, // تعديل جعل delta قابلة لـ null لتجنب Crash مع بعض ردود OpenRouter
 
     @SerialName("message")
     val message: Message? = null,

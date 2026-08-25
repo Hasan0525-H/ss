@@ -277,8 +277,11 @@ class AgentSessionManager @Inject constructor(
             is AgentLoopEvent.LoopCompleted -> {
                 stateFlow.update { state ->
                     state.updateLastAssistant { msg ->
+                        val fallbackText = event.finalText.ifBlank { 
+                            "لم يتم استخدام أدوات إنشاء المشروع، لم يتم إنشاء أي ملفات" 
+                        }
                         msg.copy(
-                            content = msg.content.ifBlank { event.finalText.ifBlank { "Build completed." } },
+                            content = msg.content.ifBlank { fallbackText },
                             createdAt = System.currentTimeMillis() / 1000,
                         )
                     }

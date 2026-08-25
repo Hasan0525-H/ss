@@ -58,8 +58,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.vibe.app.R
+import com.vibe.app.data.dto.OpenRouterModel
 import com.vibe.app.data.model.ClientType
-import com.vibe.app.data.model.ModelInfo
 import com.vibe.app.presentation.ui.setup.SetupViewModelV2.Companion.WIZARD_STEP_API_KEY
 import com.vibe.app.presentation.ui.setup.SetupViewModelV2.Companion.WIZARD_STEP_BASICS
 import com.vibe.app.presentation.ui.setup.SetupViewModelV2.Companion.WIZARD_STEP_MODEL
@@ -80,8 +80,7 @@ fun SetupPlatformWizardScreen(
     val model by setupViewModel.model.collectAsStateWithLifecycle()
     val isFreePlan by setupViewModel.isFreePlan.collectAsStateWithLifecycle()
 
-    val availableModels: List<ModelInfo> by setupViewModel.availableModels.collectAsStateWithLifecycle(initialValue = emptyList())
-    val isLoadingModels: Boolean by setupViewModel.isLoadingModels.collectAsStateWithLifecycle(initialValue = false)
+    val modelsFetchStatus by setupViewModel.modelsFetchStatus.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     val switchedHint = stringResource(R.string.switched_platform_hint)
@@ -181,9 +180,7 @@ fun SetupPlatformWizardScreen(
                             onModelChange = setupViewModel::updateModel,
                             isFreePlan = isFreePlan,
                             onPlanTypeChange = setupViewModel::updatePlanType,
-                            availableModels = availableModels,
-                            isLoadingModels = isLoadingModels,
-                            loadModels = { isFree -> setupViewModel.loadModels(isFree) }
+                            modelsFetchStatus = modelsFetchStatus
                         )
                     }
                 }
@@ -436,15 +433,16 @@ private fun ModelStep(
     onModelChange: (String) -> Unit,
     isFreePlan: Boolean,
     onPlanTypeChange: (Boolean) -> Unit,
-    availableModels: List<ModelInfo>,
-    isLoadingModels: Boolean,
-    loadModels: (Boolean) -> Unit,
+    modelsFetchStatus: ModelsFetchStatus,
     modifier: Modifier = Modifier
 ) {
     var isDropdownExpanded by remember { mutableStateOf(false) }
 
-    LaunchedEffect(isFreePlan) {
-        loadModels(isFreePlan)
+    val isLoading = modelsFetchStatus is ModelsFetchStatus.Loading
+    val availableModels = if (modelsFetchStatus is ModelsFetchStatus.Success) {
+        modelsFetchStatus.models
+    } else {
+        emptyList()
     }
 
     Column(
@@ -499,7 +497,7 @@ private fun ModelStep(
                 label = { Text(stringResource(R.string.model)) },
                 placeholder = { Text(stringResource(R.string.model_name)) },
                 trailingIcon = {
-                    if (isLoadingModels) {
+                    if (isLoading) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(20.dp),
                             strokeWidth = 2.dp
@@ -519,7 +517,7 @@ private fun ModelStep(
                 expanded = isDropdownExpanded,
                 onDismissRequest = { isDropdownExpanded = false }
             ) {
-                if (availableModels.isEmpty() && !isLoadingModels) {
+                if (availableModels.isEmpty() && !isLoading) {
                     DropdownMenuItem(
                         text = { Text("لا توجد نماذج متاحة") },
                         onClick = { isDropdownExpanded = false }

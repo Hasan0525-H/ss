@@ -19,7 +19,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-
 sealed class SaveStatus {
     data object Idle : SaveStatus()
     data object Saving : SaveStatus()
@@ -34,147 +33,80 @@ sealed class ModelsFetchStatus {
     data class Error(val message: String) : ModelsFetchStatus()
 }
 
-
 @HiltViewModel
 class SetupViewModelV2 @Inject constructor(
     private val settingRepository: SettingRepository
 ) : ViewModel() {
 
+    private val _platforms = MutableStateFlow<List<PlatformV2>>(emptyList())
+    val platforms: StateFlow<List<PlatformV2>> = _platforms.asStateFlow()
 
-    private val _platforms =
-        MutableStateFlow<List<PlatformV2>>(emptyList())
+    private val _wizardStep = MutableStateFlow(0)
+    val wizardStep: StateFlow<Int> = _wizardStep.asStateFlow()
 
-    val platforms: StateFlow<List<PlatformV2>> =
-        _platforms.asStateFlow()
+    private val _selectedClientType = MutableStateFlow<ClientType?>(null)
+    val selectedClientType: StateFlow<ClientType?> = _selectedClientType.asStateFlow()
 
+    private val _platformName = MutableStateFlow("")
+    val platformName: StateFlow<String> = _platformName.asStateFlow()
 
-    private val _wizardStep =
-        MutableStateFlow(0)
+    private val _apiUrl = MutableStateFlow("")
+    val apiUrl: StateFlow<String> = _apiUrl.asStateFlow()
 
-    val wizardStep: StateFlow<Int> =
-        _wizardStep.asStateFlow()
+    private val _apiKey = MutableStateFlow("")
+    val apiKey: StateFlow<String> = _apiKey.asStateFlow()
 
+    private val _model = MutableStateFlow("")
+    val model: StateFlow<String> = _model.asStateFlow()
 
-    private val _selectedClientType =
-        MutableStateFlow<ClientType?>(null)
+    private val _isFreePlan = MutableStateFlow(true)
+    val isFreePlan: StateFlow<Boolean> = _isFreePlan.asStateFlow()
 
-    val selectedClientType: StateFlow<ClientType?> =
-        _selectedClientType.asStateFlow()
+    private val _modelsFetchStatus = MutableStateFlow<ModelsFetchStatus>(ModelsFetchStatus.Idle)
+    val modelsFetchStatus: StateFlow<ModelsFetchStatus> = _modelsFetchStatus.asStateFlow()
 
+    private val _saveStatus = MutableStateFlow<SaveStatus>(SaveStatus.Idle)
+    val saveStatus: StateFlow<SaveStatus> = _saveStatus.asStateFlow()
 
-    private val _platformName =
-        MutableStateFlow("")
-
-    val platformName: StateFlow<String> =
-        _platformName.asStateFlow()
-
-
-    private val _apiUrl =
-        MutableStateFlow("")
-
-    val apiUrl: StateFlow<String> =
-        _apiUrl.asStateFlow()
-
-
-    private val _apiKey =
-        MutableStateFlow("")
-
-    val apiKey: StateFlow<String> =
-        _apiKey.asStateFlow()
-
-
-    private val _model =
-        MutableStateFlow("")
-
-    val model: StateFlow<String> =
-        _model.asStateFlow()
-
-
-    private val _isFreePlan =
-        MutableStateFlow(true)
-
-    val isFreePlan: StateFlow<Boolean> =
-        _isFreePlan.asStateFlow()
-
-
-    private val _modelsFetchStatus =
-        MutableStateFlow<ModelsFetchStatus>(ModelsFetchStatus.Idle)
-
-    val modelsFetchStatus: StateFlow<ModelsFetchStatus> =
-        _modelsFetchStatus.asStateFlow()
-
-
-    private val _saveStatus =
-        MutableStateFlow<SaveStatus>(SaveStatus.Idle)
-
-    val saveStatus: StateFlow<SaveStatus> =
-        _saveStatus.asStateFlow()
-
-
-    private val _switchedPlatformEvent =
-        MutableSharedFlow<String>()
-
-    val switchedPlatformEvent: SharedFlow<String> =
-        _switchedPlatformEvent.asSharedFlow()
-
+    private val _switchedPlatformEvent = MutableSharedFlow<String>()
+    val switchedPlatformEvent: SharedFlow<String> = _switchedPlatformEvent.asSharedFlow()
 
     init {
         loadPlatforms()
     }
 
-
     private fun loadPlatforms() {
         viewModelScope.launch {
-            _platforms.value =
-                settingRepository.fetchPlatformV2s()
+            _platforms.value = settingRepository.fetchPlatformV2s()
         }
     }
 
-
-    fun selectClientType(
-        clientType: ClientType
-    ) {
-
+    fun selectClientType(clientType: ClientType) {
         _selectedClientType.value = clientType
-
-        _platformName.value =
-            getDefaultPlatformName(clientType)
-
-        _apiUrl.value =
-            getDefaultApiUrl(clientType)
-
+        _platformName.value = getDefaultPlatformName(clientType)
+        _apiUrl.value = getDefaultApiUrl(clientType)
         _apiKey.value = ""
-
-        _model.value =
-            getDefaultModel(clientType)
-
+        _model.value = getDefaultModel(clientType)
         _isFreePlan.value = true
-
         _modelsFetchStatus.value = ModelsFetchStatus.Idle
-
         _wizardStep.value = WIZARD_STEP_BASICS
     }
-
 
     fun updatePlatformName(name: String) {
         _platformName.value = name
     }
 
-
     fun updateApiUrl(url: String) {
         _apiUrl.value = url
     }
-
 
     fun updateApiKey(key: String) {
         _apiKey.value = key
     }
 
-
     fun updateModel(modelName: String) {
         _model.value = modelName
     }
-
 
     fun updatePlanType(isFree: Boolean) {
         _isFreePlan.value = isFree
@@ -182,7 +114,6 @@ class SetupViewModelV2 @Inject constructor(
             fetchModels()
         }
     }
-
 
     fun fetchModels() {
         val currentApiKey = _apiKey.value.trim()
@@ -208,7 +139,6 @@ class SetupViewModelV2 @Inject constructor(
         }
     }
 
-
     fun nextWizardStep() {
         if (!canProceedFromStep(_wizardStep.value)) return
 
@@ -220,16 +150,13 @@ class SetupViewModelV2 @Inject constructor(
         }
     }
 
-
     fun previousWizardStep() {
         _wizardStep.update {
             maxOf(0, it - 1)
         }
     }
 
-
     fun resetWizard() {
-
         _wizardStep.value = 0
         _selectedClientType.value = null
         _platformName.value = ""
@@ -240,252 +167,111 @@ class SetupViewModelV2 @Inject constructor(
         _modelsFetchStatus.value = ModelsFetchStatus.Idle
     }
 
-
     fun savePlatform() {
-
-        val clientType =
-            _selectedClientType.value
-                ?: return
-
+        val clientType = _selectedClientType.value ?: return
 
         viewModelScope.launch {
-
-            _saveStatus.value =
-                SaveStatus.Saving
+            _saveStatus.value = SaveStatus.Saving
 
             try {
+                val platform = PlatformV2(
+                    name = _platformName.value.trim(),
+                    compatibleType = clientType,
+                    enabled = true,
+                    apiUrl = _apiUrl.value.trim(),
+                    token = _apiKey.value.trim().takeIf { it.isNotEmpty() },
+                    model = _model.value.trim(),
+                    isFree = _isFreePlan.value,
+                    temperature = 1.0f,
+                    topP = 1.0f,
+                    systemPrompt = null,
+                    stream = true,
+                    reasoning = false,
+                    timeout = 30
+                )
 
-                val platform =
-                    PlatformV2(
-                        name = _platformName.value.trim(),
-                        compatibleType = clientType,
-                        enabled = true,
-                        apiUrl = _apiUrl.value.trim(),
-
-                        token = _apiKey.value
-                            .trim()
-                            .takeIf {
-                                it.isNotEmpty()
-                            },
-
-                        model = _model.value.trim(),
-                        isFree = _isFreePlan.value,
-                        temperature = 1.0f,
-                        topP = 1.0f,
-                        systemPrompt = null,
-                        stream = true,
-                        reasoning = false,
-                        timeout = 30
-                    )
-
-
-                val allPlatforms =
-                    settingRepository.fetchPlatformV2s()
-
-
-                val othersEnabled =
-                    allPlatforms.filter {
-                        it.enabled
-                    }
-
+                val allPlatforms = settingRepository.fetchPlatformV2s()
+                val othersEnabled = allPlatforms.filter { it.enabled }
 
                 othersEnabled.forEach {
-
-                    settingRepository.updatePlatformV2(
-                        it.copy(
-                            enabled = false
-                        )
-                    )
+                    settingRepository.updatePlatformV2(it.copy(enabled = false))
                 }
 
-
-                settingRepository.addPlatformV2(
-                    platform
-                )
-
+                settingRepository.addPlatformV2(platform)
 
                 if (othersEnabled.isNotEmpty()) {
-
-                    _switchedPlatformEvent.emit(
-                        platform.name
-                    )
+                    _switchedPlatformEvent.emit(platform.name)
                 }
 
-
                 loadPlatforms()
-
-
-                _saveStatus.value =
-                    SaveStatus.Success
-
-
+                _saveStatus.value = SaveStatus.Success
                 resetWizard()
 
-
             } catch (e: Exception) {
-
-                Log.e(
-                    TAG,
-                    "Failed to save platform",
-                    e
-                )
-
-                _saveStatus.value =
-                    SaveStatus.Error(
-                        e.message
-                            ?: "Unknown error"
-                    )
+                Log.e(TAG, "Failed to save platform", e)
+                _saveStatus.value = SaveStatus.Error(e.message ?: "Unknown error")
             }
         }
     }
 
-
     fun clearSaveStatus() {
-        _saveStatus.value =
-            SaveStatus.Idle
+        _saveStatus.value = SaveStatus.Idle
     }
 
-
-    fun deletePlatform(
-        platform: PlatformV2
-    ) {
-
+    fun deletePlatform(platform: PlatformV2) {
         viewModelScope.launch {
-
-            settingRepository.deletePlatformV2(
-                platform
-            )
-
+            settingRepository.deletePlatformV2(platform)
             loadPlatforms()
         }
     }
 
-
-    fun canProceedFromStep(
-        step: Int
-    ): Boolean =
+    fun canProceedFromStep(step: Int): Boolean =
         when (step) {
-
-            WIZARD_STEP_BASICS ->
-                _platformName.value.isNotBlank() &&
-                    _apiUrl.value.isNotBlank()
-
-            WIZARD_STEP_API_KEY ->
-                _apiKey.value.isNotBlank()
-
-            WIZARD_STEP_MODEL ->
-                _model.value.isNotBlank()
-
-            else ->
-                false
+            WIZARD_STEP_BASICS -> _platformName.value.isNotBlank() && _apiUrl.value.isNotBlank()
+            WIZARD_STEP_API_KEY -> _apiKey.value.isNotBlank()
+            WIZARD_STEP_MODEL -> _model.value.isNotBlank()
+            else -> false
         }
 
+    fun isSetupComplete(): Boolean = _platforms.value.isNotEmpty()
 
-    fun isSetupComplete(): Boolean =
-        _platforms.value.isNotEmpty()
-
-
-
-    private fun getDefaultPlatformName(
-        clientType: ClientType
-    ): String =
+    private fun getDefaultPlatformName(clientType: ClientType): String =
         when (clientType) {
-
-            ClientType.OPENAI ->
-                "OpenAI"
-
-            ClientType.ANTHROPIC ->
-                "Anthropic"
-
-            ClientType.QWEN ->
-                "Qwen"
-
-            ClientType.KIMI ->
-                "Kimi"
-
-            ClientType.MINIMAX ->
-                "MiniMax"
-
-            ClientType.DEEPSEEK ->
-                "DeepSeek"
-
-            ClientType.OPEN_ROUTER ->
-                "OpenRouter"
-
-            ClientType.CUSTOM ->
-                "Custom API"
+            ClientType.OPENAI -> "OpenAI"
+            ClientType.ANTHROPIC -> "Anthropic"
+            ClientType.QWEN -> "Qwen"
+            ClientType.KIMI -> "Kimi"
+            ClientType.MINIMAX -> "MiniMax"
+            ClientType.DEEPSEEK -> "DeepSeek"
+            ClientType.OPEN_ROUTER -> "OpenRouter"
+            ClientType.CUSTOM -> "Custom API"
         }
 
-
-
-    private fun getDefaultApiUrl(
-        clientType: ClientType
-    ): String =
+    private fun getDefaultApiUrl(clientType: ClientType): String =
         when (clientType) {
-
-            ClientType.OPEN_ROUTER ->
-                ModelConstants.OPENROUTER_API_URL
-
-            ClientType.CUSTOM ->
-                ModelConstants.CUSTOM_API_URL
-
-            else ->
-                ""
+            ClientType.OPEN_ROUTER -> ModelConstants.OPENROUTER_API_URL
+            ClientType.CUSTOM -> ModelConstants.CUSTOM_API_URL
+            else -> ""
         }
 
-
-
-    private fun getDefaultModel(
-        clientType: ClientType
-    ): String =
+    private fun getDefaultModel(clientType: ClientType): String =
         when (clientType) {
-
-            ClientType.OPENAI ->
-                "gpt-4o"
-
-            ClientType.ANTHROPIC ->
-                "claude-3-5-sonnet"
-
-            ClientType.QWEN ->
-                "qwen-max"
-
-            ClientType.KIMI ->
-                "moonshot-v1-8k"
-
-            ClientType.MINIMAX ->
-                "abab6.5s-chat"
-
-            ClientType.DEEPSEEK ->
-                "deepseek-chat"
-
-            ClientType.OPEN_ROUTER ->
-                "google/gemini-2.5-pro"
-
-            ClientType.CUSTOM ->
-                ""
+            ClientType.OPENAI -> "gpt-4o"
+            ClientType.ANTHROPIC -> "claude-3-5-sonnet"
+            ClientType.QWEN -> "qwen-max"
+            ClientType.KIMI -> "moonshot-v1-8k"
+            ClientType.MINIMAX -> "abab6.5s-chat"
+            ClientType.DEEPSEEK -> "deepseek-chat"
+            ClientType.OPEN_ROUTER -> "google/gemini-2.5-pro"
+            ClientType.CUSTOM -> ""
         }
-
-
 
     companion object {
+        private const val TAG = "SetupViewModelV2"
 
-        private const val TAG =
-            "SetupViewModelV2"
-
-
-        const val WIZARD_STEP_BASICS =
-            0
-
-
-        const val WIZARD_STEP_API_KEY =
-            1
-
-
-        const val WIZARD_STEP_MODEL =
-            2
-
-
-        const val WIZARD_TOTAL_STEPS =
-            3
+        const val WIZARD_STEP_BASICS = 0
+        const val WIZARD_STEP_API_KEY = 1
+        const val WIZARD_STEP_MODEL = 2
+        const val WIZARD_TOTAL_STEPS = 3
     }
 }

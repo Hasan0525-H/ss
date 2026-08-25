@@ -298,7 +298,16 @@ class ChatViewModel @Inject constructor(
         addMessage(userMessage)
         _question.update { "" }
         clearSelectedFiles()
-        completeChat(startTurn(userMessage))
+        
+        // تعديل معالجة الطلب بوضع try-catch لمنع الانهيار المفاجئ
+        viewModelScope.launch {
+            try {
+                completeChat(startTurn(userMessage))
+            } catch (e: Exception) {
+                Log.e("ChatViewModel", "askQuestion failed", e)
+                _loadingStates.update { List(_enabledPlatformsInChat.value.size) { LoadingState.Idle } }
+            }
+        }
     }
 
     fun closeProjectNameDialog() = _isProjectNameDialogOpen.update { false }
@@ -306,18 +315,13 @@ class ChatViewModel @Inject constructor(
     fun clearChatHistory() {
         val chatId = _chatRoom.value.id
         viewModelScope.launch {
-            // Delete only messages, keep the chat room and project intact
             if (chatId > 0) {
                 withContext(Dispatchers.IO) {
                     chatRepository.deleteMessagesByChatId(chatId)
                 }
-                // Clear cached session state so reconnectToExistingSession() won't
-                // restore stale messages when the user re-enters this chat.
                 sessionManager.clearMessageState(chatId)
-                // Clear diagnostic logs for this chat
                 diagnosticLogger.deleteChatLog(chatId)
             }
-            // Reset in-memory state
             _groupedMessages.update { GroupedMessages() }
             _indexStates.update { emptyList() }
             _loadingStates.update { List(_enabledPlatformsInChat.value.size) { LoadingState.Idle } }
@@ -389,6 +393,8 @@ class ChatViewModel @Inject constructor(
                     Log.w("RunBuild", "Build failed, sending error to chat: $errorMsg")
                     sendBuildErrorToChat(errorMsg)
                 }
+            } catch (e: Exception) {
+                Log.e("RunBuild", "Exception during build", e)
             } finally {
                 _isBuildRunning.update { false }
                 _buildProgress.update { BuildProgressUiState() }
@@ -420,6 +426,8 @@ class ChatViewModel @Inject constructor(
                 } else {
                     sendBuildErrorToChat(buildBuildErrorMessage(projectId, result))
                 }
+            } catch (e: Exception) {
+                Log.e("InstallBuild", "Exception during install build", e)
             } finally {
                 _isBuildRunning.update { false }
                 _buildProgress.update { BuildProgressUiState() }
@@ -440,10 +448,6 @@ class ChatViewModel @Inject constructor(
                 .joinToString("\n") { it.message }
     }
 
-    /**
-     * Called from ChatScreen's ON_RESUME. Checks if crash.log has grown since the last check.
-     * If so, shows a crash prompt in the chat list.
-     */
     fun checkForNewCrashLog() {
         val projectId = _currentProjectId.value ?: return
         viewModelScope.launch {
@@ -453,7 +457,6 @@ class ChatViewModel @Inject constructor(
                 val currentSize = crashFile.length()
                 if (currentSize <= lastKnownCrashLogSize) return@withContext null
                 lastKnownCrashLogSize = currentSize
-                // Read the last crash entry
                 val lines = crashFile.readLines()
                 val lastCrashIdx = lines.indexOfLast { it.startsWith("--- CRASH") }
                 if (lastCrashIdx < 0) return@withContext null
@@ -479,7 +482,14 @@ class ChatViewModel @Inject constructor(
             createdAt = currentTimeStamp,
         )
         addMessage(userMessage)
-        completeChat(startTurn(userMessage))
+        viewModelScope.launch {
+            try {
+                completeChat(startTurn(userMessage))
+            } catch (e: Exception) {
+                Log.e("ChatViewModel", "autoFixCrash failed", e)
+                _loadingStates.update { List(_enabledPlatformsInChat.value.size) { LoadingState.Idle } }
+            }
+        }
     }
 
     private fun sendBuildErrorToChat(errorMessage: String) {
@@ -491,7 +501,14 @@ class ChatViewModel @Inject constructor(
             createdAt = currentTimeStamp
         )
         addMessage(userMessage)
-        completeChat(startTurn(userMessage))
+        viewModelScope.launch {
+            try {
+                completeChat(startTurn(userMessage))
+            } catch (e: Exception) {
+                Log.e("ChatViewModel", "sendBuildErrorToChat failed", e)
+                _loadingStates.update { List(_enabledPlatformsInChat.value.size) { LoadingState.Idle } }
+            }
+        }
     }
 
     fun openEditQuestionDialog(question: MessageV2) {
@@ -532,7 +549,6 @@ class ChatViewModel @Inject constructor(
     }
 
     fun updateChatPlatformIndex(assistantIndex: Int, platformIndex: Int) {
-        // Change the message shown in the screen to another platform
         if (assistantIndex >= _indexStates.value.size || assistantIndex < 0) return
         if (platformIndex >= _enabledPlatformsInChat.value.size || platformIndex < 0) return
 
@@ -569,19 +585,15 @@ class ChatViewModel @Inject constructor(
         val userMessages = _groupedMessages.value.userMessages
         val assistantMessages = _groupedMessages.value.assistantMessages
 
-        // Find the index of the message being edited
         val messageIndex = userMessages.indexOfFirst { it.id == editedMessage.id }
         if (messageIndex == -1) return
 
-        // Update the message content
         val updatedUserMessages = userMessages.toMutableList()
         updatedUserMessages[messageIndex] = editedMessage.copy(createdAt = currentTimeStamp)
 
-        // Remove all messages after the edited question (both user and assistant messages)
         val remainingUserMessages = updatedUserMessages.take(messageIndex + 1)
         val remainingAssistantMessages = assistantMessages.take(messageIndex)
 
-        // Update the grouped messages
         _groupedMessages.update {
             GroupedMessages(
                 userMessages = remainingUserMessages,
@@ -589,7 +601,6 @@ class ChatViewModel @Inject constructor(
             )
         }
 
-        // Add empty assistant message slots for the edited question
         _groupedMessages.update {
             it.copy(
                 assistantMessages = it.assistantMessages + listOf(
@@ -598,7 +609,6 @@ class ChatViewModel @Inject constructor(
             )
         }
 
-        // Update index states to match the new message count - trim the end part
         val removedMessagesCount = userMessages.size - remainingUserMessages.size
         _indexStates.update {
             val currentStates = it.toMutableList()
@@ -606,12 +616,17 @@ class ChatViewModel @Inject constructor(
             currentStates
         }
 
-        // Start new conversation from the edited question
-        completeChat(startTurn(editedMessage))
+        viewModelScope.launch {
+            try {
+                completeChat(startTurn(editedMessage))
+            } catch (e: Exception) {
+                Log.e("ChatViewModel", "editQuestion failed", e)
+                _loadingStates.update { List(_enabledPlatformsInChat.value.size) { LoadingState.Idle } }
+            }
+        }
     }
 
     suspend fun exportChat(): ChatExportBundle {
-        // Build the chat history in Markdown format
         val chatHistoryMarkdown = buildString {
             appendLine("# Chat Export: \"${chatRoom.value.title}\"")
             appendLine()
@@ -670,7 +685,6 @@ class ChatViewModel @Inject constructor(
             }
             activeTurnState = null
         }
-        // Cancel agent session if running
         val effectiveChatId = _chatRoom.value.id.takeIf { it > 0 } ?: chatRoomId
         sessionManager.stopSession(effectiveChatId)
         responseJobs.forEach { it.cancel() }
@@ -680,44 +694,43 @@ class ChatViewModel @Inject constructor(
 
     private fun completeChat(turnState: ActiveTurnState) {
         activeTurnState = turnState
-        // Update all the platform loading states to Loading
         _loadingStates.update { List(_enabledPlatformsInChat.value.size) { LoadingState.Loading } }
         responseJobs.clear()
 
-        // Capture the top TURN snapshot id BEFORE this turn starts, so when the turn
-        // finishes we can tell whether it committed a new snapshot (files changed) or
-        // not. Also hide the undo bar immediately — it belonged to a previous turn.
         _lastTurnSnapshot.value = null
         val baselineProjectId = _currentProjectId.value
         viewModelScope.launch { captureTurnSnapshotBaseline(baselineProjectId) }
 
-        // Send chat completion requests
         _enabledPlatformsInChat.value.forEachIndexed { idx, platformUid ->
             val platform = _enabledPlatformsInApp.value.firstOrNull { it.uid == platformUid }
             if (platform == null) {
-                // Platform was disabled/removed since chat was created — reset loading state
                 _loadingStates.update { it.toMutableList().apply { this[idx] = LoadingState.Idle } }
                 return@forEachIndexed
             }
             val platformWithChatModel = resolvePlatformModel(platform)
-            // Delegate to AgentSessionManager — survives ViewModel destruction
             val effectiveChatId = _chatRoom.value.id.takeIf { it > 0 } ?: chatRoomId
-            sessionManager.startSession(
-                chatId = effectiveChatId,
-                projectId = _currentProjectId.value,
-                platform = platformWithChatModel,
-                userMessages = _groupedMessages.value.userMessages,
-                assistantMessages = _groupedMessages.value.assistantMessages,
-                systemPrompt = platformWithChatModel.systemPrompt,
-                diagnosticContext = turnState.context.diagnosticContext.copy(platformUid = platformWithChatModel.uid),
-                chatRoom = _chatRoom.value,
-                chatPlatformModels = _chatPlatformModels.value,
-            )
-            // Observe the session's message state (source of truth)
-            val observeJob = viewModelScope.launch {
-                observeAgentSessionState(effectiveChatId)
+            
+            // لف جلسة الوكيل بـ try-catch لمعالجة الأخطاء المحتملة أثناء الاتصال
+            try {
+                sessionManager.startSession(
+                    chatId = effectiveChatId,
+                    projectId = _currentProjectId.value,
+                    platform = platformWithChatModel,
+                    userMessages = _groupedMessages.value.userMessages,
+                    assistantMessages = _groupedMessages.value.assistantMessages,
+                    systemPrompt = platformWithChatModel.systemPrompt,
+                    diagnosticContext = turnState.context.diagnosticContext.copy(platformUid = platformWithChatModel.uid),
+                    chatRoom = _chatRoom.value,
+                    chatPlatformModels = _chatPlatformModels.value,
+                )
+                val observeJob = viewModelScope.launch {
+                    observeAgentSessionState(effectiveChatId)
+                }
+                responseJobs.add(observeJob)
+            } catch (e: Exception) {
+                Log.e("ChatViewModel", "Failed to start session for platform $platformUid", e)
+                _loadingStates.update { it.toMutableList().apply { this[idx] = LoadingState.Idle } }
             }
-            responseJobs.add(observeJob)
         }
     }
 
@@ -728,7 +741,6 @@ class ChatViewModel @Inject constructor(
     }
 
     private suspend fun fetchMessages() {
-        // If the room isn't new
         if (chatRoomId != 0) {
             _groupedMessages.update { fetchGroupedMessages(chatRoomId) }
             if (_groupedMessages.value.assistantMessages.size != _indexStates.value.size) {
@@ -738,7 +750,6 @@ class ChatViewModel @Inject constructor(
             return
         }
 
-        // When message id should sync after saving chats
         if (_chatRoom.value.id != 0) {
             _groupedMessages.update { fetchGroupedMessages(_chatRoom.value.id) }
             return
@@ -773,7 +784,6 @@ class ChatViewModel @Inject constructor(
             )
         }
 
-        // Parse steps from saved thoughts for display
         val parsedSteps = sortedAssistantMessages.map { turn ->
             val msg = turn.firstOrNull()
             if (msg != null && msg.thoughts.isNotBlank()) {
@@ -799,10 +809,6 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Re-fetch platform configuration from settings and sync the chat's enabled platforms
-     * with currently enabled ones. Call this when returning from settings screen.
-     */
     fun refreshDebugMode() {
         viewModelScope.launch {
             _isDebugEnabled.value = settingRepository.getDebugMode()
@@ -816,9 +822,6 @@ class ChatViewModel @Inject constructor(
     }
 
     fun refreshMessages() {
-        // Skip if an agent session is running — its StateFlow is the source of truth.
-        // Calling fetchMessages() during streaming would overwrite live state with stale
-        // DB data and reset loadingStates to Idle, killing the streaming observation.
         val effectiveChatId = _chatRoom.value.id.takeIf { it > 0 } ?: chatRoomId
         if (sessionManager.getMessageState(effectiveChatId) != null) return
         viewModelScope.launch {
@@ -874,15 +877,12 @@ class ChatViewModel @Inject constructor(
                     Log.d("ChatViewModel", "GroupMessage: ${_groupedMessages.value}")
 
                     if (agentSessionSavedToRoom) {
-                        // Agent session already persisted to Room — skip redundant save,
-                        // just sync message IDs from the database.
                         agentSessionSavedToRoom = false
                         fetchMessages()
                         finalizeActiveTurnIfNeeded()
                         return@collect
                     }
 
-                    // Save the chat & chat room
                     val previousChatId = _chatRoom.value.id
                     _chatRoom.update {
                         chatRepository.saveChat(
@@ -909,7 +909,6 @@ class ChatViewModel @Inject constructor(
                         pendingUnsavedDiagnosticChatId = null
                     }
 
-                    // Sync message ids
                     fetchMessages()
                     finalizeActiveTurnIfNeeded()
                 }
@@ -924,31 +923,19 @@ class ChatViewModel @Inject constructor(
         return platform.copy(model = chatModel)
     }
 
-    /**
-     * Observe the session manager's message StateFlow, which is the source of truth
-     * while a session is running. This works both for newly started sessions and
-     * for reconnecting after ViewModel recreation.
-     */
     private suspend fun observeAgentSessionState(sessionChatId: Int) {
         val stateFlow = sessionManager.getMessageState(sessionChatId) ?: return
         var sessionFinished = false
 
-        // Also watch session status to detect completion
         val statusJob = viewModelScope.launch {
             sessionManager.getSessionStatus(sessionChatId)?.collect { status ->
                 if (status != AgentSessionStatus.RUNNING) {
-                    // Pick up the DB-assigned chat room ID from the session manager's save
-                    // so observeStateChanges() does an UPDATE instead of a duplicate INSERT.
                     sessionManager.getSavedChatRoom(sessionChatId)?.let { savedRoom ->
                         _chatRoom.update { savedRoom }
-                        // Agent session already persisted — skip the redundant save in observeStateChanges()
                         agentSessionSavedToRoom = true
                     }
-                    // Session finished — set loading to idle so observeStateChanges() can trigger sync
                     _loadingStates.update { List(_enabledPlatformsInChat.value.size) { LoadingState.Idle } }
-                    // Refresh project name in case the agent called rename_project
                     _projectName.update { projectRepository.fetchProjectByChatId(chatRoomId)?.name }
-                    // Refresh the undo bar state now that the turn is complete.
                     refreshLastTurnSnapshot(_currentProjectId.value)
                     sessionFinished = true
                 }
@@ -957,9 +944,7 @@ class ChatViewModel @Inject constructor(
 
         try {
             stateFlow.collect { sessionState ->
-                // Stop mirroring after session finishes to prevent overwriting DB-synced data
                 if (sessionFinished) return@collect
-                // Mirror the session's message state into the ViewModel's UI state
                 _groupedMessages.update {
                     GroupedMessages(
                         userMessages = sessionState.userMessages,
@@ -967,7 +952,6 @@ class ChatViewModel @Inject constructor(
                         agentSteps = sessionState.agentSteps,
                     )
                 }
-                // Keep indexStates in sync
                 val expectedSize = sessionState.userMessages.size
                 if (_indexStates.value.size != expectedSize) {
                     _indexStates.update { List(expectedSize) { 0 } }
@@ -978,14 +962,8 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    /**
-     * If an agent session is already running for this chat (e.g. user navigated away and came back),
-     * reconnect to it and resume UI updates from the session's current state.
-     */
     private fun reconnectToExistingSession() {
         val effectiveChatId = _chatRoom.value.id.takeIf { it > 0 } ?: chatRoomId
-
-        // Check if there's an active session OR a recently completed session with state
         val hasActiveSession = sessionManager.isSessionRunning(effectiveChatId)
         val hasMessageState = sessionManager.getMessageState(effectiveChatId) != null
 
@@ -993,7 +971,6 @@ class ChatViewModel @Inject constructor(
 
         Log.d("ChatViewModel", "Reconnecting to agent session for chatId=$effectiveChatId (active=$hasActiveSession)")
 
-        // Restore message state immediately from session manager
         val currentState = sessionManager.getMessageState(effectiveChatId)?.value
         if (currentState != null) {
             _groupedMessages.update {
@@ -1013,7 +990,6 @@ class ChatViewModel @Inject constructor(
             }
             responseJobs.add(job)
         } else {
-            // Session completed while we were away — just set idle to trigger save
             _loadingStates.update { List(_enabledPlatformsInChat.value.size) { LoadingState.Idle } }
         }
     }
@@ -1095,19 +1071,10 @@ class ChatViewModel @Inject constructor(
     }
 
     private fun ungroupedMessages(): List<MessageV2> {
-        // Flatten the grouped messages into a single list
         val merged = _groupedMessages.value.userMessages + _groupedMessages.value.assistantMessages.flatten()
         return merged.filter { it.content.isNotBlank() }.sortedBy { it.createdAt }
     }
 
-    /**
-     * Refreshes [lastTurnSnapshot] by listing all TURN-type snapshots for the current
-     * project. Exposes the latest snapshot only when (a) at least 2 TURN snapshots exist
-     * so the undo button has a prior state to roll back to, AND (b) the latest snapshot
-     * id differs from [turnSnapshotBaselineId] — meaning the just-completed turn actually
-     * committed new file changes. Edit-free turns don't commit, so the latest id stays
-     * equal to the baseline and the bar remains hidden.
-     */
     private suspend fun refreshLastTurnSnapshot(projectId: String?) {
         if (projectId.isNullOrBlank()) {
             _lastTurnSnapshot.value = null
@@ -1130,11 +1097,6 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Captures the current top TURN snapshot id as the baseline for the next turn.
-     * Called right before a turn starts and after restore/undo so that subsequent
-     * refreshes correctly detect whether the turn committed a new snapshot.
-     */
     private suspend fun captureTurnSnapshotBaseline(projectId: String?) {
         if (projectId.isNullOrBlank()) {
             turnSnapshotBaselineId = null
@@ -1152,12 +1114,6 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Rolls back the latest completed turn. Under post-turn snapshot semantics, turn N's
-     * snapshot captures the state at the END of turn N, so undoing turn N means restoring
-     * the prior TURN snapshot (end of turn N-1) and then deleting turn N's snapshot so it
-     * disappears from history — keeping the undo mental model simple.
-     */
     fun undoLastTurn() {
         viewModelScope.launch {
             val latestSnap = _lastTurnSnapshot.value
@@ -1185,12 +1141,7 @@ class ChatViewModel @Inject constructor(
                 snapshotManager.delete(latestSnap.id, projectId, vibeDirs)
             }
             if (result.isSuccess) {
-                // Hide the undo bar immediately; don't refresh here — we don't want to
-                // auto-chain to the previous turn's undo. The bar will re-populate the
-                // next time a turn writes, via the regular turn-completion refresh path.
                 _lastTurnSnapshot.value = null
-                // Move the baseline to the new top so an edit-free turn afterwards
-                // doesn't resurrect the bar.
                 captureTurnSnapshotBaseline(projectId)
                 _undoEvent.emit(UndoEvent.Success)
             } else {
@@ -1199,8 +1150,6 @@ class ChatViewModel @Inject constructor(
             }
         }
     }
-
-    // --- Task 7.2: Snapshot History ---
 
     fun openSnapshotHistory() {
         val projectId = _currentProjectId.value ?: return
@@ -1227,20 +1176,15 @@ class ChatViewModel @Inject constructor(
                 val workspace = projectManager.openWorkspace(projectId)
                 val vibeDirs = VibeProjectDirs.fromWorkspaceRoot(workspace.rootDir)
                 snapshotManager.restore(snapshotId, projectId, workspace.rootDir, vibeDirs)
-                // Refresh both the history list and the latest-turn snapshot shown in the undo bar.
                 val refreshed = snapshotManager.list(projectId, vibeDirs)
                     .sortedByDescending { it.createdAtEpochMs }
                 _snapshotHistory.value = refreshed
-                // Reset the baseline to the new top so the bar only reappears when a
-                // subsequent turn commits a genuinely new snapshot.
                 captureTurnSnapshotBaseline(projectId)
                 refreshLastTurnSnapshot(projectId)
             }
             _showSnapshotHistory.value = false
         }
     }
-
-    // --- Task 7.3: Project Memo ---
 
     fun openProjectMemo() {
         val projectId = _currentProjectId.value ?: return

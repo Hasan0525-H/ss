@@ -6,14 +6,9 @@ import com.vibe.app.feature.agent.tool.AgentToolDefinition
 fun AgentLoopRequest.toModelRequest(tools: List<AgentToolDefinition>): AgentModelRequest {
     return AgentModelRequest(
         platform = platform,
-        conversation = conversation,
-        fullConversation = fullConversation,
-        userMessages = userMessages,
-        assistantMessages = assistantMessages,
         instructions = systemPrompt,
         tools = tools,
-        diagnosticContext = diagnosticContext,
-        policy = AgentModelPolicy()
+        diagnosticContext = diagnosticContext
     )
 }
 

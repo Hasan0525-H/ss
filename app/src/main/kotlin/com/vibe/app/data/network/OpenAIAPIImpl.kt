@@ -106,7 +106,6 @@ class OpenAIAPIImpl @Inject constructor(
         trace: ModelExecutionTrace?,
     ): Flow<ChatCompletionChunk> = flow {
         val endpoint = buildEndpoint("/v1/chat/completions")
-        // استخدام openAIJson بدلاً من NetworkClient.json لتوحيد صيغة تسلسل الحقول والأدوات
         val requestBody = NetworkClient.openAIJson.encodeToJsonElement(request).toString()
 
         try {
@@ -324,7 +323,8 @@ class OpenAIAPIImpl @Inject constructor(
         } catch (e: Exception) {
             try {
                 if (data.contains("tool_calls")) {
-                    val fallbackChunk = NetworkClient.openAIJson.decodeFromString<ChatCompletionChunk>("{\"choices\":[]}")
+                    val fixedData = data.replace("\"tool_calls\"", "\"delta")
+                    val fallbackChunk = NetworkClient.openAIJson.decodeFromString<ChatCompletionChunk>(fixedData)
                     emit(fallbackChunk)
                 } else {
                     emit(
@@ -337,7 +337,12 @@ class OpenAIAPIImpl @Inject constructor(
                         )
                     )
                 }
-            } catch (_: Exception) {
+            } catch (innerEx: Exception) {
+                try {
+                    val fallbackChunk = NetworkClient.openAIJson.decodeFromString<ChatCompletionChunk>("{\"choices\":[]}")
+                    emit(fallbackChunk)
+                } catch (_: Exception) {
+                }
             }
         }
     }

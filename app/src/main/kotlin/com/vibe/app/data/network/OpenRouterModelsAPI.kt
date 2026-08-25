@@ -15,11 +15,11 @@ class OpenRouterModelsAPI @Inject constructor(
 
 
     /**
-     * جلب أحدث موديلات OpenRouter
+     * جلب أحدث قائمة موديلات OpenRouter
      *
      * isFreeOnly:
-     * true  -> موديلات مجانية فقط
-     * false -> موديلات مدفوعة فقط مرتبة حسب السعر
+     * true  = مجاني فقط
+     * false = مدفوع فقط مرتبة حسب السعر الأقل
      */
     suspend fun fetchOpenRouterModels(
         apiKey: String,
@@ -120,15 +120,18 @@ class OpenRouterModelsAPI @Inject constructor(
                 formattedToken
             )
 
+
             header(
                 "HTTP-Referer",
                 "https://vibe.app"
             )
 
+
             header(
                 "X-Title",
                 "Vibe App"
             )
+
 
         }.body()
 

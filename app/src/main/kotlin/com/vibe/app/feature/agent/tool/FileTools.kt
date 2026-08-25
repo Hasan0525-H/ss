@@ -174,8 +174,28 @@ class WriteProjectFileTool @Inject constructor(
     override suspend fun execute(call: AgentToolCall, context: AgentToolContext): AgentToolResult {
         val path = call.arguments.requireString("path")
         val content = call.arguments.requireString("content")
-        projectManager.openWorkspace(context.projectId).writeTextFile(path, content)
-        return call.okResult()
+
+        return try {
+            val workspace = projectManager.openWorkspace(context.projectId)
+            workspace.writeTextFile(path, content)
+
+            val file = workspace.getFile(path)
+
+            // الحماية: التحقق من وجود الملف وكتابة محتوى بعد عملية الإنشاء
+            if (file.exists() && file.length() > 0L) {
+                call.result(
+                    buildJsonObject {
+                        put("success", JsonPrimitive(true))
+                        put("path", JsonPrimitive(path))
+                        put("bytesWritten", JsonPrimitive(file.length()))
+                    },
+                )
+            } else {
+                call.errorResult("File creation verification failed for path: $path")
+            }
+        } catch (e: Exception) {
+            call.errorResult(e.message ?: "Failed to write project file")
+        }
     }
 }
 

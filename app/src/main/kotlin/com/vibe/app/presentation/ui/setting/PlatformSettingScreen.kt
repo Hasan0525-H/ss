@@ -1,16 +1,32 @@
 package com.vibe.app.presentation.ui.setting
 
 import android.widget.Toast
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -46,9 +62,20 @@ fun PlatformSettingScreen(
     val dialogState by settingViewModel.dialogState.collectAsStateWithLifecycle()
     val isDeleted by settingViewModel.isDeleted.collectAsStateWithLifecycle()
 
-    val context = LocalContext.current
+    val availableModels by settingViewModel.availableModels.collectAsStateWithLifecycle()
+    val isLoadingModels by settingViewModel.isLoadingModels.collectAsStateWithLifecycle()
 
+    var isFreeFilter by remember { mutableStateOf(true) }
+    var isDropdownExpanded by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
     val switchedHint = stringResource(R.string.switched_platform_hint)
+
+    LaunchedEffect(isFreeFilter, platform?.token) {
+        if (!platform?.token.isNullOrBlank()) {
+            settingViewModel.loadModels(isFreeFilter)
+        }
+    }
 
     LaunchedEffect(Unit) {
         settingViewModel.switchedPlatformEvent.collect { name ->
@@ -117,13 +144,106 @@ fun PlatformSettingScreen(
                     onItemClick = { settingViewModel.openApiTokenDialog() }
                 )
 
-                SettingItem(
-                    modifier = Modifier.height(64.dp),
-                    title = stringResource(R.string.model),
-                    description = platformData.model,
-                    enabled = platformData.enabled,
-                    onItemClick = { settingViewModel.openApiModelDialog() }
-                )
+                // --- اختيار الموديل عبر القائمة المنسدلة والتصفية ---
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.model),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        FilterChip(
+                            selected = isFreeFilter,
+                            onClick = { isFreeFilter = true },
+                            label = { Text("مجاني (Free)") },
+                            enabled = platformData.enabled
+                        )
+                        FilterChip(
+                            selected = !isFreeFilter,
+                            onClick = { isFreeFilter = false },
+                            label = { Text("مدفوع (Paid)") },
+                            enabled = platformData.enabled
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    ExposedDropdownMenuBox(
+                        expanded = isDropdownExpanded && platformData.enabled,
+                        onExpandedChange = {
+                            if (platformData.enabled) isDropdownExpanded = !isDropdownExpanded
+                        }
+                    ) {
+                        OutlinedTextField(
+                            value = platformData.model,
+                            onValueChange = {},
+                            readOnly = true,
+                            enabled = platformData.enabled,
+                            label = { Text(stringResource(R.string.model)) },
+                            trailingIcon = {
+                                if (isLoadingModels) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.height(20.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                } else {
+                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = isDropdownExpanded)
+                                }
+                            },
+                            modifier = Modifier
+                                .menuAnchor()
+                                .fillMaxWidth()
+                        )
+
+                        ExposedDropdownMenu(
+                            expanded = isDropdownExpanded && platformData.enabled,
+                            onDismissRequest = { isDropdownExpanded = false }
+                        ) {
+                            if (availableModels.isEmpty() && !isLoadingModels) {
+                                DropdownMenuItem(
+                                    text = { Text("لا توجد نماذج متاحة") },
+                                    onClick = { isDropdownExpanded = false }
+                                )
+                            } else {
+                                availableModels.forEach { model ->
+                                    val priceText = if (model.pricing?.isFree == true) {
+                                        "مجاني"
+                                    } else {
+                                        "\$${String.format("%.6f", model.pricing?.averagePrice)} / 1K tokens"
+                                    }
+
+                                    DropdownMenuItem(
+                                        text = {
+                                            Column {
+                                                Text(
+                                                    text = model.name ?: model.id,
+                                                    style = MaterialTheme.typography.bodyLarge
+                                                )
+                                                Text(
+                                                    text = priceText,
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        },
+                                        onClick = {
+                                            settingViewModel.updateApiModel(model.id)
+                                            isDropdownExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
 
                 val reasoningDisabled =
                     platformData.compatibleType == ClientType.OPENAI &&
@@ -161,12 +281,6 @@ fun PlatformSettingScreen(
 
                 APIKeyDialog(
                     dialogState = dialogState,
-                    settingViewModel = settingViewModel
-                )
-
-                ModelDialog(
-                    dialogState = dialogState,
-                    model = platformData.model,
                     settingViewModel = settingViewModel
                 )
 

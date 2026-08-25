@@ -272,6 +272,20 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                 }
 
                 if (pendingCalls.isEmpty()) {
+                    val hasFileOperation = collectedToolResults.any {
+                        it.toolName == "write_project_file" || it.toolName == "edit_project_file"
+                    }
+
+                    if (mode == AgentMode.GREENFIELD && !hasFileOperation) {
+                        emit(
+                            AgentLoopEvent.OutputDelta(
+                                iteration,
+                                "\nتنبيه: يجب استخدام أدوات إنشاء الملفات لنقل المشروع إلى بيئة العمل."
+                            )
+                        )
+                        continue
+                    }
+
                     request.diagnosticContext?.copy(platformUid = request.platform.uid)?.let { ctx ->
                         diagnosticLogger.logAgentLoopEvent(
                             context = ctx,

@@ -3,11 +3,11 @@ package com.vibe.app.presentation.ui.setting
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dagger.hilt.android.lifecycle.HiltViewModel
 import com.vibe.app.data.database.entity.PlatformV2
 import com.vibe.app.data.dto.OpenRouterModel
 import com.vibe.app.data.network.OpenRouterModelsAPI
 import com.vibe.app.data.repository.SettingRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+
 @HiltViewModel
 class PlatformSettingViewModel @Inject constructor(
     private val settingRepository: SettingRepository,
@@ -25,163 +26,541 @@ class PlatformSettingViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    private val platformUid: String = checkNotNull(savedStateHandle["platformUid"])
 
-    private val _platformState = MutableStateFlow<PlatformV2?>(null)
-    val platformState: StateFlow<PlatformV2?> = _platformState.asStateFlow()
+    private val platformUid: String =
+        checkNotNull(savedStateHandle["platformUid"])
 
-    private val _dialogState = MutableStateFlow(DialogState())
-    val dialogState: StateFlow<DialogState> = _dialogState.asStateFlow()
 
-    private val _isDeleted = MutableStateFlow(false)
-    val isDeleted: StateFlow<Boolean> = _isDeleted.asStateFlow()
+    private val _platformState =
+        MutableStateFlow<PlatformV2?>(null)
 
-    private val _switchedPlatformEvent = MutableSharedFlow<String>()
-    val switchedPlatformEvent: SharedFlow<String> = _switchedPlatformEvent.asSharedFlow()
+    val platformState: StateFlow<PlatformV2?> =
+        _platformState.asStateFlow()
+
+
+
+    private val _dialogState =
+        MutableStateFlow(DialogState())
+
+    val dialogState: StateFlow<DialogState> =
+        _dialogState.asStateFlow()
+
+
+
+    private val _isDeleted =
+        MutableStateFlow(false)
+
+    val isDeleted: StateFlow<Boolean> =
+        _isDeleted.asStateFlow()
+
+
+
+    private val _switchedPlatformEvent =
+        MutableSharedFlow<String>()
+
+    val switchedPlatformEvent: SharedFlow<String> =
+        _switchedPlatformEvent.asSharedFlow()
+
+
 
     init {
         loadPlatform()
     }
 
+
+
     private fun loadPlatform() {
+
         viewModelScope.launch {
-            val platforms = settingRepository.fetchPlatformV2s()
-            val platform = platforms.firstOrNull { it.uid == platformUid }
-            _platformState.update { platform }
+
+            val platforms =
+                settingRepository.fetchPlatformV2s()
+
+
+            val platform =
+                platforms.firstOrNull {
+                    it.uid == platformUid
+                }
+
+
+            _platformState.update {
+                platform
+            }
         }
     }
 
-    suspend fun fetchOpenRouterModels(isFreeOnly: Boolean): List<OpenRouterModel> {
-        val apiKey = _platformState.value?.token ?: return emptyList()
-        return openRouterModelsAPI.fetchOpenRouterModels(apiKey, isFreeOnly)
+
+
+    /**
+     * جلب موديلات OpenRouter
+     * يدعم المجاني والمدفوع
+     * ويعمل حتى لو لم يتم تحميل Platform بعد
+     */
+    suspend fun fetchOpenRouterModels(
+        isFreeOnly: Boolean
+    ): List<OpenRouterModel> {
+
+
+        var apiKey =
+            _platformState.value?.token
+
+
+
+        if (apiKey.isNullOrBlank()) {
+
+
+            val platforms =
+                settingRepository.fetchPlatformV2s()
+
+
+
+            apiKey =
+                platforms
+                    .firstOrNull {
+                        it.uid == platformUid
+                    }
+                    ?.token
+
+        }
+
+
+
+        if (apiKey.isNullOrBlank()) {
+
+            return emptyList()
+
+        }
+
+
+
+        return openRouterModelsAPI.fetchOpenRouterModels(
+            apiKey = apiKey,
+            isFreeOnly = isFreeOnly
+        )
+
     }
+
+
+
 
     fun toggleEnabled() {
+
         _platformState.value?.let { platform ->
-            val willEnable = !platform.enabled
-            if (willEnable) {
+
+
+            val enable =
+                !platform.enabled
+
+
+
+            if (enable) {
+
+
                 viewModelScope.launch {
-                    val allPlatforms = settingRepository.fetchPlatformV2s()
-                    val othersEnabled = allPlatforms.filter { it.enabled && it.id != platform.id }
-                    othersEnabled.forEach { other ->
-                        settingRepository.updatePlatformV2(other.copy(enabled = false))
+
+
+                    val allPlatforms =
+                        settingRepository.fetchPlatformV2s()
+
+
+
+                    val others =
+                        allPlatforms.filter {
+
+                            it.enabled &&
+                            it.id != platform.id
+
+                        }
+
+
+
+                    others.forEach {
+
+                        settingRepository.updatePlatformV2(
+                            it.copy(
+                                enabled = false
+                            )
+                        )
+
                     }
-                    settingRepository.updatePlatformV2(platform.copy(enabled = true))
-                    _platformState.update { platform.copy(enabled = true) }
-                    if (othersEnabled.isNotEmpty()) {
-                        _switchedPlatformEvent.emit(platform.name)
+
+
+
+                    val updated =
+                        platform.copy(
+                            enabled = true
+                        )
+
+
+
+                    settingRepository.updatePlatformV2(
+                        updated
+                    )
+
+
+
+                    _platformState.update {
+                        updated
                     }
+
+
+
+                    if (others.isNotEmpty()) {
+
+                        _switchedPlatformEvent.emit(
+                            platform.name
+                        )
+
+                    }
+
                 }
+
+
             } else {
-                updatePlatform(platform.copy(enabled = false))
+
+
+                updatePlatform(
+                    platform.copy(
+                        enabled = false
+                    )
+                )
+
             }
+
         }
+
     }
+
+
+
 
     fun toggleReasoning() {
-        _platformState.value?.let { platform ->
-            updatePlatform(platform.copy(reasoning = !platform.reasoning))
+
+        _platformState.value?.let {
+
+            updatePlatform(
+                it.copy(
+                    reasoning = !it.reasoning
+                )
+            )
+
         }
+
     }
 
-    fun updatePlatform(platform: PlatformV2) {
+
+
+
+    fun updatePlatform(
+        platform: PlatformV2
+    ) {
+
         viewModelScope.launch {
-            settingRepository.updatePlatformV2(platform)
-            _platformState.update { platform }
+
+
+            settingRepository.updatePlatformV2(
+                platform
+            )
+
+
+            _platformState.update {
+                platform
+            }
+
         }
+
     }
 
-    fun openPlatformNameDialog() = _dialogState.update { it.copy(isPlatformNameDialogOpen = true) }
-    fun closePlatformNameDialog() = _dialogState.update { it.copy(isPlatformNameDialogOpen = false) }
 
-    fun openApiUrlDialog() = _dialogState.update { it.copy(isApiUrlDialogOpen = true) }
-    fun closeApiUrlDialog() = _dialogState.update { it.copy(isApiUrlDialogOpen = false) }
 
-    fun openApiTokenDialog() = _dialogState.update { it.copy(isApiTokenDialogOpen = true) }
-    fun closeApiTokenDialog() = _dialogState.update { it.copy(isApiTokenDialogOpen = false) }
 
-    fun openApiModelDialog() = _dialogState.update { it.copy(isApiModelDialogOpen = true) }
-    fun closeApiModelDialog() = _dialogState.update { it.copy(isApiModelDialogOpen = false) }
+    fun updateApiToken(
+        token: String
+    ) {
 
-    fun openTemperatureDialog() = _dialogState.update { it.copy(isTemperatureDialogOpen = true) }
-    fun closeTemperatureDialog() = _dialogState.update { it.copy(isTemperatureDialogOpen = false) }
+        _platformState.value?.let {
 
-    fun openTopPDialog() = _dialogState.update { it.copy(isTopPDialogOpen = true) }
-    fun closeTopPDialog() = _dialogState.update { it.copy(isTopPDialogOpen = false) }
 
-    fun openSystemPromptDialog() = _dialogState.update { it.copy(isSystemPromptDialogOpen = true) }
-    fun closeSystemPromptDialog() = _dialogState.update { it.copy(isSystemPromptDialogOpen = false) }
+            updatePlatform(
+                it.copy(
+                    token =
+                    token
+                        .trim()
+                        .takeIf { value ->
+                            value.isNotEmpty()
+                        }
+                )
+            )
 
-    fun updatePlatformName(name: String) {
-        _platformState.value?.let { platform ->
-            updatePlatform(platform.copy(name = name.trim()))
-            closePlatformNameDialog()
-        }
-    }
 
-    fun updateApiUrl(url: String) {
-        _platformState.value?.let { platform ->
-            updatePlatform(platform.copy(apiUrl = url.trim()))
-            closeApiUrlDialog()
-        }
-    }
-
-    fun updateApiToken(token: String) {
-        _platformState.value?.let { platform ->
-            updatePlatform(platform.copy(token = token.trim().takeIf { it.isNotEmpty() }))
             closeApiTokenDialog()
+
         }
+
     }
 
-    fun updateApiModel(model: String) {
-        _platformState.value?.let { platform ->
-            updatePlatform(platform.copy(model = model.trim()))
+
+
+
+    fun updateApiModel(
+        model: String
+    ) {
+
+        _platformState.value?.let {
+
+
+            updatePlatform(
+                it.copy(
+                    model = model.trim()
+                )
+            )
+
+
             closeApiModelDialog()
+
         }
+
     }
 
-    fun updateTemperature(temperature: Float?) {
-        _platformState.value?.let { platform ->
-            updatePlatform(platform.copy(temperature = temperature))
-            closeTemperatureDialog()
+
+
+
+    fun updateApiUrl(
+        url: String
+    ) {
+
+        _platformState.value?.let {
+
+
+            updatePlatform(
+                it.copy(
+                    apiUrl = url.trim()
+                )
+            )
+
+
+            closeApiUrlDialog()
+
         }
+
     }
 
-    fun updateTopP(topP: Float?) {
-        _platformState.value?.let { platform ->
-            updatePlatform(platform.copy(topP = topP))
-            closeTopPDialog()
+
+
+
+    fun updatePlatformName(
+        name: String
+    ) {
+
+        _platformState.value?.let {
+
+
+            updatePlatform(
+                it.copy(
+                    name = name.trim()
+                )
+            )
+
+
+            closePlatformNameDialog()
+
         }
+
     }
 
-    fun updateSystemPrompt(prompt: String) {
-        _platformState.value?.let { platform ->
-            updatePlatform(platform.copy(systemPrompt = prompt.trim()))
-            closeSystemPromptDialog()
-        }
-    }
 
-    fun openDeleteDialog() = _dialogState.update { it.copy(isDeleteDialogOpen = true) }
-    fun closeDeleteDialog() = _dialogState.update { it.copy(isDeleteDialogOpen = false) }
+
+
+    fun openPlatformNameDialog() =
+        _dialogState.update {
+            it.copy(
+                isPlatformNameDialogOpen = true
+            )
+        }
+
+
+    fun closePlatformNameDialog() =
+        _dialogState.update {
+            it.copy(
+                isPlatformNameDialogOpen = false
+            )
+        }
+
+
+
+    fun openApiUrlDialog() =
+        _dialogState.update {
+            it.copy(
+                isApiUrlDialogOpen = true
+            )
+        }
+
+
+    fun closeApiUrlDialog() =
+        _dialogState.update {
+            it.copy(
+                isApiUrlDialogOpen = false
+            )
+        }
+
+
+
+    fun openApiTokenDialog() =
+        _dialogState.update {
+            it.copy(
+                isApiTokenDialogOpen = true
+            )
+        }
+
+
+    fun closeApiTokenDialog() =
+        _dialogState.update {
+            it.copy(
+                isApiTokenDialogOpen = false
+            )
+        }
+
+
+
+    fun openApiModelDialog() =
+        _dialogState.update {
+            it.copy(
+                isApiModelDialogOpen = true
+            )
+        }
+
+
+    fun closeApiModelDialog() =
+        _dialogState.update {
+            it.copy(
+                isApiModelDialogOpen = false
+            )
+        }
+
+
+
+    fun openTemperatureDialog() =
+        _dialogState.update {
+            it.copy(
+                isTemperatureDialogOpen = true
+            )
+        }
+
+
+
+    fun closeTemperatureDialog() =
+        _dialogState.update {
+            it.copy(
+                isTemperatureDialogOpen = false
+            )
+        }
+
+
+
+    fun openTopPDialog() =
+        _dialogState.update {
+            it.copy(
+                isTopPDialogOpen = true
+            )
+        }
+
+
+
+    fun closeTopPDialog() =
+        _dialogState.update {
+            it.copy(
+                isTopPDialogOpen = false
+            )
+        }
+
+
+
+    fun openSystemPromptDialog() =
+        _dialogState.update {
+            it.copy(
+                isSystemPromptDialogOpen = true
+            )
+        }
+
+
+
+    fun closeSystemPromptDialog() =
+        _dialogState.update {
+            it.copy(
+                isSystemPromptDialogOpen = false
+            )
+        }
+
+
+
+
+    fun openDeleteDialog() =
+        _dialogState.update {
+            it.copy(
+                isDeleteDialogOpen = true
+            )
+        }
+
+
+
+
+    fun closeDeleteDialog() =
+        _dialogState.update {
+            it.copy(
+                isDeleteDialogOpen = false
+            )
+        }
+
+
+
 
     fun deletePlatform() {
+
         _platformState.value?.let { platform ->
+
+
             viewModelScope.launch {
-                settingRepository.deletePlatformV2(platform)
+
+
+                settingRepository.deletePlatformV2(
+                    platform
+                )
+
+
                 closeDeleteDialog()
-                _isDeleted.update { true }
+
+
+                _isDeleted.update {
+                    true
+                }
+
             }
+
         }
+
     }
 
+
+
+
     data class DialogState(
+
         val isPlatformNameDialogOpen: Boolean = false,
+
         val isApiUrlDialogOpen: Boolean = false,
+
         val isApiTokenDialogOpen: Boolean = false,
+
         val isApiModelDialogOpen: Boolean = false,
+
         val isTemperatureDialogOpen: Boolean = false,
+
         val isTopPDialogOpen: Boolean = false,
+
         val isSystemPromptDialogOpen: Boolean = false,
+
         val isDeleteDialogOpen: Boolean = false
+
     )
+
 }

@@ -136,6 +136,9 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
         var lastAssistantText = ""
         var repeatCount = 0
         var shouldStopFlow = false
+        
+        // متغير لحفظ الأدوات القادمة في الـ message النهائي كـ Fallback
+        var fallbackToolCalls: List<Any>? = null
 
 
 
@@ -213,6 +216,11 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
             finishReason =
                 choice.finishReason
                     ?: finishReason
+
+            // التقاط أدوات الـ message إذا أرسلتها النماذج في النهاية مباشرة
+            if (choice.message?.toolCalls != null && choice.message.toolCalls.isNotEmpty()) {
+                fallbackToolCalls = choice.message.toolCalls
+            }
 
 
 
@@ -318,51 +326,77 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
         }
 
 
+        // المعالجة المزدوجة (دعم الـ Accumulators أو الـ Fallback قادم من الـ message)
+        if (toolCallAccumulators.isNotEmpty()) {
+            toolCallAccumulators.entries
+                .sortedBy { it.key }
+                .forEach { (_, acc) ->
 
 
-        toolCallAccumulators.entries
-            .sortedBy { it.key }
-            .forEach { (_, acc) ->
+                    val arguments =
+                        runCatching {
 
-
-                val arguments =
-                    runCatching {
-
-                        json.parseToJsonElement(
-                            acc.arguments.toString()
-                        )
-
-                    }.getOrElse {
-
-
-                        buildJsonObject {
-
-                            put(
-                                "raw",
-                                JsonPrimitive(
-                                    acc.arguments.toString()
-                                )
+                            json.parseToJsonElement(
+                                acc.arguments.toString()
                             )
+
+                        }.getOrElse {
+
+
+                            buildJsonObject {
+
+                                put(
+                                    "raw",
+                                    JsonPrimitive(
+                                        acc.arguments.toString()
+                                    )
+                                )
+                            }
                         }
-                    }
 
 
+
+                    emit(
+
+                        AgentModelEvent.ToolCallReady(
+
+                            AgentToolCall(
+
+                                id = acc.id,
+
+                                name = acc.name,
+
+                                arguments = arguments
+                            )
+                        )
+                    )
+                }
+        } else if (!fallbackToolCalls.isNullOrEmpty()) {
+            // معالجة الـ ToolCalls الواردة عبر message نهائي في حال لم ترسلها النماذج عبر delta التدريجي
+            fallbackToolCalls?.forEach { toolCall ->
+                // نفترض توافق البنية للوصول إلى id و function (name & arguments)
+                val toolId = (toolCall as? com.vibe.app.data.dto.qwen.request.QwenToolCall)?.id ?: ""
+                val func = (toolCall as? com.vibe.app.data.dto.qwen.request.QwenToolCall)?.function
+                val name = func?.name ?: ""
+                val rawArgs = func?.arguments ?: "{}"
+
+                val arguments = runCatching {
+                    json.parseToJsonElement(rawArgs)
+                }.getOrElse {
+                    buildJsonObject { put("raw", JsonPrimitive(rawArgs)) }
+                }
 
                 emit(
-
                     AgentModelEvent.ToolCallReady(
-
                         AgentToolCall(
-
-                            id = acc.id,
-
-                            name = acc.name,
-
+                            id = toolId,
+                            name = name,
                             arguments = arguments
                         )
                     )
                 )
             }
+        }
 
 
 
@@ -436,7 +470,6 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                         toolRequiredInstruction()
                     )
 
-                    // **إضافة إلزامية**: لمنع Qwen من الرد النصي عند طلب تطبيق جديد
                     append("\n\nIMPORTANT:\nDo not write normal text.\nDo not write explanations.\nStart directly by calling write_project_file.")
 
 
@@ -610,7 +643,6 @@ fun String.toQwenChatCompletionsBaseUrl(): String {
 
 
 
-// **التعديل هنا**: توجيه Qwen لاستخدام "auto" بدلاً من "required" لضمان عمل الأدوات
 fun AgentModelRequest.toQwenToolChoice(): String? {
 
     if (tools.isEmpty()) {

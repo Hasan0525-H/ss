@@ -14,14 +14,12 @@ import com.vibe.app.feature.agent.AgentModelRequest
 import com.vibe.app.feature.agent.AgentToolChoiceMode
 import com.vibe.app.feature.agent.AgentToolRegistry
 import com.vibe.app.feature.agent.AgentToolResult
-import com.vibe.app.feature.agent.loop.compaction.CompactionStrategyType
 import com.vibe.app.feature.agent.loop.compaction.ConversationCompactor
 import com.vibe.app.feature.agent.loop.compaction.ProviderContextBudget
 import com.vibe.app.feature.agent.loop.iteration.AgentMode
 import com.vibe.app.feature.agent.loop.iteration.IterationModeDetector
 import com.vibe.app.feature.agent.loop.iteration.PromptAssembler
 import com.vibe.app.feature.diagnostic.ChatDiagnosticLogger
-import com.vibe.app.feature.diagnostic.DiagnosticLevels
 import com.vibe.app.feature.project.ProjectManager
 import com.vibe.app.feature.project.VibeProjectDirs
 import com.vibe.app.feature.project.memo.MemoLoader
@@ -33,10 +31,6 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import com.vibe.app.feature.agent.AgentPlan
-import com.vibe.app.feature.agent.AgentPlanStep
-import com.vibe.app.feature.agent.PlanStepStatus
-import com.vibe.app.feature.agent.tool.requireString
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.int
@@ -59,29 +53,37 @@ class DefaultAgentLoopCoordinator @Inject constructor(
     private val outlineGenerator: OutlineGenerator,
 ) : AgentLoopCoordinator {
 
-    override suspend fun run(request: AgentLoopRequest): Flow<AgentLoopEvent> = flow {
-        val loopStartedAt = System.currentTimeMillis()
+    override suspend fun run(
+        request: AgentLoopRequest
+    ): Flow<AgentLoopEvent> = flow {
 
         emit(
             AgentLoopEvent.LoopStarted(
                 chatId = request.chatId,
                 platformUid = request.platform.uid,
-            ),
+            )
         )
 
-        // ─── PREPARE ───────────────────────────────────────────────
-
         val projectId = request.projectId
+
         var turnContext: TurnContext? = null
-        var mode: AgentMode = AgentMode.GREENFIELD
+        var mode = AgentMode.GREENFIELD
         var memo: ProjectMemo? = null
 
         if (!projectId.isNullOrBlank()) {
             runCatching {
-                val workspace = projectManager.openWorkspace(projectId)
-                val vibeDirs = VibeProjectDirs
-                    .fromWorkspaceRoot(workspace.rootDir)
-                    .also { it.ensureCreated() }
+
+                val workspace =
+                    projectManager.openWorkspace(projectId)
+
+                val vibeDirs =
+                    VibeProjectDirs
+                        .fromWorkspaceRoot(
+                            workspace.rootDir
+                        )
+                        .also {
+                            it.ensureCreated()
+                        }
 
                 snapshotManager.recoverPendingRestore(
                     projectId,
@@ -89,59 +91,91 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                     vibeDirs,
                 )
 
-                mode = iterationModeDetector.detect(
-                    projectId,
-                    vibeDirs,
-                )
+                mode =
+                    iterationModeDetector.detect(
+                        projectId,
+                        vibeDirs,
+                    )
 
                 if (mode == AgentMode.ITERATE) {
-                    memo = memoLoader.load(vibeDirs)
+                    memo =
+                        memoLoader.load(
+                            vibeDirs
+                        )
                 }
 
-                val priorTurnCount = snapshotManager
-                    .list(projectId, vibeDirs)
-                    .count { it.type == SnapshotType.TURN }
+                val priorTurnCount =
+                    snapshotManager
+                        .list(
+                            projectId,
+                            vibeDirs,
+                        )
+                        .count {
+                            it.type ==
+                                SnapshotType.TURN
+                        }
 
-                val nextTurnIndex = priorTurnCount + 1
+                val nextTurnIndex =
+                    priorTurnCount + 1
 
-                val handle = snapshotManager.prepare(
-                    projectId = projectId,
-                    workspaceRoot = workspace.rootDir,
-                    vibeDirs = vibeDirs,
-                    type = SnapshotType.TURN,
-                    label = currentUserText(request).orEmpty().take(40),
-                    turnIndex = nextTurnIndex,
-                )
+                val handle =
+                    snapshotManager.prepare(
+                        projectId = projectId,
+                        workspaceRoot =
+                            workspace.rootDir,
+                        vibeDirs = vibeDirs,
+                        type = SnapshotType.TURN,
+                        label =
+                            currentUserText(
+                                request
+                            )
+                                .orEmpty()
+                                .take(40),
+                        turnIndex =
+                            nextTurnIndex,
+                    )
 
-                turnContext = TurnContext(
-                    projectId = projectId,
-                    workspaceRoot = workspace.rootDir,
-                    vibeDirs = vibeDirs,
-                    mode = mode,
-                    snapshotHandle = handle,
-                    turnIndex = nextTurnIndex,
-                )
+                turnContext =
+                    TurnContext(
+                        projectId = projectId,
+                        workspaceRoot =
+                            workspace.rootDir,
+                        vibeDirs = vibeDirs,
+                        mode = mode,
+                        snapshotHandle = handle,
+                        turnIndex =
+                            nextTurnIndex,
+                    )
             }
         }
 
-        val collectedToolResults = mutableListOf<AgentToolResult>()
+        val collectedToolResults =
+            mutableListOf<AgentToolResult>()
 
         try {
-            var previousResponseId: String? = null
 
-            val initialConversation = buildInitialConversation(request)
+            var previousResponseId: String? =
+                null
 
-            var conversationDelta: List<AgentConversationItem> =
+            val initialConversation =
+                buildInitialConversation(
+                    request
+                )
+
+            var conversationDelta =
                 initialConversation
 
             val fullConversation =
-                initialConversation.toMutableList()
+                initialConversation
+                    .toMutableList()
 
-            var currentPlan: AgentPlan? = null
+            var currentPlan: AgentPlan? =
+                null
 
-            // ─── REAL AGENT LOOP ──────────────────────────────────
-
-            for (iteration in 1..request.policy.maxIterations) {
+            for (
+                iteration in
+                1..request.policy.maxIterations
+            ) {
 
                 emit(
                     AgentLoopEvent.ModelTurnStarted(
@@ -153,46 +187,64 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                     mutableListOf<AgentToolResult>()
 
                 val pendingCalls =
-                    mutableListOf<com.vibe.app.feature.agent.AgentToolCall>()
+                    mutableListOf<
+                        com.vibe.app.feature.agent.AgentToolCall
+                    >()
 
-                val outputBuilder = StringBuilder()
+                val outputBuilder =
+                    StringBuilder()
 
-                var failureMessage: String? = null
-                var turnReasoningContent: String? = null
+                var failureMessage: String? =
+                    null
+
+                var turnReasoningContent:
+                    String? = null
 
                 val effectivePolicy =
                     if (
                         iteration == 1 &&
                         request.tools.isNotEmpty()
                     ) {
+
                         request.policy.copy(
                             toolChoiceMode =
                                 AgentToolChoiceMode.REQUIRED
                         )
+
                     } else {
+
                         request.policy
                     }
 
                 val compactionResult =
                     conversationCompactor.compact(
-                        items = fullConversation.toList(),
-                        clientType = request.platform.compatibleType,
-                        platform = request.platform,
+                        items =
+                            fullConversation.toList(),
+                        clientType =
+                            request.platform.compatibleType,
+                        platform =
+                            request.platform,
                     )
 
                 agentModelGateway
                     .streamTurn(
                         AgentModelRequest(
-                            platform = request.platform,
+                            platform =
+                                request.platform,
+
                             diagnosticContext =
-                                request.diagnosticContext?.copy(
-                                    platformUid =
-                                        request.platform.uid
-                                ),
+                                request.diagnosticContext
+                                    ?.copy(
+                                        platformUid =
+                                            request.platform.uid
+                                    ),
+
                             conversation =
                                 conversationDelta,
+
                             fullConversation =
                                 compactionResult.items,
+
                             instructions =
                                 buildInstructions(
                                     request,
@@ -200,8 +252,13 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                                     mode,
                                     memo,
                                 ),
-                            tools = request.tools,
-                            policy = effectivePolicy,
+
+                            tools =
+                                request.tools,
+
+                            policy =
+                                effectivePolicy,
+
                             previousResponseId =
                                 previousResponseId,
                         )
@@ -211,6 +268,7 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                         when (event) {
 
                             is AgentModelEvent.ThinkingDelta -> {
+
                                 emit(
                                     AgentLoopEvent.ThinkingDelta(
                                         iteration,
@@ -220,6 +278,7 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                             }
 
                             is AgentModelEvent.OutputDelta -> {
+
                                 outputBuilder.append(
                                     event.delta
                                 )
@@ -233,7 +292,9 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                             }
 
                             is AgentModelEvent.ToolCallReady -> {
-                                pendingCalls += event.call
+
+                                pendingCalls +=
+                                    event.call
 
                                 emit(
                                     AgentLoopEvent.ToolCallDiscovered(
@@ -244,6 +305,7 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                             }
 
                             is AgentModelEvent.Completed -> {
+
                                 previousResponseId =
                                     event.responseId
                                         ?: previousResponseId
@@ -253,6 +315,7 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                             }
 
                             is AgentModelEvent.Failed -> {
+
                                 failureMessage =
                                     event.message
                             }
@@ -260,16 +323,19 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                     }
 
                 if (failureMessage != null) {
+
                     emit(
                         AgentLoopEvent.LoopFailed(
-                            message = failureMessage,
-                            iteration = iteration,
+                            message =
+                                failureMessage,
+                            iteration =
+                                iteration,
                         )
                     )
+
                     return@flow
                 }
 
-                // لا توجد أدوات = النموذج انتهى
                 if (pendingCalls.isEmpty()) {
 
                     emit(
@@ -278,6 +344,7 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                                 outputBuilder
                                     .toString()
                                     .trim(),
+
                             toolResults =
                                 collectedToolResults.toList(),
                         )
@@ -286,18 +353,28 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                     return@flow
                 }
 
-                // ─── EXECUTE TOOLS ────────────────────────────────
+                fullConversation +=
+                    AgentConversationItem(
+                        role =
+                            AgentMessageRole.ASSISTANT,
 
-                fullConversation += AgentConversationItem(
-                    role = AgentMessageRole.ASSISTANT,
-                    text = outputBuilder
-                        .toString()
-                        .trim()
-                        .takeIf { it.isNotEmpty() },
-                    toolCalls = pendingCalls.toList(),
-                    reasoningContent =
-                        turnReasoningContent,
-                )
+                        text =
+                            outputBuilder
+                                .toString()
+                                .trim()
+                                .takeIf {
+                                    it.isNotEmpty()
+                                },
+
+                        toolCalls =
+                            pendingCalls.toList(),
+
+                        reasoningContent =
+                            turnReasoningContent,
+                    )
+
+                var shouldStopAfterToolFailure =
+                    false
 
                 pendingCalls.forEach { call ->
 
@@ -310,21 +387,30 @@ class DefaultAgentLoopCoordinator @Inject constructor(
 
                         val result =
                             AgentToolResult(
-                                toolCallId = call.id,
-                                toolName = call.name,
-                                output = buildJsonObject {
-                                    put(
-                                        "error",
-                                        JsonPrimitive(
-                                            "Tool not found: ${call.name}"
+                                toolCallId =
+                                    call.id,
+
+                                toolName =
+                                    call.name,
+
+                                output =
+                                    buildJsonObject {
+                                        put(
+                                            "error",
+                                            JsonPrimitive(
+                                                "Tool not found: ${call.name}"
+                                            )
                                         )
-                                    )
-                                },
+                                    },
+
                                 isError = true,
                             )
 
-                        pendingToolResults += result
-                        collectedToolResults += result
+                        pendingToolResults +=
+                            result
+
+                        collectedToolResults +=
+                            result
 
                         emit(
                             AgentLoopEvent.ToolExecutionFinished(
@@ -343,22 +429,23 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                         )
                     )
 
-                    val toolStartedAt =
-                        System.currentTimeMillis()
-
                     val result =
                         runCatching {
 
                             tool.execute(
                                 call = call,
+
                                 context =
                                     com.vibe.app.feature.agent.AgentToolContext(
                                         chatId =
                                             request.chatId,
+
                                         platformUid =
                                             request.platform.uid,
+
                                         iteration =
                                             iteration,
+
                                         projectId =
                                             request.projectId
                                                 ?: "",
@@ -368,29 +455,80 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                         }.getOrElse { error ->
 
                             AgentToolResult(
-                                toolCallId = call.id,
-                                toolName = call.name,
-                                output = buildJsonObject {
-                                    put(
-                                        "error",
-                                        JsonPrimitive(
-                                            error.message
-                                                ?: "Tool execution failed"
+                                toolCallId =
+                                    call.id,
+
+                                toolName =
+                                    call.name,
+
+                                output =
+                                    buildJsonObject {
+                                        put(
+                                            "error",
+                                            JsonPrimitive(
+                                                error.message
+                                                    ?: "Tool execution failed"
+                                            )
                                         )
-                                    )
-                                },
+                                    },
+
                                 isError = true,
                             )
                         }
 
-                    pendingToolResults += result
-                    collectedToolResults += result
+                    pendingToolResults +=
+                        result
 
-                    // تسجيل الملفات التي تم تعديلها
+                    collectedToolResults +=
+                        result
+
+                    /*
+                     * IMPORTANT:
+                     *
+                     * A build failure caused by an upstream
+                     * provider/rate-limit/overload is not a
+                     * project compilation error.
+                     *
+                     * Do not allow the agent to repeatedly
+                     * call run_build_pipeline for the same
+                     * infrastructure failure.
+                     */
+                    if (
+                        call.name ==
+                            "run_build_pipeline" &&
+                        result.isError
+                    ) {
+
+                        val errorText =
+                            result.output
+                                .toString()
+                                .lowercase()
+
+                        if (
+                            isExternalBuildFailure(
+                                errorText
+                            )
+                        ) {
+
+                            shouldStopAfterToolFailure =
+                                true
+
+                            emit(
+                                AgentLoopEvent.ToolExecutionFinished(
+                                    iteration,
+                                    result,
+                                )
+                            )
+
+                            return@forEach
+                        }
+                    }
+
                     if (
                         turnContext != null &&
                         !result.isError
                     ) {
+
                         runCatching {
 
                             when (call.name) {
@@ -405,7 +543,8 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                                             )
 
                                     turnContext!!
-                                        .writtenFiles += path
+                                        .writtenFiles +=
+                                        path
                                 }
 
                                 "delete_project_file" -> {
@@ -417,7 +556,8 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                                             )
 
                                     turnContext!!
-                                        .deletedFiles += path
+                                        .deletedFiles +=
+                                        path
                                 }
                             }
                         }
@@ -430,8 +570,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                         )
                     )
 
-                    // ─── PLAN HANDLING ────────────────────────────
-
                     when (call.name) {
 
                         "create_plan" -> {
@@ -441,7 +579,8 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                                 iteration,
                             )?.let { plan ->
 
-                                currentPlan = plan
+                                currentPlan =
+                                    plan
 
                                 emit(
                                     AgentLoopEvent.PlanCreated(
@@ -461,7 +600,8 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                                     result,
                                 )?.let { updated ->
 
-                                    currentPlan = updated
+                                    currentPlan =
+                                        updated
 
                                     emit(
                                         AgentLoopEvent.PlanUpdated(
@@ -475,17 +615,46 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                     }
                 }
 
-                // ─── RETURN TOOL RESULTS TO MODEL ────────────────
+                /*
+                 * External build infrastructure failure.
+                 *
+                 * Stop the loop immediately instead of:
+                 *
+                 * build → overloaded → build → overloaded
+                 */
+                if (
+                    shouldStopAfterToolFailure
+                ) {
+
+                    emit(
+                        AgentLoopEvent.LoopFailed(
+                            message =
+                                "The build service is temporarily unavailable. " +
+                                    "The project files were created successfully, " +
+                                    "but the build service returned an upstream " +
+                                    "rate-limit or overload error. " +
+                                    "Please retry the build later.",
+                            iteration =
+                                iteration,
+                        )
+                    )
+
+                    return@flow
+                }
 
                 val toolResultItems =
                     pendingToolResults.map { result ->
 
                         AgentConversationItem(
-                            role = AgentMessageRole.TOOL,
+                            role =
+                                AgentMessageRole.TOOL,
+
                             toolCallId =
                                 result.toolCallId,
+
                             toolName =
                                 result.toolName,
+
                             payload =
                                 result.output,
                         )
@@ -494,26 +663,28 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                 fullConversation +=
                     toolResultItems
 
-                // مهم جداً:
-                // نرسل نتيجة الأدوات في الدورة التالية
                 conversationDelta =
                     toolResultItems
             }
 
-            // ─── WIND DOWN ───────────────────────────────────────
-
             val windDownMessage =
                 AgentConversationItem(
-                    role = AgentMessageRole.USER,
+                    role =
+                        AgentMessageRole.USER,
+
                     text =
                         "[System] You have used all available iterations. " +
-                        "Do NOT call any more tools. " +
-                        "Summarize what you have accomplished so far.",
+                            "Do NOT call any more tools. " +
+                            "Summarize what you have accomplished so far.",
                 )
 
-            fullConversation += windDownMessage
+            fullConversation +=
+                windDownMessage
+
             conversationDelta =
-                listOf(windDownMessage)
+                listOf(
+                    windDownMessage
+                )
 
             val finalOutput =
                 StringBuilder()
@@ -526,9 +697,12 @@ class DefaultAgentLoopCoordinator @Inject constructor(
 
             val windDownCompaction =
                 conversationCompactor.compact(
-                    items = fullConversation.toList(),
+                    items =
+                        fullConversation.toList(),
+
                     clientType =
                         request.platform.compatibleType,
+
                     platform =
                         request.platform,
                 )
@@ -536,16 +710,22 @@ class DefaultAgentLoopCoordinator @Inject constructor(
             agentModelGateway
                 .streamTurn(
                     AgentModelRequest(
-                        platform = request.platform,
+                        platform =
+                            request.platform,
+
                         diagnosticContext =
-                            request.diagnosticContext?.copy(
-                                platformUid =
-                                    request.platform.uid
-                            ),
+                            request.diagnosticContext
+                                ?.copy(
+                                    platformUid =
+                                        request.platform.uid
+                                ),
+
                         conversation =
                             conversationDelta,
+
                         fullConversation =
                             windDownCompaction.items,
+
                         instructions =
                             buildInstructions(
                                 request,
@@ -553,12 +733,16 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                                 mode,
                                 memo,
                             ),
-                        tools = emptyList(),
+
+                        tools =
+                            emptyList(),
+
                         policy =
                             request.policy.copy(
                                 toolChoiceMode =
                                     AgentToolChoiceMode.NONE
                             ),
+
                         previousResponseId =
                             previousResponseId,
                     )
@@ -596,13 +780,17 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                 }
 
             val summary =
-                finalOutput.toString().trim()
+                finalOutput
+                    .toString()
+                    .trim()
 
             if (summary.isNotEmpty()) {
 
                 emit(
                     AgentLoopEvent.LoopCompleted(
-                        finalText = summary,
+                        finalText =
+                            summary,
+
                         toolResults =
                             collectedToolResults.toList(),
                     )
@@ -615,6 +803,7 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                         message =
                             "Agent loop exceeded max iterations: " +
                                 request.policy.maxIterations,
+
                         iteration =
                             request.policy.maxIterations,
                     )
@@ -623,7 +812,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
 
         } finally {
 
-            // حفظ نتيجة المشروع بعد انتهاء الـ Agent
             if (turnContext != null) {
 
                 runCatching {
@@ -644,8 +832,12 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                         )
                     }
 
-                    if (turnContext!!.firstWriteDone) {
+                    if (
+                        turnContext!!.firstWriteDone
+                    ) {
+
                         runCatching {
+
                             turnContext!!
                                 .snapshotHandle
                                 .commit()
@@ -657,10 +849,12 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                         .finalize(
                             buildSucceeded =
                                 buildSucceeded,
+
                             affectedFiles =
                                 turnContext!!
                                     .writtenFiles
                                     .toList(),
+
                             deletedFiles =
                                 turnContext!!
                                     .deletedFiles
@@ -673,6 +867,39 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                     )
                 }
             }
+        }
+    }
+
+    private fun isExternalBuildFailure(
+        error: String
+    ): Boolean {
+
+        val indicators =
+            listOf(
+                "upstream error",
+                "service temporarily overloaded",
+                "temporarily overloaded",
+                "rate limit",
+                "rate-limit",
+                "ratelimit",
+                "too many requests",
+                "http 429",
+                "status 429",
+                "http 502",
+                "status 502",
+                "http 503",
+                "status 503",
+                "http 504",
+                "status 504",
+                "service unavailable",
+                "temporarily unavailable",
+                "provider returned error",
+                "provider error",
+                "gateway timeout",
+            )
+
+        return indicators.any {
+            error.contains(it)
         }
     }
 
@@ -710,6 +937,7 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                     assistantForTurn != null &&
                     assistantForTurn.content.isNotBlank()
                 ) {
+
                     items +=
                         assistantForTurn
                             .toAgentConversationItem()
@@ -734,13 +962,17 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                 )
 
         val historyBudget =
-            (budget.maxTokens * 0.6).toInt()
+            (
+                budget.maxTokens * 0.6
+            ).toInt()
 
         val currentTokens =
             ConversationContextManager
                 .estimateTokens(items)
 
-        if (currentTokens <= historyBudget) {
+        if (
+            currentTokens <= historyBudget
+        ) {
             return items
         }
 
@@ -754,7 +986,9 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                 }
                 .reversed()
 
-        if (assistantIndices.isEmpty()) {
+        if (
+            assistantIndices.isEmpty()
+        ) {
             return items
         }
 
@@ -768,23 +1002,38 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                     result[itemIndex]
 
                 val text =
-                    item.text ?: return@forEachIndexed
+                    item.text
+                        ?: return@forEachIndexed
 
                 val maxChars =
                     when (rank) {
-                        0 -> MAX_RECENT_ASSISTANT_CHARS
-                        1 -> MAX_OLDER_ASSISTANT_CHARS
-                        else -> MAX_SUMMARY_CHARS
+
+                        0 ->
+                            MAX_RECENT_ASSISTANT_CHARS
+
+                        1 ->
+                            MAX_OLDER_ASSISTANT_CHARS
+
+                        else ->
+                            MAX_SUMMARY_CHARS
                     }
 
-                if (text.length > maxChars) {
+                if (
+                    text.length > maxChars
+                ) {
 
                     result[itemIndex] =
                         item.copy(
+
                             text =
-                                text.take(maxChars) +
-                                    "\n\n[... earlier content truncated for context budget]",
-                            reasoningContent = null,
+                                text.take(
+                                    maxChars
+                                ) +
+                                    "\n\n" +
+                                    "[... earlier content truncated for context budget]",
+
+                            reasoningContent =
+                                null,
                         )
                 }
             }
@@ -797,7 +1046,9 @@ class DefaultAgentLoopCoordinator @Inject constructor(
         iteration: Int,
     ): AgentPlan? {
 
-        if (result.isError) return null
+        if (result.isError) {
+            return null
+        }
 
         return try {
 
@@ -822,6 +1073,7 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                         element.jsonObject
 
                     AgentPlanStep(
+
                         id =
                             obj["id"]
                                 ?.jsonPrimitive
@@ -840,12 +1092,18 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                 }
 
             AgentPlan(
-                summary = summary,
-                steps = steps,
-                createdAtIteration = iteration,
+                summary =
+                    summary,
+
+                steps =
+                    steps,
+
+                createdAtIteration =
+                    iteration,
             )
 
         } catch (_: Exception) {
+
             null
         }
     }
@@ -855,7 +1113,9 @@ class DefaultAgentLoopCoordinator @Inject constructor(
         result: AgentToolResult,
     ): AgentPlan? {
 
-        if (result.isError) return null
+        if (result.isError) {
+            return null
+        }
 
         return try {
 
@@ -881,6 +1141,7 @@ class DefaultAgentLoopCoordinator @Inject constructor(
 
             val newStatus =
                 when (statusStr) {
+
                     "COMPLETED" ->
                         PlanStepStatus.COMPLETED
 
@@ -890,21 +1151,28 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                     "SKIPPED" ->
                         PlanStepStatus.SKIPPED
 
-                    else -> return null
+                    else ->
+                        return null
                 }
 
             val updatedSteps =
                 plan.steps.map { step ->
 
-                    if (step.id == stepId) {
+                    if (
+                        step.id == stepId
+                    ) {
 
                         step.copy(
-                            status = newStatus,
-                            notes = notes,
+                            status =
+                                newStatus,
+
+                            notes =
+                                notes,
                         )
 
                     } else if (
-                        step.id == stepId + 1 &&
+                        step.id ==
+                            stepId + 1 &&
                         newStatus ==
                             PlanStepStatus.COMPLETED
                     ) {
@@ -915,15 +1183,18 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                         )
 
                     } else {
+
                         step
                     }
                 }
 
             plan.copy(
-                steps = updatedSteps
+                steps =
+                    updatedSteps
             )
 
         } catch (_: Exception) {
+
             null
         }
     }
@@ -935,6 +1206,7 @@ class DefaultAgentLoopCoordinator @Inject constructor(
             platformType != null
 
         return AgentConversationItem(
+
             role =
                 if (isAssistant)
                     AgentMessageRole.ASSISTANT
@@ -965,7 +1237,9 @@ class DefaultAgentLoopCoordinator @Inject constructor(
 
                     if (files.isNotEmpty()) {
 
-                        append("\n\n[Files]\n")
+                        append(
+                            "\n\n[Files]\n"
+                        )
 
                         append(
                             files.joinToString(
@@ -973,22 +1247,33 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                             )
                         )
                     }
+
                 }.trim(),
         )
     }
 
     private val promptTemplate: String by lazy {
+
         context.assets
-            .open("agent-system-prompt.md")
+            .open(
+                "agent-system-prompt.md"
+            )
             .bufferedReader()
-            .use { it.readText() }
+            .use {
+                it.readText()
+            }
     }
 
     private val iterationAppendix: String by lazy {
+
         context.assets
-            .open("iteration-mode-appendix.md")
+            .open(
+                "iteration-mode-appendix.md"
+            )
             .bufferedReader()
-            .use { it.readText() }
+            .use {
+                it.readText()
+            }
     }
 
     private fun currentUserText(
@@ -1013,13 +1298,20 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                 ?: "com.vibe.generated.emptyactivity"
 
         val packagePath =
-            packageName.replace('.', '/')
+            packageName.replace(
+                '.',
+                '/'
+            )
 
         val custom =
             request.systemPrompt
-                ?.takeIf { it.isNotBlank() }
+                ?.takeIf {
+                    it.isNotBlank()
+                }
                 ?: request.platform.systemPrompt
-                    ?.takeIf { it.isNotBlank() }
+                    ?.takeIf {
+                        it.isNotBlank()
+                    }
 
         val basePrompt =
             promptTemplate
@@ -1034,22 +1326,34 @@ class DefaultAgentLoopCoordinator @Inject constructor(
 
         val assembled =
             PromptAssembler.assemble(
-                basePrompt = basePrompt,
+                basePrompt =
+                    basePrompt,
+
                 iterationAppendix =
                     iterationAppendix,
-                mode = mode,
-                memo = memo,
+
+                mode =
+                    mode,
+
+                memo =
+                    memo,
             )
 
         return buildString {
 
-            append(assembled)
+            append(
+                assembled
+            )
 
             if (custom != null) {
+
                 append(
                     "\n\n[Additional System Prompt]\n"
                 )
-                append(custom)
+
+                append(
+                    custom
+                )
             }
 
             if (activePlan != null) {
@@ -1067,6 +1371,7 @@ class DefaultAgentLoopCoordinator @Inject constructor(
 
                         val icon =
                             when (step.status) {
+
                                 PlanStepStatus.COMPLETED ->
                                     "done"
 
@@ -1084,11 +1389,15 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                             }
 
                         append(
-                            "  [$icon] ${step.id}. ${step.description}"
+                            "  [$icon] " +
+                                "${step.id}. " +
+                                step.description
                         )
 
                         step.notes?.let {
-                            append(" ($it)")
+                            append(
+                                " ($it)"
+                            )
                         }
 
                         append("\n")
@@ -1103,15 +1412,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
     }
 
     companion object {
-
-        private val WRITE_TOOL_NAMES =
-            setOf(
-                "write_project_file",
-                "edit_project_file",
-                "delete_project_file",
-                "update_project_icon",
-                "update_project_icon_custom",
-            )
 
         private const val MAX_RECENT_ASSISTANT_CHARS =
             4000

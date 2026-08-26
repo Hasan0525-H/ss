@@ -8,14 +8,22 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Key
+import androidx.compose.material.icons.outlined.Label
+import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.Memory
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -52,29 +60,54 @@ fun PlatformSettingScreen(
         pinnedExitUntilCollapsedScrollBehavior(
             canScroll = {
                 scrollState.canScrollForward ||
-                        scrollState.canScrollBackward
+                    scrollState.canScrollBackward
             }
         )
 
-    val platform by settingViewModel.platformState.collectAsStateWithLifecycle()
-    val dialogState by settingViewModel.dialogState.collectAsStateWithLifecycle()
-    val isDeleted by settingViewModel.isDeleted.collectAsStateWithLifecycle()
+    val platform by settingViewModel.platformState
+        .collectAsStateWithLifecycle()
 
-    val availableModels by settingViewModel.availableModels.collectAsStateWithLifecycle()
-    val isLoadingModels by settingViewModel.isLoadingModels.collectAsStateWithLifecycle()
+    val dialogState by settingViewModel.dialogState
+        .collectAsStateWithLifecycle()
 
-    var isFreeFilter by remember { mutableStateOf(true) }
-    var isDropdownExpanded by remember { mutableStateOf(false) }
+    val isDeleted by settingViewModel.isDeleted
+        .collectAsStateWithLifecycle()
+
+    val availableModels by settingViewModel.availableModels
+        .collectAsStateWithLifecycle()
+
+    val isLoadingModels by settingViewModel.isLoadingModels
+        .collectAsStateWithLifecycle()
+
+    var isFreeFilter by remember {
+        mutableStateOf(true)
+    }
+
+    var isDropdownExpanded by remember {
+        mutableStateOf(false)
+    }
 
     val context = LocalContext.current
-    val switchedHint = stringResource(R.string.switched_platform_hint)
 
-    LaunchedEffect(isFreeFilter, platform?.token) {
+    val switchedHint =
+        stringResource(R.string.switched_platform_hint)
+
+    /*
+     * تحميل الموديلات عند وجود API Key
+     * وعند تغيير نوع الخطة Free / Paid.
+     */
+    LaunchedEffect(
+        isFreeFilter,
+        platform?.token
+    ) {
         if (!platform?.token.isNullOrBlank()) {
             settingViewModel.loadModels(isFreeFilter)
         }
     }
 
+    /*
+     * إشعار عند تبديل المنصة.
+     */
     LaunchedEffect(Unit) {
         settingViewModel.switchedPlatformEvent.collect { name ->
             Toast.makeText(
@@ -85,6 +118,9 @@ fun PlatformSettingScreen(
         }
     }
 
+    /*
+     * الرجوع تلقائيًا بعد حذف المنصة.
+     */
     LaunchedEffect(isDeleted) {
         if (isDeleted) {
             onNavigationClick()
@@ -92,149 +128,344 @@ fun PlatformSettingScreen(
     }
 
     platform?.let { platformData ->
+
         Scaffold(
             modifier = modifier,
+
             topBar = {
                 PlatformTopAppBar(
                     title = platformData.name,
-                    onBackClick = onNavigationClick,
-                    onDeleteClick = { settingViewModel.openDeleteDialog() }
+                    onNavigationClick = onNavigationClick,
+                    onDeleteClick =
+                        settingViewModel::openDeleteDialog,
+                    scrollBehavior = scrollBehavior
                 )
             }
-        ) { padding ->
+        ) { paddingValues ->
+
             Column(
                 modifier = Modifier
-                    .padding(padding)
+                    .padding(paddingValues)
                     .verticalScroll(scrollState)
             ) {
+
+                /*
+                 * Enable / Disable API
+                 */
                 PreferenceSwitchWithContainer(
-                    title = stringResource(R.string.enable_api),
+                    title = stringResource(
+                        R.string.enable_api
+                    ),
                     isChecked = platformData.enabled,
                     onCheckedChange = {
                         settingViewModel.toggleEnabled()
                     }
                 )
 
+                /*
+                 * Platform Name
+                 */
                 SettingItem(
                     modifier = Modifier.height(64.dp),
-                    title = stringResource(R.string.platform_name),
+                    title = stringResource(
+                        R.string.platform_name
+                    ),
                     description = platformData.name,
                     enabled = platformData.enabled,
-                    onItemClick = { settingViewModel.openPlatformNameDialog() }
+                    onItemClick =
+                        settingViewModel::openPlatformNameDialog,
+                    showTrailingIcon = false,
+                    showLeadingIcon = true,
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Outlined.Label,
+                            contentDescription =
+                                stringResource(
+                                    R.string.platform_name_icon
+                                )
+                        )
+                    }
                 )
 
+                /*
+                 * API URL
+                 */
                 SettingItem(
                     modifier = Modifier.height(64.dp),
-                    title = stringResource(R.string.api_url),
+                    title = stringResource(
+                        R.string.api_url
+                    ),
                     description = platformData.apiUrl,
                     enabled = platformData.enabled,
-                    onItemClick = { settingViewModel.openApiUrlDialog() }
+                    onItemClick =
+                        settingViewModel::openApiUrlDialog,
+                    showTrailingIcon = false,
+                    showLeadingIcon = true,
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Outlined.Link,
+                            contentDescription =
+                                stringResource(
+                                    R.string.url_icon
+                                )
+                        )
+                    }
                 )
 
+                /*
+                 * API Key
+                 */
                 SettingItem(
                     modifier = Modifier.height(64.dp),
-                    title = stringResource(R.string.api_key),
-                    description = if (platformData.token.isNullOrBlank())
-                        stringResource(R.string.not_set)
-                    else
-                        "Configured",
+                    title = stringResource(
+                        R.string.api_key
+                    ),
+                    description =
+                        if (platformData.token.isNullOrBlank()) {
+                            stringResource(
+                                R.string.not_set
+                            )
+                        } else {
+                            stringResource(
+                                R.string.token_set,
+                                "*"
+                            )
+                        },
                     enabled = platformData.enabled,
-                    onItemClick = { settingViewModel.openApiTokenDialog() }
+                    onItemClick =
+                        settingViewModel::openApiTokenDialog,
+                    showTrailingIcon = false,
+                    showLeadingIcon = true,
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Outlined.Key,
+                            contentDescription =
+                                stringResource(
+                                    R.string.key_icon
+                                )
+                        )
+                    }
                 )
 
-                // --- قائمة اختيار الموديل مع التصفية التلقائية ---
+                /*
+                 * Model selector
+                 */
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .padding(
+                            horizontal = 16.dp,
+                            vertical = 8.dp
+                        )
                 ) {
+
                     Text(
-                        text = stringResource(R.string.model),
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(bottom = 8.dp)
+                        text = stringResource(
+                            R.string.model
+                        ),
+                        style =
+                            MaterialTheme.typography.titleMedium,
+                        modifier =
+                            Modifier.padding(bottom = 8.dp)
                     )
 
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier =
+                            Modifier.fillMaxWidth(),
+                        horizontalArrangement =
+                            Arrangement.spacedBy(8.dp)
                     ) {
+
                         FilterChip(
                             selected = isFreeFilter,
-                            onClick = { isFreeFilter = true },
-                            label = { Text("مجاني (Free)") },
+                            onClick = {
+                                isFreeFilter = true
+                            },
+                            label = {
+                                Text("مجاني (Free)")
+                            },
                             enabled = platformData.enabled
                         )
+
                         FilterChip(
                             selected = !isFreeFilter,
-                            onClick = { isFreeFilter = false },
-                            label = { Text("مدفوع (Paid)") },
+                            onClick = {
+                                isFreeFilter = false
+                            },
+                            label = {
+                                Text("مدفوع (Paid)")
+                            },
                             enabled = platformData.enabled
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(
+                        modifier = Modifier.height(8.dp)
+                    )
 
                     ExposedDropdownMenuBox(
-                        expanded = isDropdownExpanded && platformData.enabled,
+                        expanded =
+                            isDropdownExpanded &&
+                                platformData.enabled,
+
                         onExpandedChange = {
-                            if (platformData.enabled) isDropdownExpanded = !isDropdownExpanded
+                            if (platformData.enabled) {
+                                isDropdownExpanded =
+                                    !isDropdownExpanded
+                            }
                         }
                     ) {
+
                         OutlinedTextField(
                             value = platformData.model,
                             onValueChange = {},
                             readOnly = true,
                             enabled = platformData.enabled,
-                            label = { Text(stringResource(R.string.model)) },
+
+                            label = {
+                                Text(
+                                    stringResource(
+                                        R.string.model
+                                    )
+                                )
+                            },
+
+                            placeholder = {
+                                Text(
+                                    stringResource(
+                                        R.string.model_name
+                                    )
+                                )
+                            },
+
+                            leadingIcon = {
+                                Icon(
+                                    imageVector =
+                                        Icons.Outlined.Memory,
+                                    contentDescription =
+                                        stringResource(
+                                            R.string.model_icon
+                                        )
+                                )
+                            },
+
                             trailingIcon = {
+
                                 if (isLoadingModels) {
+
                                     CircularProgressIndicator(
-                                        modifier = Modifier.height(20.dp),
+                                        modifier =
+                                            Modifier.size(
+                                                20.dp
+                                            ),
                                         strokeWidth = 2.dp
                                     )
+
                                 } else {
-                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = isDropdownExpanded)
+
+                                    ExposedDropdownMenuDefaults
+                                        .TrailingIcon(
+                                            expanded =
+                                                isDropdownExpanded
+                                        )
                                 }
                             },
+
                             modifier = Modifier
                                 .menuAnchor()
-                                .fillMaxWidth()
+                                .fillMaxWidth(),
+
+                            singleLine = true
                         )
 
                         ExposedDropdownMenu(
-                            expanded = isDropdownExpanded && platformData.enabled,
-                            onDismissRequest = { isDropdownExpanded = false }
+                            expanded =
+                                isDropdownExpanded &&
+                                    platformData.enabled,
+
+                            onDismissRequest = {
+                                isDropdownExpanded = false
+                            }
                         ) {
-                            if (availableModels.isEmpty() && !isLoadingModels) {
+
+                            if (
+                                availableModels.isEmpty() &&
+                                !isLoadingModels
+                            ) {
+
                                 DropdownMenuItem(
-                                    text = { Text("لا توجد نماذج متاحة") },
-                                    onClick = { isDropdownExpanded = false }
-                                )
-                            } else {
-                                availableModels.forEach { model ->
-                                    val priceText = if (model.pricing?.isFree == true) {
-                                        "مجاني"
-                                    } else {
-                                        "\$${String.format("%.6f", model.pricing?.averagePrice)} / 1K tokens"
+                                    text = {
+                                        Text(
+                                            "لا توجد نماذج متاحة"
+                                        )
+                                    },
+                                    onClick = {
+                                        isDropdownExpanded =
+                                            false
                                     }
+                                )
+
+                            } else {
+
+                                availableModels.forEach { modelInfo ->
+
+                                    val priceText =
+                                        if (
+                                            modelInfo.pricing
+                                                ?.isFree == true
+                                        ) {
+                                            "مجاني"
+                                        } else {
+                                            "\$${String.format(
+                                                "%.6f",
+                                                modelInfo.pricing
+                                                    ?.averagePrice
+                                                    ?: 0.0
+                                            )} / 1K tokens"
+                                        }
 
                                     DropdownMenuItem(
+
                                         text = {
+
                                             Column {
+
                                                 Text(
-                                                    text = model.name ?: model.id,
-                                                    style = MaterialTheme.typography.bodyLarge
+                                                    text =
+                                                        modelInfo.name
+                                                            ?: modelInfo.id,
+
+                                                    style =
+                                                        MaterialTheme
+                                                            .typography
+                                                            .bodyLarge
                                                 )
+
                                                 Text(
                                                     text = priceText,
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+
+                                                    style =
+                                                        MaterialTheme
+                                                            .typography
+                                                            .bodySmall,
+
+                                                    color =
+                                                        MaterialTheme
+                                                            .colorScheme
+                                                            .onSurfaceVariant
                                                 )
                                             }
                                         },
+
                                         onClick = {
-                                            settingViewModel.updateApiModel(model.id)
-                                            isDropdownExpanded = false
+
+                                            settingViewModel
+                                                .updateApiModel(
+                                                    modelInfo.id
+                                                )
+
+                                            isDropdownExpanded =
+                                                false
                                         }
                                     )
                                 }
@@ -243,28 +474,94 @@ fun PlatformSettingScreen(
                     }
                 }
 
-                val reasoningDisabled =
-                    platformData.compatibleType == ClientType.OPENAI &&
-                            platformData.reasoning
+                /*
+                 * Reasoning models:
+                 * Temperature و Top P يتم تعطيلهما
+                 * عندما يكون reasoning مفعّلًا لـ OpenAI.
+                 */
+                val isReasoningDisabled =
+                    platformData.compatibleType ==
+                        ClientType.OPENAI &&
+                        platformData.reasoning
 
-                val notSet = stringResource(R.string.not_set)
+                val notSetText =
+                    stringResource(
+                        R.string.not_set
+                    )
 
+                /*
+                 * Temperature
+                 */
                 SettingItem(
                     modifier = Modifier.height(64.dp),
-                    title = stringResource(R.string.temperature),
-                    description = platformData.temperature?.toString() ?: notSet,
-                    enabled = platformData.enabled && !reasoningDisabled,
-                    onItemClick = { settingViewModel.openTemperatureDialog() }
+                    title = stringResource(
+                        R.string.temperature
+                    ),
+                    description =
+                        platformData.temperature
+                            ?.toString()
+                            ?: notSetText,
+
+                    enabled =
+                        platformData.enabled &&
+                            !isReasoningDisabled,
+
+                    onItemClick =
+                        settingViewModel::openTemperatureDialog,
+
+                    showTrailingIcon = false,
+                    showLeadingIcon = true,
+
+                    leadingIcon = {
+                        Icon(
+                            imageVector =
+                                Icons.Outlined.Tune,
+                            contentDescription =
+                                stringResource(
+                                    R.string.temperature_icon
+                                )
+                        )
+                    }
                 )
 
+                /*
+                 * Top P
+                 */
                 SettingItem(
                     modifier = Modifier.height(64.dp),
-                    title = stringResource(R.string.top_p),
-                    description = platformData.topP?.toString() ?: notSet,
-                    enabled = platformData.enabled && !reasoningDisabled,
-                    onItemClick = { settingViewModel.openTopPDialog() }
+                    title = stringResource(
+                        R.string.top_p
+                    ),
+                    description =
+                        platformData.topP
+                            ?.toString()
+                            ?: notSetText,
+
+                    enabled =
+                        platformData.enabled &&
+                            !isReasoningDisabled,
+
+                    onItemClick =
+                        settingViewModel::openTopPDialog,
+
+                    showTrailingIcon = false,
+                    showLeadingIcon = true,
+
+                    leadingIcon = {
+                        Icon(
+                            imageVector =
+                                Icons.Outlined.Tune,
+                            contentDescription =
+                                stringResource(
+                                    R.string.top_p_icon
+                                )
+                        )
+                    }
                 )
 
+                /*
+                 * Dialogs
+                 */
                 PlatformNameDialog(
                     dialogState = dialogState,
                     initialValue = platformData.name,
@@ -279,6 +576,12 @@ fun PlatformSettingScreen(
 
                 APIKeyDialog(
                     dialogState = dialogState,
+                    settingViewModel = settingViewModel
+                )
+
+                ModelDialog(
+                    dialogState = dialogState,
+                    model = platformData.model,
                     settingViewModel = settingViewModel
                 )
 

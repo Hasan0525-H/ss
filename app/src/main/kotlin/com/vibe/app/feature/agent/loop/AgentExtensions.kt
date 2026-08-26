@@ -4,7 +4,6 @@ import com.vibe.app.feature.agent.AgentLoopRequest
 import com.vibe.app.feature.agent.AgentModelRequest
 import com.vibe.app.feature.agent.AgentModelEvent
 import com.vibe.app.feature.agent.AgentLoopEvent
-import com.vibe.app.feature.agent.AgentConversationItem
 import com.vibe.app.feature.agent.AgentToolDefinition
 
 
@@ -16,11 +15,9 @@ fun AgentLoopRequest.toModelRequest(
         platform = platform,
         diagnosticContext = diagnosticContext,
 
-        // الموجود في AgentLoopRequest
-        conversation = conversation,
+        conversation = emptyList(),
 
-        // كامل المحادثة
-        fullConversation = fullConversation,
+        fullConversation = emptyList(),
 
         instructions = systemPrompt,
 
@@ -40,24 +37,31 @@ fun AgentModelEvent.toLoopEvent(): AgentLoopEvent {
                 delta = delta
             )
 
+
         is AgentModelEvent.ThinkingDelta ->
             AgentLoopEvent.ThinkingDelta(
                 delta = delta
             )
 
+
         is AgentModelEvent.ToolCallReady ->
             AgentLoopEvent.ToolExecutionStarted(
-                call = call
+                call = call,
+                iteration = 0
             )
+
 
         is AgentModelEvent.Completed ->
             AgentLoopEvent.LoopCompleted(
-                finalText = ""
+                finalText = finalText ?: "",
+                iteration = 0
             )
+
 
         is AgentModelEvent.Failed ->
             AgentLoopEvent.LoopFailed(
-                message = message
+                message = message,
+                iteration = 0
             )
     }
 }

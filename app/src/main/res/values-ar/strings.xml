@@ -79,7 +79,7 @@
     <string name="api_key_description">أدخل مفتاح API الخاص بك. يتم تخزينه محليًا على جهازك.</string>
     <string name="api_key_supporting">يتم تخزين مفتاح API محليًا على جهازك.</string>
 
-    <string name="api_url_cautions">يجب أن ينتهي عنوان URL بـ "/".</string>
+    <string name="api_url_cautions">يجب أن ينتهي عنوان URL بـ &quot;/&quot;.</string>
     <string name="invalid_api_url">عنوان API غير صالح.</string>
 
     <string name="model_description">أدخل معرّف النموذج الذي تريد استخدامه.</string>
@@ -113,11 +113,9 @@
     <string name="debug_log_description">عرض معلومات تصحيح التطبيق.</string>
 
     <!-- Platform Settings -->
-
     <string name="platform_settings">إعدادات المنصة</string>
     <string name="platform_settings_description">ضبط خيارات المنصة.</string>
 
-    <!-- مهم: يستخدمه PlatformSettingScreen و PlatformSettingDialogs -->
     <string name="temperature">درجة الحرارة</string>
     <string name="temperature_setting">إعداد درجة الحرارة</string>
     <string name="temperature_icon">أيقونة درجة الحرارة</string>
@@ -161,17 +159,17 @@
 
     <string name="github">GitHub</string>
     <string name="github_icon">أيقونة GitHub</string>
-    <string name="github_link">https://github.com/</string>
+    <string name="github_link" translatable="false">https://github.com/</string>
 
     <string name="feedback">الملاحظات</string>
     <string name="feedback_description">إرسال ملاحظات أو الإبلاغ عن المشكلات.</string>
     <string name="feedback_icon">أيقونة الملاحظات</string>
-    <string name="feedback_link">mailto:support@example.com</string>
+    <string name="feedback_link" translatable="false">mailto:support@example.com</string>
 
     <string name="bug_report">الإبلاغ عن خطأ</string>
     <string name="bug_report_description">الإبلاغ عن الأخطاء ومشكلات التطبيق.</string>
     <string name="bug_report_icon">أيقونة الإبلاغ عن خطأ</string>
-    <string name="bug_report_link">https://github.com/issues</string>
+    <string name="bug_report_link" translatable="false">https://github.com/issues</string>
 
     <!-- Home -->
     <string name="projects">المشاريع</string>
@@ -239,7 +237,6 @@
     <!-- Thinking / Tools -->
     <string name="view_thinking">عرض التفكير</string>
     <string name="hide_thinking">إخفاء التفكير</string>
-
     <string name="thinking_in_progress">جارٍ التفكير...</string>
 
     <string name="tool_calling">جارٍ استدعاء %1$s...</string>
@@ -278,7 +275,6 @@
     <string name="tool_name_search_icon">البحث عن أيقونة</string>
     <string name="tool_name_search_ui_pattern">البحث عن نمط الواجهة</string>
     <string name="tool_name_web_search">البحث على الويب</string>
-
     <string name="tool_name_update_project_intent">تحديث هدف المشروع</string>
 
     <!-- Plan -->

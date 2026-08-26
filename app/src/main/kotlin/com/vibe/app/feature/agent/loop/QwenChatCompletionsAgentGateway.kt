@@ -292,7 +292,7 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                         ?: message?.toolCalls
 
                 toolCalls
-                    ?.forEachIndexed { index, toolCall ->
+                    ?.forEachIndexed { _, toolCall ->
 
                         val toolIndex =
                             toolCall.index
@@ -425,7 +425,7 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                                 arguments,
                         )
                     )
-                ) // تم تصحيح القوس هنا بدلاً من }
+                )
             }
 
         val reasoningContent =
@@ -675,19 +675,19 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
 
         private const val TOOL_ENCOURAGE_INSTRUCTION =
             """
-            ## IMPORTANT: Continue Using Tools
+## IMPORTANT: Continue Using Tools
 
-            You have project tools available.
+You have project tools available.
 
-            When the user's request requires:
-            - creating files
-            - modifying files
-            - deleting files
-            - reading files
-            - building the project
+When the user's request requires:
+- creating files
+- modifying files
+- deleting files
+- reading files
+- building the project
 
-            use the tools instead of describing what to do.
-            """.trimIndent()
+use the tools instead of describing what to do.
+"""
     }
 }
 

@@ -529,10 +529,6 @@
 
     <!-- Settings -->
 
-    <string name="temperature">
-        درجة الحرارة
-    </string>
-
     <string name="top_p">
         أخذ العينات النواتية (Top P)
     </string>

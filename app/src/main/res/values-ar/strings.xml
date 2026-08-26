@@ -463,7 +463,6 @@
 
     <!-- Icons -->
 
-    <string name="temperature_icon">أيقونة درجة الحرارة</string>
     <string name="key_icon">أيقونة المفتاح</string>
     <string name="model_icon">أيقونة النموذج</string>
     <string name="url_icon">أيقونة URL</string>

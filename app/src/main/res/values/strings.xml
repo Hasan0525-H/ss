@@ -2,10 +2,8 @@
 <resources>
 
     <string name="app_name">VibeApp</string>
-
     <string name="sample_item_title">Item 1</string>
     <string name="sample_item_description">Item description</string>
-
 
     <!-- API Providers -->
 
@@ -24,7 +22,6 @@
     <string name="custom_api_description">
         Use a custom endpoint compatible with the API.
     </string>
-
 
     <!-- Existing -->
 
@@ -68,13 +65,11 @@
         Enable API
     </string>
 
-
     <!-- Language Settings -->
 
     <string name="language">Language</string>
     <string name="arabic">Arabic</string>
     <string name="english">English</string>
-
 
     <!-- API -->
 
@@ -105,7 +100,6 @@
     <string name="model">
         Model
     </string>
-
 
     <!-- Setup Wizard -->
 
@@ -181,7 +175,6 @@
         Finish
     </string>
 
-
     <!-- Settings Screen -->
 
     <string name="theme_settings">
@@ -239,7 +232,6 @@
     <string name="debug_log_description">
         Show application debugging information.
     </string>
-
 
     <!-- Platform Settings -->
 
@@ -311,7 +303,6 @@
         Remove
     </string>
 
-
     <!-- About -->
 
     <string name="version">
@@ -378,7 +369,6 @@
         https://github.com/issues
     </string>
 
-
     <!-- Home Screen -->
 
     <string name="projects">
@@ -417,7 +407,6 @@
         Using %1$s
     </string>
 
-
     <!-- Chat Snapshot -->
 
     <string name="snapshot_time_minutes_ago">
@@ -427,7 +416,6 @@
     <string name="snapshot_time_hours_ago">
         %1$d hours ago
     </string>
-
 
     <!-- Complete Tool Display Names -->
 
@@ -535,7 +523,6 @@
         Write project file
     </string>
 
-
     <string name="project_memo_title">
         Project memo
     </string>
@@ -596,7 +583,6 @@
         Ongoing notification (multiple)
     </string>
 
-
     <!-- Turn Undo -->
 
     <string name="turn_undo_bar_label">
@@ -606,7 +592,6 @@
     <string name="turn_undo_button">
         Undo
     </string>
-
 
     <!-- Diagnostics -->
 
@@ -646,7 +631,6 @@
         Event copied
     </string>
 
-
     <!-- Common -->
 
     <string name="save">
@@ -665,13 +649,11 @@
         Arrow icon
     </string>
 
-
     <!-- Dialog -->
 
     <string name="this_operation_can_t_be_undone">
         This operation cannot be undone.
     </string>
-
 
     <!-- Theme -->
 
@@ -686,7 +668,6 @@
     <string name="system_default">
         System default
     </string>
-
 
     <!-- ChatScreen & ThinkingBlock -->
 

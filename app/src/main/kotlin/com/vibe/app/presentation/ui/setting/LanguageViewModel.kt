@@ -14,30 +14,31 @@ class LanguageViewModel @Inject constructor(
 ) : ViewModel() {
 
     /**
-     * The currently applied language.
+     * اللغة المطبقة حاليًا على التطبيق.
      */
     val language: StateFlow<String> =
         languageManager.language
 
     /**
-     * The language currently selected in the UI.
+     * اللغة المحددة مؤقتًا في واجهة المستخدم.
      *
-     * This is intentionally separate from the applied language,
-     * so selecting Arabic/English does not change the application
-     * until the user presses Confirm/Save.
+     * اختيار العربية أو الإنجليزية هنا لا يغير لغة التطبيق
+     * حتى يتم استدعاء confirmLanguage().
      */
     private val _selectedLanguage =
         MutableStateFlow(
-            languageManager.getCurrentLanguage()
+            normalizeLanguage(
+                languageManager.getCurrentLanguage()
+            )
         )
 
     val selectedLanguage: StateFlow<String> =
         _selectedLanguage.asStateFlow()
 
     /**
-     * Temporarily select a language in the UI.
+     * تحديد اللغة مؤقتًا.
      *
-     * The application language is NOT changed here.
+     * لا يتم تطبيق اللغة على التطبيق في هذه المرحلة.
      */
     fun selectLanguage(
         language: String
@@ -47,21 +48,28 @@ class LanguageViewModel @Inject constructor(
     }
 
     /**
-     * Apply the currently selected language.
+     * تطبيق اللغة المحددة حاليًا.
      *
-     * This is called when the user presses Confirm/Save.
+     * يجب استدعاء هذه الدالة عند الضغط على تأكيد/حفظ.
      */
     fun confirmLanguage() {
+        val languageToApply =
+            normalizeLanguage(
+                _selectedLanguage.value
+            )
+
+        _selectedLanguage.value =
+            languageToApply
+
         languageManager.setLanguage(
-            _selectedLanguage.value
+            languageToApply
         )
     }
 
     /**
-     * Change and immediately apply a language.
+     * تغيير اللغة وتطبيقها مباشرة.
      *
-     * Kept for existing callers that expect immediate
-     * language changes.
+     * هذه الدالة موجودة للتوافق مع الاستدعاءات القديمة.
      */
     fun changeLanguage(
         language: String
@@ -78,10 +86,12 @@ class LanguageViewModel @Inject constructor(
     }
 
     /**
-     * Existing API kept for compatibility with the
-     * current settings UI.
+     * دالة توافق مع الواجهات الحالية.
      *
-     * This method immediately applies the language.
+     * تطبق اللغة مباشرة.
+     *
+     * إذا كان الاستدعاء من زر "تأكيد"، يفضل استخدام
+     * confirmLanguage() أو selectLanguage() ثم confirmLanguage().
      */
     fun setLanguage(
         language: String
@@ -90,21 +100,39 @@ class LanguageViewModel @Inject constructor(
     }
 
     /**
-     * Returns true when the user has explicitly selected
-     * a language before.
+     * إرجاع اللغة المحددة مؤقتًا.
+     */
+    fun getSelectedLanguage(): String {
+        return _selectedLanguage.value
+    }
+
+    /**
+     * التحقق من وجود لغة محفوظة ومطبقة.
      */
     fun isLanguageSelected(): Boolean {
         return languageManager.isLanguageSelected()
     }
 
+    /**
+     * توحيد قيم اللغة المقبولة.
+     *
+     * العربية = ar
+     * الإنجليزية = en
+     */
     private fun normalizeLanguage(
         language: String
     ): String {
         return when (
-            language.lowercase()
+            language.trim().lowercase()
         ) {
-            "ar" -> "ar"
-            "en" -> "en"
+            "ar",
+            "arabic",
+            "العربية" -> "ar"
+
+            "en",
+            "english",
+            "الإنجليزية" -> "en"
+
             else -> "en"
         }
     }

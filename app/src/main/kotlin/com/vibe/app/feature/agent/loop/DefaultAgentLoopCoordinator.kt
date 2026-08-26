@@ -1,22 +1,20 @@
 package com.vibe.app.feature.agent.loop
 
 import com.vibe.app.feature.agent.AgentLoopCoordinator
+import com.vibe.app.feature.agent.AgentLoopEvent
+import com.vibe.app.feature.agent.AgentLoopRequest
 import com.vibe.app.feature.agent.AgentModelGateway
 import com.vibe.app.feature.agent.AgentToolRegistry
-import com.vibe.app.feature.agent.AgentLoopRequest
-import com.vibe.app.feature.agent.AgentLoopEvent
-import com.vibe.app.feature.agent.loop.toModelRequest
-import com.vibe.app.feature.agent.loop.toLoopEvent
+import com.vibe.app.feature.agent.toModelRequest
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.collect
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class DefaultAgentLoopCoordinator @Inject constructor(
     private val modelGateway: AgentModelGateway,
-    private val toolRegistry: AgentToolRegistry
+    private val toolRegistry: AgentToolRegistry,
 ) : AgentLoopCoordinator {
 
     override suspend fun run(
@@ -27,10 +25,32 @@ class DefaultAgentLoopCoordinator @Inject constructor(
             tools = toolRegistry.listDefinitions()
         )
 
+        var iteration = 0
+
+        emit(
+            AgentLoopEvent.LoopStarted(
+                chatId = request.chatId,
+                platformUid = request.platform.uid,
+            )
+        )
+
+        iteration++
+
+        emit(
+            AgentLoopEvent.ModelTurnStarted(
+                iteration = iteration
+            )
+        )
+
         modelGateway
             .streamTurn(modelRequest)
             .collect { event ->
-                emit(event.toLoopEvent())
+
+                emit(
+                    event.toLoopEvent(
+                        iteration = iteration
+                    )
+                )
             }
     }
 }

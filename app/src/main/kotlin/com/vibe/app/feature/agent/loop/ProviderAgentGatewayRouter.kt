@@ -8,33 +8,81 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 
-/**
- * Routes agent model requests based on the selected platform type.
- *
- * OPEN_ROUTER:
- * Uses OpenAI compatible Responses API.
- *
- * CUSTOM:
- * Uses OpenAI compatible custom endpoint.
- */
 @Singleton
 class ProviderAgentGatewayRouter @Inject constructor(
     private val openAiGateway: OpenAiResponsesAgentGateway,
+    private val qwenGateway: QwenChatCompletionsAgentGateway,
+    private val kimiGateway: KimiChatCompletionsAgentGateway,
+    private val anthropicGateway: AnthropicMessagesAgentGateway,
+    private val deepSeekGateway: DeepSeekChatCompletionsAgentGateway,
 ) : AgentModelGateway {
 
     override suspend fun streamTurn(
         request: AgentModelRequest
     ): Flow<AgentModelEvent> {
+
         return when (request.platform.compatibleType) {
+
+            ClientType.ANTHROPIC ->
+                anthropicGateway.streamTurn(request)
+
+            ClientType.MINIMAX ->
+                anthropicGateway.streamTurn(
+                    request.withMiniMaxAnthropicUrl()
+                )
+
+            ClientType.QWEN ->
+                qwenGateway.streamTurn(request)
+
+            ClientType.KIMI ->
+                kimiGateway.streamTurn(request)
+
+            ClientType.OPENAI ->
+                openAiGateway.streamTurn(request)
+
+            ClientType.DEEPSEEK ->
+                deepSeekGateway.streamTurn(request)
+
+            /*
+             * OpenRouter is OpenAI Chat-Completions compatible.
+             *
+             * Route it through the Qwen/OpenAI-compatible
+             * Chat Completions gateway instead of Responses API.
+             *
+             * This preserves:
+             * - tool_calls
+             * - write_project_file
+             * - multi-turn tool execution
+             */
             ClientType.OPEN_ROUTER ->
-                openAiGateway.streamTurn(request)
+                qwenGateway.streamTurn(request)
 
+            /*
+             * Custom endpoints in this fork are also treated
+             * as OpenAI-compatible Chat Completions endpoints.
+             */
             ClientType.CUSTOM ->
-                openAiGateway.streamTurn(request)
-
-            // تمت إضافة فرع else لضمان اكتمال عبارة when وتغطية بقية المزودين
-            else ->
-                openAiGateway.streamTurn(request)
+                qwenGateway.streamTurn(request)
         }
     }
+}
+
+private fun AgentModelRequest.withMiniMaxAnthropicUrl(): AgentModelRequest {
+
+    val url =
+        platform.apiUrl
+            .trimEnd('/')
+
+    if (
+        url.endsWith("/anthropic")
+    ) {
+        return this
+    }
+
+    return copy(
+        platform =
+            platform.copy(
+                apiUrl = "$url/anthropic/"
+            )
+    )
 }

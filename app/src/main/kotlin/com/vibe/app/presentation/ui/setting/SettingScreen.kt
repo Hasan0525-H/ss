@@ -1,5 +1,6 @@
 package com.vibe.app.presentation.ui.setting
 
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -31,7 +32,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
-import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -146,6 +146,7 @@ fun SettingScreen(
             .nestedScroll(
                 scrollBehavior.nestedScrollConnection
             ),
+
         topBar = {
             SettingTopBar(
                 scrollBehavior = scrollBehavior,
@@ -160,6 +161,9 @@ fun SettingScreen(
                 .verticalScroll(scrollState)
         ) {
 
+            /*
+             * Language
+             */
             LanguageSetting(
                 currentLanguage = currentLanguage,
                 onItemClick = {
@@ -167,6 +171,9 @@ fun SettingScreen(
                 }
             )
 
+            /*
+             * Theme
+             */
             ThemeSetting {
                 settingViewModel.openThemeDialog()
             }
@@ -181,15 +188,20 @@ fun SettingScreen(
                         .outlineVariant
             )
 
+            /*
+             * Platforms
+             */
             platformState.forEach { platform ->
 
                 PlatformItem(
                     platform = platform,
+
                     onItemClick = {
                         onNavigateToPlatformSetting(
                             platform.uid
                         )
                     },
+
                     onDeleteClick = {
                         settingViewModel.openDeleteDialog(
                             platform.id
@@ -198,25 +210,34 @@ fun SettingScreen(
                 )
             }
 
+            /*
+             * Add platform
+             */
             SettingItem(
                 title =
                     stringResource(
                         R.string.add_platform
                     ),
+
                 description =
                     stringResource(
                         R.string.add_platform_description
                     ),
+
                 onItemClick =
                     onNavigateToAddPlatform,
+
                 showTrailingIcon = false,
                 showLeadingIcon = true,
+
                 leadingIcon = {
 
                     Icon(
                         imageVector =
                             Icons.Filled.Add,
+
                         contentDescription = null,
+
                         tint =
                             MaterialTheme.colorScheme.primary
                     )
@@ -228,11 +249,15 @@ fun SettingScreen(
                     Modifier.padding(
                         horizontal = 16.dp
                     ),
+
                 color =
                     MaterialTheme.colorScheme
                         .outlineVariant
             )
 
+            /*
+             * About
+             */
             AboutPageItem(
                 onItemClick =
                     onNavigateToAboutPage
@@ -243,31 +268,43 @@ fun SettingScreen(
                     Modifier.padding(
                         horizontal = 16.dp
                     ),
+
                 color =
                     MaterialTheme.colorScheme
                         .outlineVariant
             )
 
+            /*
+             * Debug mode
+             */
             DebugModeSetting(
                 isEnabled =
                     settingViewModel.debugMode
                         .collectAsStateWithLifecycle()
                         .value,
+
                 onToggle =
                     settingViewModel::toggleDebugMode
             )
 
+            /*
+             * Theme + Language dialog
+             */
             if (
                 dialogState.isThemeDialogOpen
             ) {
                 ThemeSettingDialog(
                     settingViewModel =
                         settingViewModel,
+
                     languageViewModel =
                         languageViewModel
                 )
             }
 
+            /*
+             * Delete dialog
+             */
             if (
                 dialogState.isDeleteDialogOpen
             ) {
@@ -287,36 +324,47 @@ private fun SettingTopBar(
     navigationOnClick: () -> Unit
 ) {
     LargeTopAppBar(
+
         colors =
             TopAppBarDefaults.topAppBarColors(
                 containerColor =
                     MaterialTheme.colorScheme.background,
+
                 titleContentColor =
                     MaterialTheme.colorScheme.onBackground
             ),
+
         title = {
             Text(
                 modifier =
                     Modifier.padding(4.dp),
+
                 text =
                     stringResource(
                         R.string.settings
                     ),
+
                 maxLines = 1,
+
                 overflow =
                     TextOverflow.Ellipsis
             )
         },
+
         navigationIcon = {
+
             IconButton(
                 modifier =
                     Modifier.padding(4.dp),
+
                 onClick =
                     navigationOnClick
             ) {
+
                 Icon(
                     imageVector =
                         Icons.AutoMirrored.Filled.ArrowBack,
+
                     contentDescription =
                         stringResource(
                             R.string.go_back
@@ -324,6 +372,7 @@ private fun SettingTopBar(
                 )
             }
         },
+
         scrollBehavior =
             scrollBehavior
     )
@@ -335,10 +384,12 @@ fun LanguageSetting(
     onItemClick: () -> Unit
 ) {
     SettingItem(
+
         title =
             stringResource(
                 R.string.language
             ),
+
         description =
             if (
                 currentLanguage == "ar"
@@ -351,15 +402,21 @@ fun LanguageSetting(
                     R.string.english
                 )
             },
+
         onItemClick =
             onItemClick,
+
         showTrailingIcon = true,
         showLeadingIcon = true,
+
         leadingIcon = {
+
             Icon(
                 imageVector =
                     Icons.Outlined.Language,
+
                 contentDescription = null,
+
                 tint =
                     MaterialTheme.colorScheme
                         .onSurfaceVariant
@@ -373,23 +430,31 @@ fun ThemeSetting(
     onItemClick: () -> Unit
 ) {
     SettingItem(
+
         title =
             stringResource(
                 R.string.theme_settings
             ),
+
         description =
             stringResource(
                 R.string.theme_description
             ),
+
         onItemClick =
             onItemClick,
+
         showTrailingIcon = false,
         showLeadingIcon = true,
+
         leadingIcon = {
+
             Icon(
                 imageVector =
                     Icons.Outlined.Palette,
+
                 contentDescription = null,
+
                 tint =
                     MaterialTheme.colorScheme
                         .onSurfaceVariant
@@ -403,23 +468,31 @@ fun AboutPageItem(
     onItemClick: () -> Unit
 ) {
     SettingItem(
+
         title =
             stringResource(
                 R.string.about
             ),
+
         description =
             stringResource(
                 R.string.about_description
             ),
+
         onItemClick =
             onItemClick,
+
         showTrailingIcon = true,
         showLeadingIcon = true,
+
         leadingIcon = {
+
             Icon(
                 imageVector =
                     Icons.Outlined.Info,
+
                 contentDescription = null,
+
                 tint =
                     MaterialTheme.colorScheme
                         .onSurfaceVariant
@@ -441,10 +514,10 @@ fun ThemeSettingDialog(
             .collectAsStateWithLifecycle()
 
     /*
-     * Temporary language selection.
+     * اللغة المؤقتة.
      *
-     * The actual application language is not changed
-     * until the user presses Confirm.
+     * لا يتم تغيير لغة التطبيق فعليًا
+     * حتى يضغط المستخدم على "تأكيد".
      */
     var selectedLanguage by remember(
         currentLanguage
@@ -455,7 +528,9 @@ fun ThemeSettingDialog(
     }
 
     AlertDialog(
+
         text = {
+
             Column(
                 modifier =
                     Modifier.verticalScroll(
@@ -463,11 +538,15 @@ fun ThemeSettingDialog(
                     )
             ) {
 
+                /*
+                 * Language title
+                 */
                 Text(
                     text =
                         stringResource(
                             R.string.language
                         ),
+
                     style =
                         MaterialTheme.typography
                             .titleMedium
@@ -480,36 +559,46 @@ fun ThemeSettingDialog(
                             .height(16.dp)
                 )
 
+                /*
+                 * Arabic
+                 *
+                 * اختيار فقط، بدون تطبيق مباشر.
+                 */
                 RadioItem(
                     title =
                         stringResource(
                             R.string.arabic
                         ),
+
                     description = null,
+
                     value = "ar",
+
                     selected =
                         selectedLanguage == "ar"
                 ) {
                     selectedLanguage = "ar"
-
-                    languageViewModel
-                        .selectLanguage("ar")
                 }
 
+                /*
+                 * English
+                 *
+                 * اختيار فقط، بدون تطبيق مباشر.
+                 */
                 RadioItem(
                     title =
                         stringResource(
                             R.string.english
                         ),
+
                     description = null,
+
                     value = "en",
+
                     selected =
                         selectedLanguage == "en"
                 ) {
                     selectedLanguage = "en"
-
-                    languageViewModel
-                        .selectLanguage("en")
                 }
 
                 Spacer(
@@ -519,11 +608,15 @@ fun ThemeSettingDialog(
                             .height(24.dp)
                 )
 
+                /*
+                 * Dynamic theme
+                 */
                 Text(
                     text =
                         stringResource(
                             R.string.dynamic_theme
                         ),
+
                     style =
                         MaterialTheme.typography
                             .titleMedium
@@ -543,13 +636,17 @@ fun ThemeSettingDialog(
                             getDynamicThemeTitle(
                                 theme
                             ),
+
                         description = null,
+
                         value =
                             theme.name,
+
                         selected =
                             LocalDynamicTheme.current ==
                                 theme
                     ) {
+
                         themeViewModel
                             .updateDynamicTheme(
                                 theme
@@ -564,11 +661,15 @@ fun ThemeSettingDialog(
                             .height(24.dp)
                 )
 
+                /*
+                 * Dark mode
+                 */
                 Text(
                     text =
                         stringResource(
                             R.string.dark_mode
                         ),
+
                     style =
                         MaterialTheme.typography
                             .titleMedium
@@ -588,13 +689,17 @@ fun ThemeSettingDialog(
                             getThemeModeTitle(
                                 theme
                             ),
+
                         description = null,
+
                         value =
                             theme.name,
+
                         selected =
                             LocalThemeMode.current ==
                                 theme
                     ) {
+
                         themeViewModel
                             .updateThemeMode(
                                 theme
@@ -607,17 +712,20 @@ fun ThemeSettingDialog(
         onDismissRequest =
             settingViewModel::closeThemeDialog,
 
+        /*
+         * Confirm
+         */
         confirmButton = {
 
             TextButton(
                 onClick = {
 
                     /*
-                     * Apply the selected language only now,
-                     * when the user confirms.
+                     * تطبيق اللغة هنا فقط.
                      */
-                    languageViewModel
-                        .confirmLanguage()
+                    languageViewModel.setLanguage(
+                        selectedLanguage
+                    )
 
                     settingViewModel
                         .closeThemeDialog()
@@ -633,6 +741,9 @@ fun ThemeSettingDialog(
             }
         },
 
+        /*
+         * Cancel
+         */
         dismissButton = {
 
             TextButton(
@@ -658,8 +769,10 @@ fun PlatformItem(
     onDeleteClick: () -> Unit
 ) {
     SettingItem(
+
         title =
             platform.name,
+
         description =
             "${getClientTypeDisplayName(platform.compatibleType)} • " +
                 if (
@@ -673,15 +786,21 @@ fun PlatformItem(
                         R.string.disabled
                     )
                 },
+
         onItemClick =
             onItemClick,
+
         showTrailingIcon = true,
         showLeadingIcon = true,
+
         leadingIcon = {
+
             Icon(
                 imageVector =
                     Icons.Outlined.Cloud,
+
                 contentDescription = null,
+
                 tint =
                     if (
                         platform.enabled
@@ -702,7 +821,9 @@ fun DeletePlatformDialog(
         hiltViewModel()
 ) {
     AlertDialog(
+
         title = {
+
             Text(
                 stringResource(
                     R.string.delete_platform
@@ -711,6 +832,7 @@ fun DeletePlatformDialog(
         },
 
         text = {
+
             Text(
                 stringResource(
                     R.string.delete_platform_confirmation
@@ -759,6 +881,7 @@ private fun DebugModeSetting(
     onToggle: () -> Unit
 ) {
     ListItem(
+
         modifier =
             Modifier
                 .fillMaxWidth()
@@ -770,6 +893,7 @@ private fun DebugModeSetting(
                 ),
 
         headlineContent = {
+
             Text(
                 stringResource(
                     R.string.debug_log
@@ -778,6 +902,7 @@ private fun DebugModeSetting(
         },
 
         supportingContent = {
+
             Text(
                 stringResource(
                     R.string.debug_log_description
@@ -786,19 +911,24 @@ private fun DebugModeSetting(
         },
 
         leadingContent = {
+
             Icon(
                 imageVector =
                     Icons.Outlined.BugReport,
+
                 contentDescription = null,
+
                 tint =
                     MaterialTheme.colorScheme.primary
             )
         },
 
         trailingContent = {
+
             Switch(
                 checked =
                     isEnabled,
+
                 onCheckedChange = {
                     onToggle()
                 }

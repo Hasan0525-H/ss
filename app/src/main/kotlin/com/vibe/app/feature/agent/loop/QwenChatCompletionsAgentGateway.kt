@@ -8,8 +8,6 @@ import com.vibe.app.data.dto.qwen.request.QwenTool
 import com.vibe.app.data.dto.qwen.request.QwenToolCall
 import com.vibe.app.data.dto.qwen.request.qwenTextContent
 import com.vibe.app.data.network.OpenAIAPI
-import com.vibe.app.data.preferences.LanguageManager
-import com.vibe.app.feature.agent.AgentConversationItem
 import com.vibe.app.feature.agent.AgentMessageRole
 import com.vibe.app.feature.agent.AgentModelEvent
 import com.vibe.app.feature.agent.AgentModelGateway
@@ -34,7 +32,6 @@ import kotlinx.serialization.json.put
 class QwenChatCompletionsAgentGateway @Inject constructor(
     private val openAIAPI: OpenAIAPI,
     private val diagnosticLogger: ChatDiagnosticLogger,
-    private val languageManager: LanguageManager,
 ) : AgentModelGateway {
 
     private val json = Json {
@@ -61,7 +58,8 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
             customUrl = request.platform.apiUrl,
         )
 
-        val trace = ModelExecutionTrace()
+        val trace =
+            ModelExecutionTrace()
 
         val effectiveToolChoice =
             request.toQwenToolChoice()
@@ -74,14 +72,12 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
         val requestContext =
             request.diagnosticContext
                 ?.copy(
-                    platformUid =
-                        request.platform.uid
+                    platformUid = request.platform.uid
                 )
                 ?.let { diagnosticContext ->
 
                     ModelRequestDiagnosticContext(
-                        diagnosticContext =
-                            diagnosticContext,
+                        diagnosticContext = diagnosticContext,
 
                         providerType =
                             request.platform
@@ -109,7 +105,9 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                         toolCount =
                             request.tools
                                 .size
-                                .takeIf { it > 0 },
+                                .takeIf {
+                                    it > 0
+                                },
 
                         toolChoiceMode =
                             effectiveToolChoice,
@@ -121,7 +119,9 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                         systemPromptChars =
                             request.instructions
                                 ?.length
-                                ?.takeIf { it > 0 },
+                                ?.takeIf {
+                                    it > 0
+                                },
                     )
                 }
 
@@ -138,7 +138,7 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
         var finishReason: String? = null
         var streamError: String? = null
 
-        var reasoningBuilder =
+        val reasoningBuilder =
             StringBuilder()
 
         var lastAssistantText = ""
@@ -189,7 +189,6 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                     requestContext,
 
                 trace = trace,
-
             )
             .collect { chunk ->
 
@@ -244,6 +243,7 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                         } else {
                             lastAssistantText =
                                 text
+
                             repeatCount = 0
                         }
 
@@ -305,7 +305,8 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                                     ToolCallAccumulator()
                                 }
 
-                        toolCall.id
+                        toolCall
+                            .id
                             ?.takeIf {
                                 it.isNotBlank()
                             }
@@ -412,6 +413,7 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                     AgentModelEvent.ToolCallReady(
 
                         AgentToolCall(
+
                             id =
                                 accumulator.id
                                     .ifBlank {
@@ -505,16 +507,7 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                     append("\n\n")
 
                     append(
-                        toolRequiredInstruction()
-                    )
-
-                    append(
-                        "\n\n" +
-                            "IMPORTANT:\n" +
-                            "For an application creation request, " +
-                            "you MUST call write_project_file. " +
-                            "Do not answer with normal text first. " +
-                            "Start by using the available tools."
+                        TOOL_REQUIRED_INSTRUCTION
                     )
 
                 } else if (hasTools) {
@@ -525,18 +518,14 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                         TOOL_ENCOURAGE_INSTRUCTION
                     )
                 }
-            }
-                .trim()
 
-        if (
-            systemContent.isNotBlank()
-        ) {
+            }.trim()
+
+        if (systemContent.isNotBlank()) {
 
             messages +=
                 QwenChatMessage(
-
                     role = "system",
-
                     content =
                         qwenTextContent(
                             systemContent
@@ -549,25 +538,22 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
 
                 when (item.role) {
 
-                    AgentMessageRole.USER -> {
+                    AgentMessageRole.USER ->
 
                         messages +=
                             QwenChatMessage(
-
                                 role = "user",
-
                                 content =
                                     qwenTextContent(
-                                        item.text.orEmpty()
+                                        item.text
+                                            .orEmpty()
                                     ),
                             )
-                    }
 
-                    AgentMessageRole.ASSISTANT -> {
+                    AgentMessageRole.ASSISTANT ->
 
                         messages +=
                             QwenChatMessage(
-
                                 role = "assistant",
 
                                 content =
@@ -575,24 +561,16 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                                         item.text
                                     ),
 
-                                reasoningContent =
-                                    item.reasoningContent,
-
                                 toolCalls =
                                     item.toolCalls
                                         ?.map { toolCall ->
 
                                             QwenToolCall(
-
                                                 id =
                                                     toolCall.id,
 
-                                                type =
-                                                    "function",
-
                                                 function =
                                                     QwenFunctionCall(
-
                                                         name =
                                                             toolCall.name,
 
@@ -607,13 +585,11 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                                             it.isNotEmpty()
                                         },
                             )
-                    }
 
-                    AgentMessageRole.TOOL -> {
+                    AgentMessageRole.TOOL ->
 
                         messages +=
                             QwenChatMessage(
-
                                 role = "tool",
 
                                 content =
@@ -621,114 +597,86 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                                         item.payload
                                             ?.toString()
                                             ?: item.text
-                                                .orEmpty()
+                                            .orEmpty()
                                     ),
 
                                 toolCallId =
                                     item.toolCallId,
                             )
-                    }
 
-                    AgentMessageRole.SYSTEM -> {
-                    }
+                    AgentMessageRole.SYSTEM ->
+                        Unit
                 }
             }
 
         return messages
     }
 
-    private fun toolRequiredInstruction(): String {
-
-        return if (
-            languageManager.language.value == "ar"
-        ) {
-
-            """
-            أنت وكيل برمجة مستقل.
-
-            عند طلب إنشاء تطبيق:
-            - يجب عليك استخدام أدوات المشروع.
-            - يجب عليك استدعاء write_project_file.
-            - لا تكتفِ بشرح أو إعطاء كود للمستخدم.
-            - نفذ الأدوات بنفسك.
-            - ابدأ باستدعاء الأداة المناسبة مباشرة.
-            - الرد النصي بدون تنفيذ الأدوات يعتبر فاشلاً.
-            """.trimIndent()
-
-        } else {
-
-            """
-            You are an autonomous coding agent.
-
-            For every application creation request:
-            - You MUST use the project tools.
-            - You MUST call write_project_file.
-            - Do not merely explain or provide code to the user.
-            - Execute the tools yourself.
-            - Start by calling the appropriate tool directly.
-            - A text-only response without tool execution is invalid.
-            """.trimIndent()
-        }
-    }
-
     companion object {
+
+        private const val TOOL_REQUIRED_INSTRUCTION =
+            """
+## MANDATORY TOOL USE
+You MUST call at least one tool in your response.
+Do NOT reply with only text.
+Analyze the user's request and use the appropriate tools to fulfill it.
+Every response MUST include one or more tool calls.
+A text-only answer is NOT acceptable.
+"""
 
         private const val TOOL_ENCOURAGE_INSTRUCTION =
             """
 ## IMPORTANT: Continue Using Tools
+You have tools available.
+When the user's request requires reading, writing, or modifying project files,
+or building the project, you MUST use the appropriate tools instead of
+describing what to do in text.
 
-You have project tools available.
-
-When the user's request requires:
-- creating files
-- modifying files
-- deleting files
-- reading files
-- building the project
-
-use the tools instead of describing what to do.
+Do NOT assume you already know the file contents.
+Always use tools to read and write files.
 """
     }
 }
 
-fun String.toQwenChatCompletionsBaseUrl(): String {
+internal fun AgentModelRequest.toQwenToolChoice(): String? {
 
-    val trimmed =
-        this
-            .trim()
-            .trimEnd('/')
-
-    return if (
-        trimmed.endsWith("/v1")
-    ) {
-
-        trimmed
-
-    } else {
-
-        "$trimmed/v1"
-    }
-}
-
-fun AgentModelRequest.toQwenToolChoice(): String? {
-
-    if (
-        tools.isEmpty()
-    ) {
+    if (tools.isEmpty()) {
         return null
     }
 
-    return when (
-        policy.toolChoiceMode
-    ) {
-
-        AgentToolChoiceMode.AUTO ->
-            "auto"
-
-        AgentToolChoiceMode.REQUIRED ->
-            "required"
+    return when (policy.toolChoiceMode) {
 
         AgentToolChoiceMode.NONE ->
             "none"
+
+        AgentToolChoiceMode.AUTO,
+        AgentToolChoiceMode.REQUIRED ->
+            "auto"
+    }
+}
+
+private fun String.toQwenChatCompletionsBaseUrl(): String {
+
+    val trimmed =
+        trimEnd('/')
+
+    return when {
+
+        "/api/v2/apps/protocols/compatible-mode" in trimmed ->
+
+            trimmed.replace(
+                "/api/v2/apps/protocols/compatible-mode",
+                "/compatible-mode/v1"
+            )
+
+        trimmed.endsWith(
+            "/compatible-mode/v1"
+        ) ->
+
+            trimmed
+
+        else ->
+
+            trimmed
     }
 }

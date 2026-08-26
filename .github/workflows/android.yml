@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+
   pull_request:
     branches:
       - main
@@ -22,6 +23,7 @@ jobs:
       contents: read
 
     steps:
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -29,7 +31,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: '17'
-          distribution: temurin
+          distribution: 'temurin'
           cache: gradle
 
       - name: Grant execute permission for gradlew
@@ -53,6 +55,7 @@ jobs:
       contents: read
 
     steps:
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -60,7 +63,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: '17'
-          distribution: temurin
+          distribution: 'temurin'
           cache: gradle
 
       - name: Grant execute permission for gradlew
@@ -78,6 +81,7 @@ jobs:
       contents: read
 
     steps:
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -85,7 +89,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: '17'
-          distribution: temurin
+          distribution: 'temurin'
           cache: gradle
 
       - name: Grant execute permission for gradlew

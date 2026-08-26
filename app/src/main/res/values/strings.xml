@@ -3,8 +3,8 @@
 
     <string name="app_name">VibeApp</string>
 
-    <string name="sample_item_title">Item 1</string>
-    <string name="sample_item_description">Item description</string>
+    <string name="sample_item_title">العنصر 1</string>
+    <string name="sample_item_description">وصف العنصر</string>
 
 
     <!-- API Providers -->
@@ -14,7 +14,7 @@
     </string>
 
     <string name="openrouter_description">
-        Access multiple AI models through OpenRouter API.
+        الوصول إلى نماذج ذكاء اصطناعي متعددة عبر واجهة OpenRouter API.
     </string>
 
     <string name="custom_api" translatable="false">
@@ -22,71 +22,72 @@
     </string>
 
     <string name="custom_api_description">
-        Use a custom compatible API endpoint.
+        استخدام نقطة اتصال مخصصة ومتوافقة مع الواجهة البرمجية.
     </string>
 
 
     <!-- Existing -->
 
-    <string name="next">Next</string>
-    <string name="back">Back</string>
-    <string name="need_help">Need Help?</string>
+    <string name="next">التالي</string>
+    <string name="back">رجوع</string>
+    <string name="need_help">تحتاج إلى مساعدة؟</string>
 
     <string name="setup_complete">
-        You’re all set!
+        تم الإعداد بنجاح!
     </string>
 
     <string name="setup_complete_description">
-        Let’s start using VibeApp!
+        لنبدأ باستخدام VibeApp!
     </string>
 
     <string name="setup_complete_logo">
-        Setup Complete
+        اكتمل الإعداد
     </string>
 
     <string name="done">
-        Done
+        تم
     </string>
 
     <string name="settings">
-        Settings
+        الإعدادات
     </string>
 
     <string name="confirm">
-        Confirm
+        تأكيد
     </string>
 
     <string name="cancel">
-        Cancel
+        إلغاء
     </string>
 
     <string name="go_back">
-        Go back
+        العودة
     </string>
 
     <string name="enable_api">
-        Enable API
+        تفعيل واجهة API
     </string>
 
 
     <!-- Language Settings -->
-    <string name="language">Language</string>
-    <string name="arabic">Arabic</string>
-    <string name="english">English</string>
+
+    <string name="language">اللغة</string>
+    <string name="arabic">العربية</string>
+    <string name="english">الإنجليزية</string>
 
 
     <!-- API -->
 
     <string name="api_key">
-        API Key
+        مفتاح API
     </string>
 
     <string name="api_model">
-        API Model
+        نموذج API
     </string>
 
     <string name="api_url">
-        API URL
+        عنوان API
     </string>
 
     <string name="api_url_hint">
@@ -98,156 +99,156 @@
     </string>
 
     <string name="model_name">
-        Model Identifier
+        معرّف النموذج
     </string>
 
     <string name="model">
-        Model
+        النموذج
     </string>
 
 
     <!-- Setup Wizard -->
 
     <string name="choose_platform_type">
-        Choose Platform Type
+        اختر نوع المنصة
     </string>
 
     <string name="choose_platform_type_description">
-        Select the API provider you want to use
+        اختر مزود API الذي تريد استخدامه
     </string>
 
     <string name="platform_name">
-        Platform Name
+        اسم المنصة
     </string>
 
     <string name="platform_name_hint">
-        My OpenRouter Platform
+        منصتي في OpenRouter
     </string>
 
     <string name="platform_name_supporting">
-        Choose a name for this platform configuration.
+        اختر اسمًا لإعدادات هذه المنصة.
     </string>
 
     <string name="platform_basics_description">
-        Configure your API platform settings.
+        إعداد خيارات منصة API.
     </string>
 
     <string name="api_key_description">
-        Enter your API key. Stored locally on your device.
+        أدخل مفتاح API الخاص بك. يتم تخزينه محليًا على جهازك.
     </string>
 
     <string name="api_key_supporting">
-        Your API key is stored locally on your device.
+        يتم تخزين مفتاح API محليًا على جهازك.
     </string>
 
     <string name="api_url_cautions">
-        Enter the API endpoint URL.
+        أدخل عنوان نقطة اتصال API.
     </string>
 
     <string name="model_description">
-        Enter the model identifier you want to use.
+        أدخل معرّف النموذج الذي تريد استخدامه.
     </string>
 
     <string name="model_supporting">
-        Enter the model identifier.
+        أدخل معرّف النموذج.
     </string>
 
     <string name="model_examples">
-        Example: gpt-4o, claude-3, deepseek-chat
+        مثال: gpt-4o، claude-3، deepseek-chat
     </string>
 
     <string name="step_x_of_y">
-        Step %1$d of %2$d
+        الخطوة %1$d من %2$d
     </string>
 
     <string name="step_basics">
-        Basics
+        الأساسيات
     </string>
 
     <string name="step_api_key">
-        API Key
+        مفتاح API
     </string>
 
     <string name="step_model">
-        Model
+        النموذج
     </string>
 
     <string name="switched_platform_hint">
-        Switched to %1$s
+        تم التبديل إلى %1$s
     </string>
 
     <string name="finish">
-        Finish
+        إنهاء
     </string>
 
 
     <!-- Settings Screen -->
 
     <string name="theme_settings">
-        Theme Settings
+        إعدادات المظهر
     </string>
 
     <string name="theme_description">
-        Customize application appearance.
+        تخصيص مظهر التطبيق.
     </string>
 
     <string name="about">
-        About
+        حول التطبيق
     </string>
 
     <string name="about_description">
-        Application information.
+        معلومات التطبيق.
     </string>
 
     <string name="dynamic_theme">
-        Dynamic Theme
+        المظهر الديناميكي
     </string>
 
     <string name="dark_mode">
-        Dark Mode
+        الوضع الداكن
     </string>
 
     <string name="enabled">
-        Enabled
+        مفعّل
     </string>
 
     <string name="disabled">
-        Disabled
+        معطّل
     </string>
 
     <string name="add_platform">
-        Add Platform
+        إضافة منصة
     </string>
 
     <string name="add_platform_description">
-        Add a new API platform.
+        إضافة منصة API جديدة.
     </string>
 
     <string name="delete_platform">
-        Delete Platform
+        حذف المنصة
     </string>
 
     <string name="delete_platform_confirmation">
-        Are you sure you want to delete this platform?
+        هل أنت متأكد من رغبتك في حذف هذه المنصة؟
     </string>
 
     <string name="debug_log">
-        Debug Log
+        سجل التصحيح
     </string>
 
     <string name="debug_log_description">
-        View application debug information.
+        عرض معلومات تصحيح التطبيق.
     </string>
 
 
     <!-- Platform Settings -->
 
     <string name="platform_settings">
-        Platform Settings
+        إعدادات المنصة
     </string>
 
     <string name="platform_settings_description">
-        Configure platform options.
+        ضبط خيارات المنصة.
     </string>
 
     <string name="top_p_setting">
@@ -255,58 +256,58 @@
     </string>
 
     <string name="top_p_setting_description">
-        Controls nucleus sampling value.
+        التحكم في قيمة أخذ العينات النواتية.
     </string>
 
     <string name="temperature_setting">
-        Temperature
+        درجة الحرارة
     </string>
 
     <string name="temperature_setting_description">
-        Controls creativity of generated responses.
+        التحكم في مستوى الإبداع في الردود المُنشأة.
     </string>
 
     <string name="reset">
-        Reset
+        إعادة ضبط
     </string>
 
     <string name="system_prompt_setting">
-        System Prompt
+        تعليمات النظام
     </string>
 
     <string name="system_prompt_description">
-        Configure the default system prompt.
+        ضبط تعليمات النظام الافتراضية.
     </string>
 
     <string name="system_prompt">
-        System Prompt
+        تعليمات النظام
     </string>
 
     <string name="invalid_api_url">
-        Invalid API URL
+        عنوان API غير صالح
     </string>
 
 
     <!-- About -->
 
     <string name="version">
-        Version
+        الإصدار
     </string>
 
     <string name="version_icon">
-        Version Icon
+        أيقونة الإصدار
     </string>
 
     <string name="license">
-        License
+        الترخيص
     </string>
 
     <string name="license_description">
-        Open source license information.
+        معلومات ترخيص المصدر المفتوح.
     </string>
 
     <string name="license_icon">
-        License Icon
+        أيقونة الترخيص
     </string>
 
     <string name="github">
@@ -314,7 +315,7 @@
     </string>
 
     <string name="github_icon">
-        GitHub Icon
+        أيقونة GitHub
     </string>
 
     <string name="github_link">
@@ -322,15 +323,15 @@
     </string>
 
     <string name="feedback">
-        Feedback
+        الملاحظات
     </string>
 
     <string name="feedback_description">
-        Send feedback or report issues.
+        إرسال ملاحظات أو الإبلاغ عن المشكلات.
     </string>
 
     <string name="feedback_icon">
-        Feedback Icon
+        أيقونة الملاحظات
     </string>
 
     <string name="feedback_link">
@@ -338,266 +339,360 @@
     </string>
 
     <string name="bug_report">
-        Bug Report
+        الإبلاغ عن خطأ
     </string>
 
     <string name="bug_report_description">
-        Report bugs and application issues.
+        الإبلاغ عن الأخطاء ومشكلات التطبيق.
     </string>
 
     <string name="bug_report_icon">
-        Bug Report Icon
+        أيقونة الإبلاغ عن خطأ
     </string>
 
     <string name="bug_report_link">
         https://github.com/issues
     </string>
 
+
     <!-- Home Screen -->
 
     <string name="projects">
-        Projects
+        المشاريع
     </string>
 
     <string name="projects_selected">
-        %1$d Projects Selected
+        تم تحديد %1$d من المشاريع
     </string>
 
     <string name="new_project">
-        New Project
+        مشروع جديد
     </string>
 
     <string name="delete_selected_projects">
-        Delete Selected Projects
+        حذف المشاريع المحددة
     </string>
 
     <string name="deleted_projects">
-        Deleted %1$d projects
+        تم حذف %1$d من المشاريع
     </string>
 
     <string name="no_search_results">
-        No projects found
+        لم يتم العثور على مشاريع
     </string>
 
     <string name="search_projects">
-        Search projects
+        البحث في المشاريع
     </string>
 
     <string name="clear">
-        Clear
+        مسح
     </string>
 
     <string name="home_session_thinking">
-        Using %1$s
+        باستخدام %1$s
     </string>
 
 
     <!-- Chat Snapshot -->
 
     <string name="snapshot_time_minutes_ago">
-        %1$d minutes ago
+        منذ %1$d دقيقة
     </string>
 
     <string name="snapshot_time_hours_ago">
-        %1$d hours ago
+        منذ %1$d ساعة
     </string>
 
 
     <!-- Complete Tool Display Names -->
-    <string name="tool_name_close_app">Close App</string>
-    <string name="tool_name_create_plan">Create Plan</string>
-    <string name="tool_name_delete_project_file">Delete Project File</string>
-    <string name="tool_name_edit_project_file">Edit Project File</string>
-    <string name="tool_name_fetch_web_page">Fetch Web Page</string>
-    <string name="tool_name_fix_crash_guide">Fix Crash Guide</string>
-    <string name="tool_name_get_design_guide">Get Design Guide</string>
-    <string name="tool_name_get_project_memo">Get Project Memo</string>
-    <string name="tool_name_get_ui_pattern">Get UI Pattern</string>
-    <string name="tool_name_grep_project_files">Grep Project Files</string>
-    <string name="tool_name_inspect_ui">Inspect UI</string>
-    <string name="tool_name_interact_ui">Interact UI</string>
-    <string name="tool_name_launch_app">Launch App</string>
-    <string name="tool_name_list_project_files">List Project Files</string>
-    <string name="tool_name_read_project_file">Read Project File</string>
-    <string name="tool_name_read_runtime_log">Read Runtime Log</string>
-    <string name="tool_name_rename_project">Rename Project</string>
-    <string name="tool_name_run_build_pipeline">Run Build Pipeline</string>
-    <string name="tool_name_search_icon">Search Icon</string>
-    <string name="tool_name_search_ui_pattern">Search UI Pattern</string>
-    <string name="tool_name_update_plan_step">Update Plan Step</string>
-    <string name="tool_name_update_project_icon">Update Project Icon</string>
-    <string name="tool_name_update_project_icon_custom">Update Project Icon Custom</string>
-    <string name="tool_name_update_project_intent">Update Project Intent</string>
-    <string name="tool_name_web_search">Web Search</string>
-    <string name="tool_name_write_project_file">Write Project File</string>
 
-    <string name="project_memo_title">Project Memo</string>
-    <string name="snapshot_history_title">Snapshot History</string>
-    <string name="snapshot_history_empty">No snapshots found</string>
-    <string name="snapshot_history_restore">Restore Snapshot</string>
-    <string name="snapshot_time_just_now">Just now</string>
-    <string name="snapshot_history_manual_label">Manual Snapshot</string>
-    <string name="history_auto_supporting">Auto-saved history</string>
-    <string name="clear_chat_history">Clear chat history</string>
-    <string name="copy_text">Copy text</string>
-    <string name="supported_image_formats">Supported image formats</string>
-    <string name="notification_channel_result">Notification Channel Result</string>
-    <string name="notification_single">Single Notification</string>
-    <string name="notification_multiple">Multiple Notifications</string>
-    <string name="notification_ongoing_single">Ongoing Notification (Single)</string>
-    <string name="notification_ongoing_multiple">Ongoing Notification (Multiple)</string>
+    <string name="tool_name_close_app">إغلاق التطبيق</string>
+    <string name="tool_name_create_plan">إنشاء خطة</string>
+    <string name="tool_name_delete_project_file">حذف ملف المشروع</string>
+    <string name="tool_name_edit_project_file">تعديل ملف المشروع</string>
+    <string name="tool_name_fetch_web_page">جلب صفحة ويب</string>
+    <string name="tool_name_fix_crash_guide">دليل إصلاح التعطل</string>
+    <string name="tool_name_get_design_guide">الحصول على دليل التصميم</string>
+    <string name="tool_name_get_project_memo">الحصول على مذكرة المشروع</string>
+    <string name="tool_name_get_ui_pattern">الحصول على نمط الواجهة</string>
+    <string name="tool_name_grep_project_files">البحث في ملفات المشروع</string>
+    <string name="tool_name_inspect_ui">فحص الواجهة</string>
+    <string name="tool_name_interact_ui">التفاعل مع الواجهة</string>
+    <string name="tool_name_launch_app">تشغيل التطبيق</string>
+    <string name="tool_name_list_project_files">عرض ملفات المشروع</string>
+    <string name="tool_name_read_project_file">قراءة ملف المشروع</string>
+    <string name="tool_name_read_runtime_log">قراءة سجل التشغيل</string>
+    <string name="tool_name_rename_project">إعادة تسمية المشروع</string>
+    <string name="tool_name_run_build_pipeline">تشغيل عملية البناء</string>
+    <string name="tool_name_search_icon">البحث عن أيقونة</string>
+    <string name="tool_name_search_ui_pattern">البحث عن نمط الواجهة</string>
+    <string name="tool_name_update_plan_step">تحديث خطوة في الخطة</string>
+    <string name="tool_name_update_project_icon">تحديث أيقونة المشروع</string>
+    <string name="tool_name_update_project_icon_custom">تحديث أيقونة المشروع المخصصة</string>
+    <string name="tool_name_update_project_intent">تحديث هدف المشروع</string>
+    <string name="tool_name_web_search">البحث على الويب</string>
+    <string name="tool_name_write_project_file">كتابة ملف المشروع</string>
+
+    <string name="project_memo_title">مذكرة المشروع</string>
+    <string name="snapshot_history_title">سجل اللقطات</string>
+    <string name="snapshot_history_empty">لم يتم العثور على لقطات</string>
+    <string name="snapshot_history_restore">استعادة اللقطة</string>
+    <string name="snapshot_time_just_now">الآن</string>
+    <string name="snapshot_history_manual_label">لقطة يدوية</string>
+    <string name="history_auto_supporting">سجل محفوظ تلقائيًا</string>
+    <string name="clear_chat_history">مسح سجل المحادثة</string>
+    <string name="copy_text">نسخ النص</string>
+    <string name="supported_image_formats">تنسيقات الصور المدعومة</string>
+    <string name="notification_channel_result">نتيجة قناة الإشعارات</string>
+    <string name="notification_single">إشعار واحد</string>
+    <string name="notification_multiple">عدة إشعارات</string>
+    <string name="notification_ongoing_single">إشعار مستمر (واحد)</string>
+    <string name="notification_ongoing_multiple">إشعار مستمر (متعدد)</string>
 
 
     <!-- Turn Undo -->
 
     <string name="turn_undo_bar_label">
-        Undo last turn
+        التراجع عن آخر دور
     </string>
 
     <string name="turn_undo_button">
-        Undo
+        تراجع
     </string>
-
 
 
     <!-- Diagnostics -->
 
     <string name="diagnostic_events">
-        Events
+        الأحداث
     </string>
 
     <string name="diagnostic_summary">
-        Summary
+        الملخص
     </string>
 
     <string name="diagnostic_context_size">
-        Context Size
+        حجم السياق
     </string>
 
     <string name="diagnostic_compaction">
-        Compaction
+        ضغط السياق
     </string>
 
     <string name="diagnostic_total_events">
-        Total Events
+        إجمالي الأحداث
     </string>
 
     <string name="diagnostic_errors">
-        Errors
+        الأخطاء
     </string>
 
     <string name="diagnostic_warnings">
-        Warnings
+        التحذيرات
     </string>
 
     <string name="diagnostic_log_size">
-        Log Size
+        حجم السجل
     </string>
 
     <string name="diagnostic_event_copied">
-        Event copied
+        تم نسخ الحدث
     </string>
-
 
 
     <!-- Common -->
 
     <string name="save">
-        Save
+        حفظ
     </string>
 
     <string name="edit">
-        Edit
+        تعديل
     </string>
 
     <string name="close">
-        Close
+        إغلاق
     </string>
 
     <string name="arrow_icon">
-        Arrow Icon
+        أيقونة السهم
     </string>
-
 
 
     <!-- Dialog -->
 
     <string name="this_operation_can_t_be_undone">
-        This operation cannot be undone.
+        لا يمكن التراجع عن هذه العملية.
     </string>
-
 
 
     <!-- Settings -->
 
     <string name="temperature">
-        Temperature
+        درجة الحرارة
     </string>
 
     <string name="top_p">
-        Nucleus sampling (Top p)
+        أخذ العينات النواتية (Top P)
     </string>
 
     <string name="not_set">
-        Not set
+        غير مضبوط
     </string>
 
     <string name="delete">
-        Delete
+        حذف
     </string>
 
     <string name="remove">
-        Remove
+        إزالة
     </string>
-
 
 
     <!-- Theme -->
 
     <string name="on">
-        On
+        تشغيل
     </string>
 
     <string name="off">
-        Off
+        إيقاف
     </string>
 
     <string name="system_default">
-        System Default
+        الإعداد الافتراضي للنظام
     </string>
 
-    <!-- ChatScreen & ThinkingBlock missing strings added -->
-    <string name="image_input_not_supported">Image input is not supported by this platform</string>
-    <string name="some_platforms_disabled">Some platforms are disabled</string>
-    <string name="add_api_key_to_start_chatting">Add an API key to start chatting</string>
-    <string name="clear_chat_history_title">Clear chat history</string>
-    <string name="clear_chat_history_message">Are you sure you want to clear the chat history?</string>
-    <string name="notification_permission_title">Notification Permission</string>
-    <string name="notification_permission_rationale">Notifications are needed to keep you updated on build progress.</string>
-    <string name="notification_permission_grant">Grant</string>
-    <string name="notification_permission_skip">Skip</string>
-    <string name="turn_undo_done_toast">Last turn undone</string>
-    <string name="turn_undo_failed_toast">Failed to undo last turn</string>
-    <string name="unknown">Unknown</string>
-    <string name="add_api_key">Add API Key</string>
-    <string name="options">Options</string>
-    <string name="update_project_name">Update Project Name</string>
-    <string name="install_apk">Install APK</string>
-    <string name="export_chat">Export Chat</string>
-    <string name="export_source_code">Export Source Code</string>
-    <string name="export_apk">Export APKs</string>
-    <string name="scroll_to_bottom_icon">Scroll to bottom</string>
-    <string name="select_image">Select Image</string>
-    <string name="ask_a_question">Ask a question...</string>
-    <string name="stop">Stop</string>
-    <string name="send">Send</string>
-    <string name="tool_calling">Calling %1$s...</string>
-    <string name="tool_result_ok">%1$s completed</string>
-    <string name="tool_result_error">%1$s failed</string>
-    <string name="hide_thinking">Hide thinking</string>
-    <string name="view_thinking">View thinking</string>
-    <string name="thinking_in_progress">Thinking...</string>
-    <string name="collapse">Collapse</string>
-    <string name="expand">Expand</string>
+
+    <!-- ChatScreen & ThinkingBlock -->
+
+    <string name="image_input_not_supported">
+        إدخال الصور غير مدعوم في هذه المنصة
+    </string>
+
+    <string name="some_platforms_disabled">
+        بعض المنصات معطّلة
+    </string>
+
+    <string name="add_api_key_to_start_chatting">
+        أضف مفتاح API لبدء المحادثة
+    </string>
+
+    <string name="clear_chat_history_title">
+        مسح سجل المحادثة
+    </string>
+
+    <string name="clear_chat_history_message">
+        هل أنت متأكد من رغبتك في مسح سجل المحادثة؟
+    </string>
+
+    <string name="notification_permission_title">
+        إذن الإشعارات
+    </string>
+
+    <string name="notification_permission_rationale">
+        نحتاج إلى الإشعارات لإبقائك على اطلاع بتقدم عملية البناء.
+    </string>
+
+    <string name="notification_permission_grant">
+        منح الإذن
+    </string>
+
+    <string name="notification_permission_skip">
+        تخطي
+    </string>
+
+    <string name="turn_undo_done_toast">
+        تم التراجع عن آخر دور
+    </string>
+
+    <string name="turn_undo_failed_toast">
+        فشل التراجع عن آخر دور
+    </string>
+
+    <string name="unknown">
+        غير معروف
+    </string>
+
+    <string name="add_api_key">
+        إضافة مفتاح API
+    </string>
+
+    <string name="options">
+        الخيارات
+    </string>
+
+    <string name="update_project_name">
+        تحديث اسم المشروع
+    </string>
+
+    <string name="install_apk">
+        تثبيت APK
+    </string>
+
+    <string name="export_chat">
+        تصدير المحادثة
+    </string>
+
+    <string name="export_source_code">
+        تصدير الشفرة المصدرية
+    </string>
+
+    <string name="export_apk">
+        تصدير ملفات APK
+    </string>
+
+    <string name="scroll_to_bottom_icon">
+        الانتقال إلى الأسفل
+    </string>
+
+    <string name="select_image">
+        اختيار صورة
+    </string>
+
+    <string name="ask_a_question">
+        اطرح سؤالًا...
+    </string>
+
+    <string name="stop">
+        إيقاف
+    </string>
+
+    <string name="send">
+        إرسال
+    </string>
+
+    <string name="tool_calling">
+        جارٍ استدعاء %1$s...
+    </string>
+
+    <string name="tool_result_ok">
+        اكتمل %1$s
+    </string>
+
+    <string name="tool_result_error">
+        فشل %1$s
+    </string>
+
+    <string name="hide_thinking">
+        إخفاء التفكير
+    </string>
+
+    <string name="view_thinking">
+        عرض التفكير
+    </string>
+
+    <string name="thinking_in_progress">
+        جارٍ التفكير...
+    </string>
+
+    <string name="collapse">
+        طي
+    </string>
+
+    <string name="expand">
+        توسيع
+    </string>
 
 </resources>

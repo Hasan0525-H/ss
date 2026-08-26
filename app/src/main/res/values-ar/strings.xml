@@ -141,13 +141,21 @@
 
     <!-- Platform Settings -->
     <string name="platform_settings">إعدادات المنصة</string>
+
     <string name="platform_settings_description">
         ضبط خيارات المنصة.
     </string>
 
+    <!-- Temperature -->
     <string name="temperature">درجة الحرارة</string>
-    <string name="temperature_setting">إعداد درجة الحرارة</string>
-    <string name="temperature_icon">أيقونة درجة الحرارة</string>
+
+    <string name="temperature_setting">
+        إعداد درجة الحرارة
+    </string>
+
+    <string name="temperature_icon">
+        أيقونة درجة الحرارة
+    </string>
 
     <string name="temperature_setting_description">
         درجة الحرارة هي مقدار العشوائية التي يتم إدخالها في الاستجابة.
@@ -156,9 +164,18 @@
         ودرجة حرارة عالية للحصول على إجابات أكثر عشوائية.
     </string>
 
-    <string name="top_p">أخذ العينات النواتية (Top P)</string>
-    <string name="top_p_setting">إعداد أخذ العينات النواتية</string>
-    <string name="top_p_icon">أيقونة أخذ العينات النواتية</string>
+    <!-- Top P -->
+    <string name="top_p">
+        أخذ العينات النواتية (Top P)
+    </string>
+
+    <string name="top_p_setting">
+        إعداد أخذ العينات النواتية
+    </string>
+
+    <string name="top_p_icon">
+        أيقونة أخذ العينات النواتية
+    </string>
 
     <string name="top_p_setting_description">
         في أخذ العينات النواتية، يتم حساب التوزيع التراكمي لجميع الخيارات لكل رمز لاحق
@@ -166,9 +183,18 @@
         \nتوصي معظم النماذج عادةً بتغيير Top P أو درجة الحرارة، وليس كليهما.
     </string>
 
-    <string name="system_prompt_setting">تعليمات النظام</string>
-    <string name="system_prompt">تعليمات النظام</string>
-    <string name="system_prompt_icon">أيقونة تعليمات النظام</string>
+    <!-- System Prompt -->
+    <string name="system_prompt_setting">
+        تعليمات النظام
+    </string>
+
+    <string name="system_prompt">
+        تعليمات النظام
+    </string>
+
+    <string name="system_prompt_icon">
+        أيقونة تعليمات النظام
+    </string>
 
     <string name="system_prompt_description">
         تعليمات النظام هي مجموعة من التعليمات والإرشادات والمعلومات السياقية
@@ -183,61 +209,84 @@
     <string name="version_icon">أيقونة الإصدار</string>
 
     <string name="license">الترخيص</string>
+
     <string name="license_description">
         معلومات ترخيص المصدر المفتوح.
     </string>
-    <string name="license_icon">أيقونة الترخيص</string>
+
+    <string name="license_icon">
+        أيقونة الترخيص
+    </string>
 
     <string name="github">GitHub</string>
     <string name="github_icon">أيقونة GitHub</string>
+
     <string name="github_link" translatable="false">
         https://github.com/
     </string>
 
     <string name="feedback">الملاحظات</string>
+
     <string name="feedback_description">
         إرسال ملاحظات أو الإبلاغ عن المشكلات.
     </string>
-    <string name="feedback_icon">أيقونة الملاحظات</string>
+
+    <string name="feedback_icon">
+        أيقونة الملاحظات
+    </string>
+
     <string name="feedback_link" translatable="false">
         mailto:support@example.com
     </string>
 
     <string name="bug_report">الإبلاغ عن خطأ</string>
+
     <string name="bug_report_description">
         الإبلاغ عن الأخطاء ومشكلات التطبيق.
     </string>
+
     <string name="bug_report_icon">
         أيقونة الإبلاغ عن خطأ
     </string>
+
     <string name="bug_report_link" translatable="false">
         https://github.com/issues
     </string>
 
     <!-- Home -->
     <string name="projects">المشاريع</string>
+
     <string name="projects_selected">
         تم تحديد %1$d من المشاريع
     </string>
+
     <string name="new_project">مشروع جديد</string>
+
     <string name="delete_selected_projects">
         حذف المشاريع المحددة
     </string>
+
     <string name="deleted_projects">
         تم حذف %1$d من المشاريع
     </string>
+
     <string name="no_search_results">
         لم يتم العثور على مشاريع
     </string>
+
     <string name="search_projects">
         البحث في المشاريع
     </string>
+
     <string name="home_session_thinking">
         باستخدام %1$s
     </string>
 
     <!-- Chat -->
-    <string name="ask_a_question">اطرح سؤالًا...</string>
+    <string name="ask_a_question">
+        اطرح سؤالًا...
+    </string>
+
     <string name="send">إرسال</string>
     <string name="stop">إيقاف</string>
 
@@ -248,7 +297,10 @@
         بعض المنصات معطّلة
     </string>
 
-    <string name="add_api_key">إضافة مفتاح API</string>
+    <string name="add_api_key">
+        إضافة مفتاح API
+    </string>
+
     <string name="add_api_key_to_start_chatting">
         أضف مفتاح API لبدء المحادثة
     </string>
@@ -261,7 +313,9 @@
         لم يتم إعداد أي منصة بعد. أضف مزودًا أولاً، ثم عد إلى هنا لبدء المحادثة.
     </string>
 
-    <string name="clear_chat_history">مسح سجل المحادثة</string>
+    <string name="clear_chat_history">
+        مسح سجل المحادثة
+    </string>
 
     <string name="clear_chat_history_title">
         مسح سجل المحادثة
@@ -271,12 +325,25 @@
         هل أنت متأكد من رغبتك في مسح سجل المحادثة؟
     </string>
 
-    <string name="export_chat">تصدير المحادثة</string>
-    <string name="export_source_code">تصدير الشفرة المصدرية</string>
-    <string name="export_apk">تصدير ملفات APK</string>
-    <string name="install_apk">تثبيت APK</string>
+    <string name="export_chat">
+        تصدير المحادثة
+    </string>
 
-    <string name="select_image">اختيار صورة</string>
+    <string name="export_source_code">
+        تصدير الشفرة المصدرية
+    </string>
+
+    <string name="export_apk">
+        تصدير ملفات APK
+    </string>
+
+    <string name="install_apk">
+        تثبيت APK
+    </string>
+
+    <string name="select_image">
+        اختيار صورة
+    </string>
 
     <string name="image_input_not_supported">
         إدخال الصور غير مدعوم في هذه المنصة.
@@ -295,18 +362,30 @@
     </string>
 
     <!-- Chat Snapshot -->
-    <string name="snapshot_time_just_now">الآن</string>
+    <string name="snapshot_time_just_now">
+        الآن
+    </string>
+
     <string name="snapshot_time_minutes_ago">
         منذ %1$d دقيقة
     </string>
+
     <string name="snapshot_time_hours_ago">
         منذ %1$d ساعة
     </string>
 
     <!-- Thinking / Tools -->
-    <string name="view_thinking">عرض التفكير</string>
-    <string name="hide_thinking">إخفاء التفكير</string>
-    <string name="thinking_in_progress">جارٍ التفكير...</string>
+    <string name="view_thinking">
+        عرض التفكير
+    </string>
+
+    <string name="hide_thinking">
+        إخفاء التفكير
+    </string>
+
+    <string name="thinking_in_progress">
+        جارٍ التفكير...
+    </string>
 
     <string name="tool_calling">
         جارٍ استدعاء %1$s...
@@ -497,7 +576,9 @@
         التراجع عن آخر دور
     </string>
 
-    <string name="turn_undo_button">تراجع</string>
+    <string name="turn_undo_button">
+        تراجع
+    </string>
 
     <string name="turn_undo_done_toast">
         تم التراجع عن آخر دور
@@ -508,15 +589,41 @@
     </string>
 
     <!-- Diagnostics -->
-    <string name="diagnostic_events">الأحداث</string>
-    <string name="diagnostic_summary">الملخص</string>
-    <string name="diagnostic_context_size">حجم السياق</string>
-    <string name="diagnostic_compaction">ضغط السياق</string>
-    <string name="diagnostic_total_events">إجمالي الأحداث</string>
-    <string name="diagnostic_errors">الأخطاء</string>
-    <string name="diagnostic_warnings">التحذيرات</string>
-    <string name="diagnostic_log_size">حجم السجل</string>
-    <string name="diagnostic_event_copied">تم نسخ الحدث</string>
+    <string name="diagnostic_events">
+        الأحداث
+    </string>
+
+    <string name="diagnostic_summary">
+        الملخص
+    </string>
+
+    <string name="diagnostic_context_size">
+        حجم السياق
+    </string>
+
+    <string name="diagnostic_compaction">
+        ضغط السياق
+    </string>
+
+    <string name="diagnostic_total_events">
+        إجمالي الأحداث
+    </string>
+
+    <string name="diagnostic_errors">
+        الأخطاء
+    </string>
+
+    <string name="diagnostic_warnings">
+        التحذيرات
+    </string>
+
+    <string name="diagnostic_log_size">
+        حجم السجل
+    </string>
+
+    <string name="diagnostic_event_copied">
+        تم نسخ الحدث
+    </string>
 
     <!-- Dialog -->
     <string name="this_operation_can_t_be_undone">
@@ -537,36 +644,42 @@
     </string>
 
     <!-- Additional Settings -->
-    <string name="not_set">غير مضبوط</string>
+    <string name="not_set">
+        غير مضبوط
+    </string>
 
     <string name="update_project_name">
         تحديث اسم المشروع
     </string>
 
     <!-- Icons -->
-    <string name="key_icon">أيقونة المفتاح</string>
-    <string name="model_icon">أيقونة النموذج</string>
-    <string name="url_icon">أيقونة URL</string>
-    <string name="arrow_icon">أيقونة السهم</string>
+    <string name="key_icon">
+        أيقونة المفتاح
+    </string>
+
+    <string name="model_icon">
+        أيقونة النموذج
+    </string>
+
+    <string name="url_icon">
+        أيقونة URL
+    </string>
+
+    <string name="arrow_icon">
+        أيقونة السهم
+    </string>
 
     <string name="platform_name_icon">
         أيقونة اسم المنصة
     </string>
 
-    <string name="system_prompt_icon">
-        أيقونة تعليمات النظام
-    </string>
-
-    <string name="temperature_icon">
-        أيقونة درجة الحرارة
-    </string>
-
-    <string name="top_p_icon">
-        أيقونة أخذ العينات النواتية
-    </string>
-
     <!-- Expand / Collapse -->
-    <string name="collapse">طي</string>
-    <string name="expand">توسيع</string>
+    <string name="collapse">
+        طي
+    </string>
+
+    <string name="expand">
+        توسيع
+    </string>
 
 </resources>

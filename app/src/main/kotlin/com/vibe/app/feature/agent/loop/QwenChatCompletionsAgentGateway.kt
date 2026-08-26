@@ -7,7 +7,6 @@ import com.vibe.app.data.dto.qwen.request.QwenFunctionDefinition
 import com.vibe.app.data.dto.qwen.request.QwenTool
 import com.vibe.app.data.dto.qwen.request.QwenToolCall
 import com.vibe.app.data.dto.qwen.request.qwenTextContent
-import com.vibe.app.data.model.ClientType
 import com.vibe.app.data.network.OpenAIAPI
 import com.vibe.app.feature.agent.AgentMessageRole
 import com.vibe.app.feature.agent.AgentModelEvent
@@ -67,45 +66,19 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
         val messages =
             buildMessages(request)
 
-        /*
-         * OpenRouter model fallback.
-         *
-         * The selected model is tried first.
-         * If its providers return an error such as 429,
-         * OpenRouter can move to openrouter/free.
-         *
-         * We only send this field for OpenRouter because
-         * Qwen's own compatible endpoint does not need it.
-         */
-        val fallbackModels =
-            if (
-                request.platform.compatibleType ==
-                    ClientType.OPEN_ROUTER &&
-                request.platform.model.isNotBlank() &&
-                !request.platform.model.equals(
-                    "openrouter/free",
-                    ignoreCase = true
-                )
-            ) {
-                listOf(
-                    request.platform.model,
-                    "openrouter/free"
-                )
-            } else {
-                null
-            }
-
         trace.markRequestPrepared()
 
         val requestContext =
             request.diagnosticContext
                 ?.copy(
-                    platformUid = request.platform.uid
+                    platformUid =
+                        request.platform.uid
                 )
                 ?.let { diagnosticContext ->
 
                     ModelRequestDiagnosticContext(
-                        diagnosticContext = diagnosticContext,
+                        diagnosticContext =
+                            diagnosticContext,
 
                         providerType =
                             request.platform
@@ -118,7 +91,8 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                         model =
                             request.platform.model,
 
-                        stream = true,
+                        stream =
+                            true,
 
                         reasoningEnabled =
                             request.platform.reasoning,
@@ -161,17 +135,47 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
         )
 
         val toolCallAccumulators =
-            mutableMapOf<Int, ToolCallAccumulator>()
+            mutableMapOf<
+                Int,
+                ToolCallAccumulator
+            >()
 
-        var finishReason: String? = null
-        var streamError: String? = null
+        var finishReason: String? =
+            null
+
+        var streamError: String? =
+            null
 
         val reasoningBuilder =
             StringBuilder()
 
-        var lastAssistantText = ""
-        var repeatCount = 0
-        var shouldStopFlow = false
+        var lastAssistantText =
+            ""
+
+        var repeatCount =
+            0
+
+        var shouldStopFlow =
+            false
+
+        /*
+         * IMPORTANT:
+         *
+         * Do NOT use an OpenRouter fallback such as:
+         *
+         *     openrouter/free
+         *
+         * here.
+         *
+         * The selected model must be sent directly.
+         *
+         * If OpenRouter returns 429/rate-limit,
+         * we propagate the error once instead of
+         * silently switching to another free-model route.
+         *
+         * This prevents repeated free-tier requests
+         * and makes the actual provider error visible.
+         */
 
         openAIAPI
             .streamQwenChatCompletion(
@@ -183,21 +187,6 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                     messages =
                         messages,
 
-                    /*
-                     * OpenRouter fallback chain.
-                     *
-                     * Example:
-                     *
-                     * model  = google/gemma-4-31b-it:free
-                     *
-                     * models = [
-                     *     google/gemma-4-31b-it:free,
-                     *     openrouter/free
-                     * ]
-                     */
-                    models =
-                        fallbackModels,
-
                     tools =
                         request.tools
                             .takeIf {
@@ -206,7 +195,8 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                             ?.map { tool ->
 
                                 QwenTool(
-                                    type = "function",
+                                    type =
+                                        "function",
 
                                     function =
                                         QwenFunctionDefinition(
@@ -225,13 +215,15 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                     toolChoice =
                         effectiveToolChoice,
 
-                    stream = true,
+                    stream =
+                        true,
                 ),
 
                 diagnosticContext =
                     requestContext,
 
-                trace = trace,
+                trace =
+                    trace,
             )
             .collect { chunk ->
 
@@ -239,6 +231,12 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                     return@collect
                 }
 
+                /*
+                 * Provider/API error.
+                 *
+                 * Do not retry here.
+                 * The caller receives one Failed event.
+                 */
                 if (chunk.error != null) {
 
                     streamError =
@@ -251,7 +249,8 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                         chunk.error.message,
                     )
 
-                    shouldStopFlow = true
+                    shouldStopFlow =
+                        true
 
                     return@collect
                 }
@@ -285,20 +284,32 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                             text ==
                                 lastAssistantText
                         ) {
+
                             repeatCount++
+
                         } else {
+
                             lastAssistantText =
                                 text
 
-                            repeatCount = 0
+                            repeatCount =
+                                0
                         }
 
-                        if (repeatCount >= 3) {
+                        /*
+                         * Protect against a provider
+                         * repeatedly streaming the same
+                         * content forever.
+                         */
+                        if (
+                            repeatCount >= 3
+                        ) {
 
                             streamError =
                                 "Model repeated the same response multiple times"
 
-                            shouldStopFlow = true
+                            shouldStopFlow =
+                                true
 
                             return@let
                         }
@@ -326,7 +337,9 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                     ?.let { reasoning ->
 
                         reasoningBuilder
-                            .append(reasoning)
+                            .append(
+                                reasoning
+                            )
 
                         emit(
                             AgentModelEvent.ThinkingDelta(
@@ -381,6 +394,11 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                     }
             }
 
+        /*
+         * If the provider returned an error,
+         * emit exactly one AgentModelEvent.Failed
+         * and stop this model turn.
+         */
         streamError
             ?.let { error ->
 
@@ -410,6 +428,10 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                 return@flow
             }
 
+        /*
+         * Convert accumulated streamed tool calls
+         * into AgentToolCall objects.
+         */
         toolCallAccumulators
             .entries
             .sortedBy {
@@ -555,15 +577,21 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                     hasTools
                 ) {
 
-                    append("\n\n")
+                    append(
+                        "\n\n"
+                    )
 
                     append(
                         TOOL_REQUIRED_INSTRUCTION
                     )
 
-                } else if (hasTools) {
+                } else if (
+                    hasTools
+                ) {
 
-                    append("\n\n")
+                    append(
+                        "\n\n"
+                    )
 
                     append(
                         TOOL_ENCOURAGE_INSTRUCTION
@@ -578,7 +606,9 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
 
             messages +=
                 QwenChatMessage(
-                    role = "system",
+
+                    role =
+                        "system",
 
                     content =
                         qwenTextContent(
@@ -587,16 +617,27 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                 )
         }
 
+        /*
+         * Use the complete conversation here.
+         *
+         * Qwen/OpenAI-compatible Chat Completions
+         * endpoints are stateless, so every request
+         * must contain the accumulated conversation.
+         */
         request.fullConversation
             .forEach { item ->
 
-                when (item.role) {
+                when (
+                    item.role
+                ) {
 
                     AgentMessageRole.USER ->
 
                         messages +=
                             QwenChatMessage(
-                                role = "user",
+
+                                role =
+                                    "user",
 
                                 content =
                                     qwenTextContent(
@@ -609,7 +650,9 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
 
                         messages +=
                             QwenChatMessage(
-                                role = "assistant",
+
+                                role =
+                                    "assistant",
 
                                 content =
                                     qwenTextContent(
@@ -618,15 +661,16 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
 
                                 toolCalls =
                                     item.toolCalls
-                                        ?.map {
-                                                toolCall ->
+                                        ?.map { toolCall ->
 
                                             QwenToolCall(
+
                                                 id =
                                                     toolCall.id,
 
                                                 function =
                                                     QwenFunctionCall(
+
                                                         name =
                                                             toolCall.name,
 
@@ -646,10 +690,13 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
 
                         messages +=
                             QwenChatMessage(
-                                role = "tool",
+
+                                role =
+                                    "tool",
 
                                 content =
                                     qwenTextContent(
+
                                         item.payload
                                             ?.toString()
                                             ?: item.text
@@ -696,7 +743,9 @@ Always use tools to read and write files.
 
 internal fun AgentModelRequest.toQwenToolChoice(): String? {
 
-    if (tools.isEmpty()) {
+    if (
+        tools.isEmpty()
+    ) {
         return null
     }
 

@@ -24,6 +24,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -35,6 +36,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
@@ -72,38 +76,76 @@ fun SettingScreen(
     onNavigateToAboutPage: () -> Unit
 ) {
     val scrollState = rememberScrollState()
-    val scrollBehavior = pinnedExitUntilCollapsedScrollBehavior(
-        canScroll = { scrollState.canScrollForward || scrollState.canScrollBackward }
-    )
-    val platformState by settingViewModel.platformState.collectAsStateWithLifecycle()
-    val dialogState by settingViewModel.dialogState.collectAsStateWithLifecycle()
-    val currentLanguage by languageViewModel.language.collectAsStateWithLifecycle()
-    
+
+    val scrollBehavior =
+        pinnedExitUntilCollapsedScrollBehavior(
+            canScroll = {
+                scrollState.canScrollForward ||
+                    scrollState.canScrollBackward
+            }
+        )
+
+    val platformState by
+        settingViewModel.platformState
+            .collectAsStateWithLifecycle()
+
+    val dialogState by
+        settingViewModel.dialogState
+            .collectAsStateWithLifecycle()
+
+    val currentLanguage by
+        languageViewModel.language
+            .collectAsStateWithLifecycle()
+
     val context = LocalContext.current
-    val switchedHint = stringResource(R.string.switched_platform_hint)
+
+    val switchedHint =
+        stringResource(
+            R.string.switched_platform_hint
+        )
 
     LaunchedEffect(Unit) {
         settingViewModel.switchedPlatformEvent.collect { name ->
-            Toast.makeText(context, switchedHint.format(name), Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                context,
+                switchedHint.format(name),
+                Toast.LENGTH_SHORT
+            ).show()
         }
     }
 
-    val lifecycleOwner = LocalLifecycleOwner.current
+    val lifecycleOwner =
+        LocalLifecycleOwner.current
+
     DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                settingViewModel.fetchPlatforms()
+
+        val observer =
+            LifecycleEventObserver { _, event ->
+
+                if (
+                    event ==
+                    Lifecycle.Event.ON_RESUME
+                ) {
+                    settingViewModel.fetchPlatforms()
+                }
             }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
+
+        lifecycleOwner.lifecycle.addObserver(
+            observer
+        )
+
         onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
+            lifecycleOwner.lifecycle.removeObserver(
+                observer
+            )
         }
     }
 
     Scaffold(
         modifier = modifier
-            .nestedScroll(scrollBehavior.nestedScrollConnection),
+            .nestedScroll(
+                scrollBehavior.nestedScrollConnection
+            ),
         topBar = {
             SettingTopBar(
                 scrollBehavior = scrollBehavior,
@@ -111,73 +153,128 @@ fun SettingScreen(
             )
         }
     ) { innerPadding ->
+
         Column(
             Modifier
                 .padding(innerPadding)
                 .verticalScroll(scrollState)
         ) {
-            // General & Language Setting
+
             LanguageSetting(
                 currentLanguage = currentLanguage,
-                onItemClick = settingViewModel::openThemeDialog
+                onItemClick = {
+                    settingViewModel.openThemeDialog()
+                }
             )
 
-            ThemeSetting { settingViewModel.openThemeDialog() }
+            ThemeSetting {
+                settingViewModel.openThemeDialog()
+            }
 
             HorizontalDivider(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                color = MaterialTheme.colorScheme.outlineVariant
+                modifier =
+                    Modifier.padding(
+                        horizontal = 16.dp
+                    ),
+                color =
+                    MaterialTheme.colorScheme
+                        .outlineVariant
             )
 
-            // Platforms
             platformState.forEach { platform ->
+
                 PlatformItem(
                     platform = platform,
-                    onItemClick = { onNavigateToPlatformSetting(platform.uid) },
-                    onDeleteClick = { settingViewModel.openDeleteDialog(platform.id) }
+                    onItemClick = {
+                        onNavigateToPlatformSetting(
+                            platform.uid
+                        )
+                    },
+                    onDeleteClick = {
+                        settingViewModel.openDeleteDialog(
+                            platform.id
+                        )
+                    }
                 )
             }
 
             SettingItem(
-                title = stringResource(R.string.add_platform),
-                description = stringResource(R.string.add_platform_description),
-                onItemClick = onNavigateToAddPlatform,
+                title =
+                    stringResource(
+                        R.string.add_platform
+                    ),
+                description =
+                    stringResource(
+                        R.string.add_platform_description
+                    ),
+                onItemClick =
+                    onNavigateToAddPlatform,
                 showTrailingIcon = false,
                 showLeadingIcon = true,
                 leadingIcon = {
+
                     Icon(
-                        imageVector = Icons.Filled.Add,
+                        imageVector =
+                            Icons.Filled.Add,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
+                        tint =
+                            MaterialTheme.colorScheme.primary
                     )
                 }
             )
 
             HorizontalDivider(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                color = MaterialTheme.colorScheme.outlineVariant
+                modifier =
+                    Modifier.padding(
+                        horizontal = 16.dp
+                    ),
+                color =
+                    MaterialTheme.colorScheme
+                        .outlineVariant
             )
 
-            // About
-            AboutPageItem(onItemClick = onNavigateToAboutPage)
+            AboutPageItem(
+                onItemClick =
+                    onNavigateToAboutPage
+            )
 
             HorizontalDivider(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                color = MaterialTheme.colorScheme.outlineVariant
+                modifier =
+                    Modifier.padding(
+                        horizontal = 16.dp
+                    ),
+                color =
+                    MaterialTheme.colorScheme
+                        .outlineVariant
             )
 
-            // Developer Options
             DebugModeSetting(
-                isEnabled = settingViewModel.debugMode.collectAsStateWithLifecycle().value,
-                onToggle = settingViewModel::toggleDebugMode
+                isEnabled =
+                    settingViewModel.debugMode
+                        .collectAsStateWithLifecycle()
+                        .value,
+                onToggle =
+                    settingViewModel::toggleDebugMode
             )
 
-            if (dialogState.isThemeDialogOpen) {
-                ThemeSettingDialog(settingViewModel, languageViewModel)
+            if (
+                dialogState.isThemeDialogOpen
+            ) {
+                ThemeSettingDialog(
+                    settingViewModel =
+                        settingViewModel,
+                    languageViewModel =
+                        languageViewModel
+                )
             }
 
-            if (dialogState.isDeleteDialogOpen) {
-                DeletePlatformDialog(settingViewModel)
+            if (
+                dialogState.isDeleteDialogOpen
+            ) {
+                DeletePlatformDialog(
+                    settingViewModel =
+                        settingViewModel
+                )
             }
         }
     }
@@ -190,27 +287,45 @@ private fun SettingTopBar(
     navigationOnClick: () -> Unit
 ) {
     LargeTopAppBar(
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.background,
-            titleContentColor = MaterialTheme.colorScheme.onBackground
-        ),
+        colors =
+            TopAppBarDefaults.topAppBarColors(
+                containerColor =
+                    MaterialTheme.colorScheme.background,
+                titleContentColor =
+                    MaterialTheme.colorScheme.onBackground
+            ),
         title = {
             Text(
-                modifier = Modifier.padding(4.dp),
-                text = stringResource(R.string.settings),
+                modifier =
+                    Modifier.padding(4.dp),
+                text =
+                    stringResource(
+                        R.string.settings
+                    ),
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow =
+                    TextOverflow.Ellipsis
             )
         },
         navigationIcon = {
             IconButton(
-                modifier = Modifier.padding(4.dp),
-                onClick = navigationOnClick
+                modifier =
+                    Modifier.padding(4.dp),
+                onClick =
+                    navigationOnClick
             ) {
-                Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.go_back))
+                Icon(
+                    imageVector =
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription =
+                        stringResource(
+                            R.string.go_back
+                        )
+                )
             }
         },
-        scrollBehavior = scrollBehavior
+        scrollBehavior =
+            scrollBehavior
     )
 }
 
@@ -220,16 +335,34 @@ fun LanguageSetting(
     onItemClick: () -> Unit
 ) {
     SettingItem(
-        title = stringResource(R.string.language),
-        description = if (currentLanguage == "ar") stringResource(R.string.arabic) else stringResource(R.string.english),
-        onItemClick = onItemClick,
+        title =
+            stringResource(
+                R.string.language
+            ),
+        description =
+            if (
+                currentLanguage == "ar"
+            ) {
+                stringResource(
+                    R.string.arabic
+                )
+            } else {
+                stringResource(
+                    R.string.english
+                )
+            },
+        onItemClick =
+            onItemClick,
         showTrailingIcon = true,
         showLeadingIcon = true,
         leadingIcon = {
             Icon(
-                imageVector = Icons.Outlined.Language,
+                imageVector =
+                    Icons.Outlined.Language,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                tint =
+                    MaterialTheme.colorScheme
+                        .onSurfaceVariant
             )
         }
     )
@@ -240,16 +373,26 @@ fun ThemeSetting(
     onItemClick: () -> Unit
 ) {
     SettingItem(
-        title = stringResource(R.string.theme_settings),
-        description = stringResource(R.string.theme_description),
-        onItemClick = onItemClick,
+        title =
+            stringResource(
+                R.string.theme_settings
+            ),
+        description =
+            stringResource(
+                R.string.theme_description
+            ),
+        onItemClick =
+            onItemClick,
         showTrailingIcon = false,
         showLeadingIcon = true,
         leadingIcon = {
             Icon(
-                imageVector = Icons.Outlined.Palette,
+                imageVector =
+                    Icons.Outlined.Palette,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                tint =
+                    MaterialTheme.colorScheme
+                        .onSurfaceVariant
             )
         }
     )
@@ -260,16 +403,26 @@ fun AboutPageItem(
     onItemClick: () -> Unit
 ) {
     SettingItem(
-        title = stringResource(R.string.about),
-        description = stringResource(R.string.about_description),
-        onItemClick = onItemClick,
+        title =
+            stringResource(
+                R.string.about
+            ),
+        description =
+            stringResource(
+                R.string.about_description
+            ),
+        onItemClick =
+            onItemClick,
         showTrailingIcon = true,
         showLeadingIcon = true,
         leadingIcon = {
             Icon(
-                imageVector = Icons.Outlined.Info,
+                imageVector =
+                    Icons.Outlined.Info,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                tint =
+                    MaterialTheme.colorScheme
+                        .onSurfaceVariant
             )
         }
     )
@@ -280,81 +433,219 @@ fun ThemeSettingDialog(
     settingViewModel: SettingViewModelV2 = hiltViewModel(),
     languageViewModel: LanguageViewModel = hiltViewModel()
 ) {
-    val themeViewModel = LocalThemeViewModel.current
-    val currentLanguage by languageViewModel.language.collectAsStateWithLifecycle()
+    val themeViewModel =
+        LocalThemeViewModel.current
+
+    val currentLanguage by
+        languageViewModel.language
+            .collectAsStateWithLifecycle()
+
+    /*
+     * Temporary language selection.
+     *
+     * The actual application language is not changed
+     * until the user presses Confirm.
+     */
+    var selectedLanguage by remember(
+        currentLanguage
+    ) {
+        mutableStateOf(
+            currentLanguage
+        )
+    }
 
     AlertDialog(
         text = {
             Column(
-                modifier = Modifier.verticalScroll(rememberScrollState())
+                modifier =
+                    Modifier.verticalScroll(
+                        rememberScrollState()
+                    )
             ) {
-                Text(text = stringResource(R.string.language), style = MaterialTheme.typography.titleMedium)
-                Spacer(modifier = Modifier.fillMaxWidth().height(16.dp))
-                
+
+                Text(
+                    text =
+                        stringResource(
+                            R.string.language
+                        ),
+                    style =
+                        MaterialTheme.typography
+                            .titleMedium
+                )
+
+                Spacer(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(16.dp)
+                )
+
                 RadioItem(
-                    title = stringResource(R.string.arabic),
+                    title =
+                        stringResource(
+                            R.string.arabic
+                        ),
                     description = null,
                     value = "ar",
-                    selected = currentLanguage == "ar"
+                    selected =
+                        selectedLanguage == "ar"
                 ) {
-                    languageViewModel.setLanguage("ar")
+                    selectedLanguage = "ar"
+
+                    languageViewModel
+                        .selectLanguage("ar")
                 }
+
                 RadioItem(
-                    title = stringResource(R.string.english),
+                    title =
+                        stringResource(
+                            R.string.english
+                        ),
                     description = null,
                     value = "en",
-                    selected = currentLanguage == "en"
+                    selected =
+                        selectedLanguage == "en"
                 ) {
-                    languageViewModel.setLanguage("en")
+                    selectedLanguage = "en"
+
+                    languageViewModel
+                        .selectLanguage("en")
                 }
 
-                Spacer(modifier = Modifier.fillMaxWidth().height(24.dp))
-
-                Text(text = stringResource(R.string.dynamic_theme), style = MaterialTheme.typography.titleMedium)
                 Spacer(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(16.dp)
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(24.dp)
                 )
+
+                Text(
+                    text =
+                        stringResource(
+                            R.string.dynamic_theme
+                        ),
+                    style =
+                        MaterialTheme.typography
+                            .titleMedium
+                )
+
+                Spacer(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(16.dp)
+                )
+
                 DynamicTheme.entries.forEach { theme ->
+
                     RadioItem(
-                        title = getDynamicThemeTitle(theme),
+                        title =
+                            getDynamicThemeTitle(
+                                theme
+                            ),
                         description = null,
-                        value = theme.name,
-                        selected = LocalDynamicTheme.current == theme
+                        value =
+                            theme.name,
+                        selected =
+                            LocalDynamicTheme.current ==
+                                theme
                     ) {
-                        themeViewModel.updateDynamicTheme(theme)
+                        themeViewModel
+                            .updateDynamicTheme(
+                                theme
+                            )
                     }
                 }
+
                 Spacer(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(24.dp)
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(24.dp)
                 )
-                Text(text = stringResource(R.string.dark_mode), style = MaterialTheme.typography.titleMedium)
+
+                Text(
+                    text =
+                        stringResource(
+                            R.string.dark_mode
+                        ),
+                    style =
+                        MaterialTheme.typography
+                            .titleMedium
+                )
+
                 Spacer(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(16.dp)
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(16.dp)
                 )
+
                 ThemeMode.entries.forEach { theme ->
+
                     RadioItem(
-                        title = getThemeModeTitle(theme),
+                        title =
+                            getThemeModeTitle(
+                                theme
+                            ),
                         description = null,
-                        value = theme.name,
-                        selected = LocalThemeMode.current == theme
+                        value =
+                            theme.name,
+                        selected =
+                            LocalThemeMode.current ==
+                                theme
                     ) {
-                        themeViewModel.updateThemeMode(theme)
+                        themeViewModel
+                            .updateThemeMode(
+                                theme
+                            )
                     }
                 }
             }
         },
-        onDismissRequest = settingViewModel::closeThemeDialog,
+
+        onDismissRequest =
+            settingViewModel::closeThemeDialog,
+
         confirmButton = {
+
             TextButton(
-                onClick = settingViewModel::closeThemeDialog
+                onClick = {
+
+                    /*
+                     * Apply the selected language only now,
+                     * when the user confirms.
+                     */
+                    languageViewModel
+                        .confirmLanguage()
+
+                    settingViewModel
+                        .closeThemeDialog()
+                }
             ) {
-                Text(stringResource(R.string.confirm))
+
+                Text(
+                    text =
+                        stringResource(
+                            R.string.confirm
+                        )
+                )
+            }
+        },
+
+        dismissButton = {
+
+            TextButton(
+                onClick =
+                    settingViewModel::closeThemeDialog
+            ) {
+
+                Text(
+                    text =
+                        stringResource(
+                            R.string.cancel
+                        )
+                )
             }
         }
     )
@@ -367,16 +658,39 @@ fun PlatformItem(
     onDeleteClick: () -> Unit
 ) {
     SettingItem(
-        title = platform.name,
-        description = "${getClientTypeDisplayName(platform.compatibleType)} • ${if (platform.enabled) stringResource(R.string.enabled) else stringResource(R.string.disabled)}",
-        onItemClick = onItemClick,
+        title =
+            platform.name,
+        description =
+            "${getClientTypeDisplayName(platform.compatibleType)} • " +
+                if (
+                    platform.enabled
+                ) {
+                    stringResource(
+                        R.string.enabled
+                    )
+                } else {
+                    stringResource(
+                        R.string.disabled
+                    )
+                },
+        onItemClick =
+            onItemClick,
         showTrailingIcon = true,
         showLeadingIcon = true,
         leadingIcon = {
             Icon(
-                imageVector = Icons.Outlined.Cloud,
+                imageVector =
+                    Icons.Outlined.Cloud,
                 contentDescription = null,
-                tint = if (platform.enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                tint =
+                    if (
+                        platform.enabled
+                    ) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme
+                            .onSurfaceVariant
+                    }
             )
         }
     )
@@ -384,28 +698,56 @@ fun PlatformItem(
 
 @Composable
 fun DeletePlatformDialog(
-    settingViewModel: SettingViewModelV2 = hiltViewModel()
+    settingViewModel: SettingViewModelV2 =
+        hiltViewModel()
 ) {
     AlertDialog(
         title = {
-            Text(stringResource(R.string.delete_platform))
+            Text(
+                stringResource(
+                    R.string.delete_platform
+                )
+            )
         },
+
         text = {
-            Text(stringResource(R.string.delete_platform_confirmation))
+            Text(
+                stringResource(
+                    R.string.delete_platform_confirmation
+                )
+            )
         },
-        onDismissRequest = settingViewModel::closeDeleteDialog,
+
+        onDismissRequest =
+            settingViewModel::closeDeleteDialog,
+
         confirmButton = {
+
             TextButton(
-                onClick = settingViewModel::confirmDelete
+                onClick =
+                    settingViewModel::confirmDelete
             ) {
-                Text(stringResource(R.string.delete))
+
+                Text(
+                    stringResource(
+                        R.string.delete
+                    )
+                )
             }
         },
+
         dismissButton = {
+
             TextButton(
-                onClick = settingViewModel::closeDeleteDialog
+                onClick =
+                    settingViewModel::closeDeleteDialog
             ) {
-                Text(stringResource(R.string.cancel))
+
+                Text(
+                    stringResource(
+                        R.string.cancel
+                    )
+                )
             }
         }
     )
@@ -417,23 +759,49 @@ private fun DebugModeSetting(
     onToggle: () -> Unit
 ) {
     ListItem(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onToggle)
-            .padding(horizontal = 8.dp),
-        headlineContent = { Text(stringResource(R.string.debug_log)) },
-        supportingContent = { Text(stringResource(R.string.debug_log_description)) },
-        leadingContent = {
-            Icon(
-                imageVector = Icons.Outlined.BugReport,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(
+                    onClick = onToggle
+                )
+                .padding(
+                    horizontal = 8.dp
+                ),
+
+        headlineContent = {
+            Text(
+                stringResource(
+                    R.string.debug_log
+                )
             )
         },
+
+        supportingContent = {
+            Text(
+                stringResource(
+                    R.string.debug_log_description
+                )
+            )
+        },
+
+        leadingContent = {
+            Icon(
+                imageVector =
+                    Icons.Outlined.BugReport,
+                contentDescription = null,
+                tint =
+                    MaterialTheme.colorScheme.primary
+            )
+        },
+
         trailingContent = {
             Switch(
-                checked = isEnabled,
-                onCheckedChange = { onToggle() }
+                checked =
+                    isEnabled,
+                onCheckedChange = {
+                    onToggle()
+                }
             )
         }
     )

@@ -7,6 +7,7 @@ import com.vibe.app.data.dto.qwen.request.QwenFunctionDefinition
 import com.vibe.app.data.dto.qwen.request.QwenTool
 import com.vibe.app.data.dto.qwen.request.QwenToolCall
 import com.vibe.app.data.dto.qwen.request.qwenTextContent
+import com.vibe.app.data.model.ClientType
 import com.vibe.app.data.network.OpenAIAPI
 import com.vibe.app.feature.agent.AgentMessageRole
 import com.vibe.app.feature.agent.AgentModelEvent
@@ -25,7 +26,6 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
 
 @Singleton
@@ -66,6 +66,34 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
 
         val messages =
             buildMessages(request)
+
+        /*
+         * OpenRouter model fallback.
+         *
+         * The selected model is tried first.
+         * If its providers return an error such as 429,
+         * OpenRouter can move to openrouter/free.
+         *
+         * We only send this field for OpenRouter because
+         * Qwen's own compatible endpoint does not need it.
+         */
+        val fallbackModels =
+            if (
+                request.platform.compatibleType ==
+                    ClientType.OPEN_ROUTER &&
+                request.platform.model.isNotBlank() &&
+                !request.platform.model.equals(
+                    "openrouter/free",
+                    ignoreCase = true
+                )
+            ) {
+                listOf(
+                    request.platform.model,
+                    "openrouter/free"
+                )
+            } else {
+                null
+            }
 
         trace.markRequestPrepared()
 
@@ -155,6 +183,21 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                     messages =
                         messages,
 
+                    /*
+                     * OpenRouter fallback chain.
+                     *
+                     * Example:
+                     *
+                     * model  = google/gemma-4-31b-it:free
+                     *
+                     * models = [
+                     *     google/gemma-4-31b-it:free,
+                     *     openrouter/free
+                     * ]
+                     */
+                    models =
+                        fallbackModels,
+
                     tools =
                         request.tools
                             .takeIf {
@@ -238,7 +281,10 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                     }
                     ?.let { text ->
 
-                        if (text == lastAssistantText) {
+                        if (
+                            text ==
+                                lastAssistantText
+                        ) {
                             repeatCount++
                         } else {
                             lastAssistantText =
@@ -257,7 +303,9 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                             return@let
                         }
 
-                        trace.markOutput(text)
+                        trace.markOutput(
+                            text
+                        )
 
                         emit(
                             AgentModelEvent.OutputDelta(
@@ -292,7 +340,7 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                         ?: message?.toolCalls
 
                 toolCalls
-                    ?.forEachIndexed { _, toolCall ->
+                    ?.forEach { toolCall ->
 
                         val toolIndex =
                             toolCall.index
@@ -305,13 +353,13 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                                     ToolCallAccumulator()
                                 }
 
-                        toolCall
-                            .id
+                        toolCall.id
                             ?.takeIf {
                                 it.isNotBlank()
                             }
                             ?.let {
-                                accumulator.id = it
+                                accumulator.id =
+                                    it
                             }
 
                         toolCall.function
@@ -320,7 +368,8 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                                 it.isNotBlank()
                             }
                             ?.let {
-                                accumulator.name = it
+                                accumulator.name =
+                                    it
                             }
 
                         toolCall.function
@@ -381,7 +430,9 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                         .trim()
 
                 val arguments =
-                    if (rawArguments.isBlank()) {
+                    if (
+                        rawArguments.isBlank()
+                    ) {
 
                         buildJsonObject {}
 
@@ -521,11 +572,14 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
 
             }.trim()
 
-        if (systemContent.isNotBlank()) {
+        if (
+            systemContent.isNotBlank()
+        ) {
 
             messages +=
                 QwenChatMessage(
                     role = "system",
+
                     content =
                         qwenTextContent(
                             systemContent
@@ -543,6 +597,7 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                         messages +=
                             QwenChatMessage(
                                 role = "user",
+
                                 content =
                                     qwenTextContent(
                                         item.text
@@ -563,7 +618,8 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
 
                                 toolCalls =
                                     item.toolCalls
-                                        ?.map { toolCall ->
+                                        ?.map {
+                                                toolCall ->
 
                                             QwenToolCall(
                                                 id =
@@ -597,7 +653,7 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                                         item.payload
                                             ?.toString()
                                             ?: item.text
-                                            .orEmpty()
+                                                .orEmpty()
                                     ),
 
                                 toolCallId =
@@ -644,7 +700,9 @@ internal fun AgentModelRequest.toQwenToolChoice(): String? {
         return null
     }
 
-    return when (policy.toolChoiceMode) {
+    return when (
+        policy.toolChoiceMode
+    ) {
 
         AgentToolChoiceMode.NONE ->
             "none"
@@ -662,7 +720,8 @@ private fun String.toQwenChatCompletionsBaseUrl(): String {
 
     return when {
 
-        "/api/v2/apps/protocols/compatible-mode" in trimmed ->
+        "/api/v2/apps/protocols/compatible-mode" in
+            trimmed ->
 
             trimmed.replace(
                 "/api/v2/apps/protocols/compatible-mode",

@@ -27,30 +27,19 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * Holds the evolving message state for an active agent session.
- * This is the source of truth while the session is running.
- */
 data class SessionMessageState(
     val userMessages: List<MessageV2>,
     val assistantMessages: List<List<MessageV2>>,
-    /** Per-turn agent step items for displaying in the chat list. Indexed by turn. */
     val agentSteps: List<List<AgentStepItem>> = emptyList(),
 )
 
-/**
- * Application-scoped manager that owns agent loop execution in a process-scoped CoroutineScope,
- * independent of any ViewModel. This allows agent work to survive ChatScreen navigation and
- * app backgrounding (when paired with the foreground service).
- *
- * The manager is the **source of truth** for message state while a session is running.
- * It processes agent events internally and exposes the evolving state as a StateFlow
- * that the ViewModel can observe. On session completion, it saves to Room directly.
- */
 @Singleton
 class AgentSessionManager @Inject constructor(
     @ApplicationContext private val appContext: Context,
@@ -60,32 +49,38 @@ class AgentSessionManager @Inject constructor(
     private val chatRepository: ChatRepository,
     private val notificationHelper: AgentNotificationHelper,
 ) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val scope =
+        CoroutineScope(
+            SupervisorJob() + Dispatchers.Default
+        )
 
-    private val _sessions = MutableStateFlow<Map<Int, AgentSession>>(emptyMap())
-    val sessions: StateFlow<Map<Int, AgentSession>> = _sessions.asStateFlow()
+    private val _sessions =
+        MutableStateFlow<Map<Int, AgentSession>>(emptyMap())
 
-    /** Per-session message state (source of truth while session is active). */
-    private val messageStates = ConcurrentHashMap<Int, MutableStateFlow<SessionMessageState>>()
+    val sessions: StateFlow<Map<Int, AgentSession>> =
+        _sessions.asStateFlow()
 
-    /** Per-session save context needed for persisting to Room on completion. */
-    private val saveContexts = ConcurrentHashMap<Int, SessionSaveContext>()
+    private val messageStates =
+        ConcurrentHashMap<Int, MutableStateFlow<SessionMessageState>>()
 
-    private val _hasActiveSessions = MutableStateFlow(false)
-    val hasActiveSessions: StateFlow<Boolean> = _hasActiveSessions.asStateFlow()
+    private val saveContexts =
+        ConcurrentHashMap<Int, SessionSaveContext>()
+
+    private val _hasActiveSessions =
+        MutableStateFlow(false)
+
+    val hasActiveSessions: StateFlow<Boolean> =
+        _hasActiveSessions.asStateFlow()
 
     init {
         scope.launch {
             _sessions.collect { map ->
-                _hasActiveSessions.value = map.isNotEmpty()
+                _hasActiveSessions.value =
+                    map.isNotEmpty()
             }
         }
     }
 
-    /**
-     * Start an agent session for the given chat. If a session is already running for this chatId,
-     * it will be stopped first.
-     */
     fun startSession(
         chatId: Int,
         projectId: String?,
@@ -97,389 +92,856 @@ class AgentSessionManager @Inject constructor(
         chatRoom: ChatRoomV2,
         chatPlatformModels: Map<String, String>,
     ) {
-        // Stop existing session for this chat if any
         stopSession(chatId)
 
-        // Initialize message state — this is the source of truth while the session runs
-        val stateFlow = MutableStateFlow(
-            SessionMessageState(
-                userMessages = userMessages,
-                assistantMessages = assistantMessages,
-                agentSteps = List(userMessages.size) { turnIndex ->
-                    // For historical turns, parse existing thoughts into steps
-                    val msg = assistantMessages.getOrNull(turnIndex)?.firstOrNull()
-                    if (msg != null && msg.thoughts.isNotBlank()) {
-                        parseThoughtsToSteps(msg.thoughts)
-                    } else {
-                        emptyList()
-                    }
-                },
-            )
-        )
-        messageStates[chatId] = stateFlow
+        val stateFlow =
+            MutableStateFlow(
+                SessionMessageState(
+                    userMessages =
+                        userMessages,
+                    assistantMessages =
+                        assistantMessages,
+                    agentSteps =
+                        List(userMessages.size) { turnIndex ->
 
-        // Store save context for persisting to Room on completion
-        saveContexts[chatId] = SessionSaveContext(
-            chatRoom = chatRoom,
-            chatPlatformModels = chatPlatformModels,
-        )
+                            val msg =
+                                assistantMessages
+                                    .getOrNull(turnIndex)
+                                    ?.firstOrNull()
 
-        val statusFlow = MutableStateFlow(AgentSessionStatus.RUNNING)
-
-        val job = scope.launch {
-            try {
-                val request = AgentLoopRequest(
-                    chatId = chatId,
-                    projectId = projectId,
-                    diagnosticContext = diagnosticContext,
-                    platform = platform,
-                    userMessages = userMessages,
-                    assistantMessages = assistantMessages,
-                    systemPrompt = systemPrompt,
-                    tools = agentToolRegistry.listDefinitions(),
+                            if (
+                                msg != null &&
+                                msg.thoughts.isNotBlank()
+                            ) {
+                                parseThoughtsToSteps(
+                                    msg.thoughts
+                                )
+                            } else {
+                                emptyList()
+                            }
+                        },
                 )
+            )
 
-                agentLoopCoordinator.run(request).collect { event ->
-                    applyEvent(chatId, event)
+        messageStates[chatId] =
+            stateFlow
+
+        saveContexts[chatId] =
+            SessionSaveContext(
+                chatRoom =
+                    chatRoom,
+                chatPlatformModels =
+                    chatPlatformModels,
+            )
+
+        val statusFlow =
+            MutableStateFlow(
+                AgentSessionStatus.RUNNING
+            )
+
+        val job =
+            scope.launch {
+
+                try {
+
+                    val request =
+                        AgentLoopRequest(
+                            chatId =
+                                chatId,
+                            projectId =
+                                projectId,
+                            diagnosticContext =
+                                diagnosticContext,
+                            platform =
+                                platform,
+                            userMessages =
+                                userMessages,
+                            assistantMessages =
+                                assistantMessages,
+                            systemPrompt =
+                                systemPrompt,
+                            tools =
+                                agentToolRegistry
+                                    .listDefinitions(),
+                        )
+
+                    agentLoopCoordinator
+                        .run(request)
+                        .collect { event ->
+                            applyEvent(
+                                chatId,
+                                event
+                            )
+                        }
+
+                    saveToRoom(chatId)
+
+                    statusFlow.value =
+                        AgentSessionStatus.COMPLETED
+
+                    onSessionFinished(
+                        chatId,
+                        projectId,
+                        success = true,
+                    )
+
+                } catch (
+                    e: kotlinx.coroutines.CancellationException
+                ) {
+
+                    statusFlow.value =
+                        AgentSessionStatus.CANCELLED
+
+                    try {
+                        saveToRoom(chatId)
+                    } catch (_: Exception) {
+                    }
+
+                    throw e
+
+                } catch (e: Exception) {
+
+                    Log.e(
+                        TAG,
+                        "Agent session failed for chatId=$chatId",
+                        e,
+                    )
+
+                    applyEvent(
+                        chatId,
+                        AgentLoopEvent.LoopFailed(
+                            message =
+                                e.message
+                                    ?: "Unknown error"
+                        )
+                    )
+
+                    saveToRoom(chatId)
+
+                    statusFlow.value =
+                        AgentSessionStatus.FAILED
+
+                    onSessionFinished(
+                        chatId,
+                        projectId,
+                        success = false,
+                    )
+
+                } finally {
+                    removeSession(chatId)
                 }
-
-                saveToRoom(chatId)
-                statusFlow.value = AgentSessionStatus.COMPLETED
-                onSessionFinished(chatId, projectId, success = true)
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                statusFlow.value = AgentSessionStatus.CANCELLED
-                // Still save partial progress on cancellation
-                try { saveToRoom(chatId) } catch (_: Exception) {}
-                throw e
-            } catch (e: Exception) {
-                Log.e(TAG, "Agent session failed for chatId=$chatId", e)
-                applyEvent(chatId, AgentLoopEvent.LoopFailed(message = e.message ?: "Unknown error"))
-                saveToRoom(chatId)
-                statusFlow.value = AgentSessionStatus.FAILED
-                onSessionFinished(chatId, projectId, success = false)
-            } finally {
-                removeSession(chatId)
             }
+
+        val session =
+            AgentSession(
+                chatId =
+                    chatId,
+                projectId =
+                    projectId,
+                platformName =
+                    platform.name,
+                job =
+                    job,
+                status =
+                    statusFlow,
+            )
+
+        _sessions.update {
+            it + (chatId to session)
         }
 
-        val session = AgentSession(
-            chatId = chatId,
-            projectId = projectId,
-            platformName = platform.name,
-            job = job,
-            status = statusFlow,
+        AgentForegroundService.start(
+            appContext
         )
-        _sessions.update { it + (chatId to session) }
-
-        // Start foreground service to keep process alive
-        AgentForegroundService.start(appContext)
     }
 
-    fun stopSession(chatId: Int) {
-        val session = _sessions.value[chatId] ?: return
+    fun stopSession(
+        chatId: Int
+    ) {
+        val session =
+            _sessions.value[chatId]
+                ?: return
+
         session.job.cancel()
+
         removeSession(chatId)
     }
 
     fun stopAllSessions() {
-        _sessions.value.forEach { (_, session) -> session.job.cancel() }
-        _sessions.update { emptyMap() }
+
+        _sessions.value
+            .forEach { (_, session) ->
+                session.job.cancel()
+            }
+
+        _sessions.update {
+            emptyMap()
+        }
+
         messageStates.clear()
         saveContexts.clear()
     }
 
-    /**
-     * Clear cached message state for a chat. Called when the user clears chat history
-     * to prevent stale session data from being restored on re-entry.
-     */
-    fun clearMessageState(chatId: Int) {
+    fun clearMessageState(
+        chatId: Int
+    ) {
         messageStates.remove(chatId)
         saveContexts.remove(chatId)
     }
 
-    /**
-     * Observe the evolving message state for a session.
-     * Returns null if no session (active or recently completed) exists for this chatId.
-     */
-    fun getMessageState(chatId: Int): StateFlow<SessionMessageState>? {
-        return messageStates[chatId]?.asStateFlow()
+    fun getMessageState(
+        chatId: Int
+    ): StateFlow<SessionMessageState>? {
+        return messageStates[chatId]
+            ?.asStateFlow()
     }
 
-    fun getSessionStatus(chatId: Int): StateFlow<AgentSessionStatus>? {
-        return _sessions.value[chatId]?.status
+    fun getSessionStatus(
+        chatId: Int
+    ): StateFlow<AgentSessionStatus>? {
+        return _sessions
+            .value[chatId]
+            ?.status
     }
 
-    /**
-     * Returns the platform name for an active session, or null if no session is running.
-     */
-    fun getActiveSessionPlatformName(chatId: Int): String? {
-        return _sessions.value[chatId]?.platformName
+    fun getActiveSessionPlatformName(
+        chatId: Int
+    ): String? {
+        return _sessions
+            .value[chatId]
+            ?.platformName
     }
 
-    fun isSessionRunning(chatId: Int): Boolean {
-        return _sessions.value[chatId]?.status?.value == AgentSessionStatus.RUNNING
+    fun isSessionRunning(
+        chatId: Int
+    ): Boolean {
+        return _sessions
+            .value[chatId]
+            ?.status
+            ?.value ==
+            AgentSessionStatus.RUNNING
     }
 
-    // -- Internal event processing --
+    private fun applyEvent(
+        chatId: Int,
+        event: AgentLoopEvent,
+    ) {
+        val stateFlow =
+            messageStates[chatId]
+                ?: return
 
-    private fun applyEvent(chatId: Int, event: AgentLoopEvent) {
-        val stateFlow = messageStates[chatId] ?: return
         when (event) {
+
             is AgentLoopEvent.ThinkingDelta -> {
+
                 stateFlow.update { state ->
-                    val updated = state.updateLastAssistant { msg ->
-                        msg.copy(thoughts = msg.thoughts + event.delta)
-                    }
-                    updated.updateSingletonStep(AgentStepType.THINKING) { existing ->
-                        existing.copy(content = existing.content + event.delta)
-                    }
-                }
-            }
-            is AgentLoopEvent.OutputDelta -> {
-                stateFlow.update { state ->
-                    val updated = state.updateLastAssistant { msg ->
-                        msg.copy(content = msg.content + event.delta)
-                    }
-                    updated.appendOrUpdateLastStep(AgentStepType.OUTPUT) { existing ->
-                        existing.copy(content = existing.content + event.delta)
-                    }
-                }
-            }
-            is AgentLoopEvent.ToolExecutionStarted -> {
-                stateFlow.update { state ->
-                    val updated = state.updateLastAssistant { msg ->
-                        msg.copy(thoughts = msg.thoughts + "\n[Tool] ${event.call.name}\n")
-                    }
-                    updated.updateSingletonStep(AgentStepType.TOOL_CALL) { existing ->
-                        existing.copy(
-                            toolName = event.call.name,
-                            toolStatus = AgentToolStatus.CALLING,
-                            toolCalls = existing.toolCalls + ToolCallInfo(
-                                toolName = event.call.name,
-                                toolStatus = AgentToolStatus.CALLING,
-                            ),
-                        )
-                    }
-                }
-            }
-            is AgentLoopEvent.ToolExecutionFinished -> {
-                stateFlow.update { state ->
-                    val status = if (event.result.isError) AgentToolStatus.ERROR else AgentToolStatus.OK
-                    val updated = state.updateLastAssistant { msg ->
-                        msg.copy(
-                            thoughts = msg.thoughts +
-                                "\n[Tool Result] ${event.result.toolName}: ${if (event.result.isError) "error" else "ok"}\n"
-                        )
-                    }
-                    updated.updateSingletonToolCallStatus(event.result.toolName, status)
-                }
-            }
-            is AgentLoopEvent.LoopCompleted -> {
-                stateFlow.update { state ->
-                    state.updateLastAssistant { msg ->
-                        val fallbackText = event.finalText.ifBlank { 
-                            "لم يتم استخدام أدوات إنشاء المشروع، لم يتم إنشاء أي ملفات" 
+
+                    val updated =
+                        state.updateLastAssistant { msg ->
+                            msg.copy(
+                                thoughts =
+                                    msg.thoughts +
+                                        event.delta
+                            )
                         }
-                        msg.copy(
-                            content = msg.content.ifBlank { fallbackText },
-                            createdAt = System.currentTimeMillis() / 1000,
+
+                    updated.updateSingletonStep(
+                        AgentStepType.THINKING
+                    ) { existing ->
+
+                        existing.copy(
+                            content =
+                                existing.content +
+                                    event.delta
                         )
                     }
                 }
             }
-            is AgentLoopEvent.LoopFailed -> {
+
+            is AgentLoopEvent.OutputDelta -> {
+
                 stateFlow.update { state ->
+
+                    val updated =
+                        state.updateLastAssistant { msg ->
+                            msg.copy(
+                                content =
+                                    msg.content +
+                                        event.delta
+                            )
+                        }
+
+                    updated.appendOrUpdateLastStep(
+                        AgentStepType.OUTPUT
+                    ) { existing ->
+
+                        existing.copy(
+                            content =
+                                existing.content +
+                                    event.delta
+                        )
+                    }
+                }
+            }
+
+            is AgentLoopEvent.ToolExecutionStarted -> {
+
+                stateFlow.update { state ->
+
+                    val updated =
+                        state.updateLastAssistant { msg ->
+                            msg.copy(
+                                thoughts =
+                                    msg.thoughts +
+                                        "\n[Tool] " +
+                                        "${event.call.name}\n"
+                            )
+                        }
+
+                    updated.updateSingletonStep(
+                        AgentStepType.TOOL_CALL
+                    ) { existing ->
+
+                        existing.copy(
+                            toolName =
+                                event.call.name,
+                            toolStatus =
+                                AgentToolStatus.CALLING,
+                            toolCalls =
+                                existing.toolCalls +
+                                    ToolCallInfo(
+                                        toolName =
+                                            event.call.name,
+                                        toolStatus =
+                                            AgentToolStatus.CALLING,
+                                    ),
+                        )
+                    }
+                }
+            }
+
+            is AgentLoopEvent.ToolExecutionFinished -> {
+
+                stateFlow.update { state ->
+
+                    val status =
+                        if (
+                            event.result.isError
+                        ) {
+                            AgentToolStatus.ERROR
+                        } else {
+                            AgentToolStatus.OK
+                        }
+
+                    val updated =
+                        state.updateLastAssistant { msg ->
+                            msg.copy(
+                                thoughts =
+                                    msg.thoughts +
+                                        "\n[Tool Result] " +
+                                        "${event.result.toolName}: " +
+                                        if (
+                                            event.result.isError
+                                        ) {
+                                            "error\n"
+                                        } else {
+                                            "ok\n"
+                                        }
+                            )
+                        }
+
+                    updated.updateSingletonToolCallStatus(
+                        event.result.toolName,
+                        status,
+                    )
+                }
+            }
+
+            is AgentLoopEvent.LoopCompleted -> {
+
+                stateFlow.update { state ->
+
                     state.updateLastAssistant { msg ->
+
+                        val fallbackText =
+                            event.finalText.ifBlank {
+                                "لم يتم استخدام أدوات إنشاء المشروع، لم يتم إنشاء أي ملفات"
+                            }
+
                         msg.copy(
-                            content = if (msg.content.isBlank()) "Error: ${event.message}" else msg.content,
-                            thoughts = msg.thoughts + "\n[Agent Error] ${event.message}",
-                            createdAt = System.currentTimeMillis() / 1000,
+                            content =
+                                msg.content.ifBlank {
+                                    fallbackText
+                                },
+                            createdAt =
+                                System.currentTimeMillis() /
+                                    1000,
                         )
                     }
                 }
             }
-            is AgentLoopEvent.PlanCreated -> {
+
+            /*
+             * Provider/API errors are converted into
+             * short user-friendly messages.
+             *
+             * The raw OpenRouter JSON is NOT shown
+             * to the user anymore.
+             */
+            is AgentLoopEvent.LoopFailed -> {
+
                 stateFlow.update { state ->
-                    val updated = state.updateLastAssistant { msg ->
-                        msg.copy(thoughts = msg.thoughts + "\n[Plan] Created: ${event.plan.summary}\n")
+
+                    val friendlyMessage =
+                        AgentErrorMessageFormatter.format(
+                            event.message
+                        )
+
+                    state.updateLastAssistant { msg ->
+
+                        msg.copy(
+
+                            content =
+                                if (
+                                    msg.content.isBlank()
+                                ) {
+                                    friendlyMessage
+                                } else {
+                                    msg.content
+                                },
+
+                            thoughts =
+                                msg.thoughts +
+                                    "\n[Agent Error] " +
+                                    friendlyMessage,
+
+                            createdAt =
+                                System.currentTimeMillis() /
+                                    1000,
+                        )
                     }
+                }
+            }
+
+            is AgentLoopEvent.PlanCreated -> {
+
+                stateFlow.update { state ->
+
+                    val updated =
+                        state.updateLastAssistant { msg ->
+                            msg.copy(
+                                thoughts =
+                                    msg.thoughts +
+                                        "\n[Plan] Created: " +
+                                        "${event.plan.summary}\n"
+                            )
+                        }
+
                     updated.addStep(
                         AgentStepItem(
-                            type = AgentStepType.PLAN,
-                            content = event.plan.summary,
-                            plan = event.plan,
+                            type =
+                                AgentStepType.PLAN,
+                            content =
+                                event.plan.summary,
+                            plan =
+                                event.plan,
                         )
                     )
                 }
             }
+
             is AgentLoopEvent.PlanUpdated -> {
+
                 stateFlow.update { state ->
-                    state.updateLastPlanStep(event.plan)
+
+                    state.updateLastPlanStep(
+                        event.plan
+                    )
                 }
             }
+
             else -> Unit
         }
     }
 
-    /**
-     * Find the single step of [type] in the current turn and update it,
-     * or create one if it doesn't exist yet. This ensures at most one step
-     * per type per turn (consolidated THINKING / TOOL_CALL).
-     */
     private fun SessionMessageState.updateSingletonStep(
         type: AgentStepType,
         update: (AgentStepItem) -> AgentStepItem,
     ): SessionMessageState {
-        val steps = agentSteps.toMutableList()
-        if (steps.isEmpty()) steps.add(emptyList())
-        val lastTurnSteps = steps.last().toMutableList()
-        val idx = lastTurnSteps.indexOfFirst { it.type == type }
-        if (idx >= 0) {
-            lastTurnSteps[idx] = update(lastTurnSteps[idx])
-        } else {
-            lastTurnSteps.add(update(AgentStepItem(type = type)))
+
+        val steps =
+            agentSteps.toMutableList()
+
+        if (steps.isEmpty()) {
+            steps.add(emptyList())
         }
-        steps[steps.lastIndex] = lastTurnSteps
-        return copy(agentSteps = steps)
+
+        val lastTurnSteps =
+            steps.last().toMutableList()
+
+        val idx =
+            lastTurnSteps.indexOfFirst {
+                it.type == type
+            }
+
+        if (idx >= 0) {
+
+            lastTurnSteps[idx] =
+                update(
+                    lastTurnSteps[idx]
+                )
+
+        } else {
+
+            lastTurnSteps.add(
+                update(
+                    AgentStepItem(
+                        type = type
+                    )
+                )
+            )
+        }
+
+        steps[steps.lastIndex] =
+            lastTurnSteps
+
+        return copy(
+            agentSteps = steps
+        )
     }
 
-    /** Append a new step or update the last step if it matches the given type. */
     private fun SessionMessageState.appendOrUpdateLastStep(
         type: AgentStepType,
         update: (AgentStepItem) -> AgentStepItem,
     ): SessionMessageState {
-        val steps = agentSteps.toMutableList()
-        if (steps.isEmpty()) steps.add(emptyList())
-        val lastTurnSteps = steps.last().toMutableList()
-        val lastStep = lastTurnSteps.lastOrNull()
-        if (lastStep != null && lastStep.type == type) {
-            lastTurnSteps[lastTurnSteps.lastIndex] = update(lastStep)
-        } else {
-            lastTurnSteps.add(update(AgentStepItem(type = type)))
+
+        val steps =
+            agentSteps.toMutableList()
+
+        if (steps.isEmpty()) {
+            steps.add(emptyList())
         }
-        steps[steps.lastIndex] = lastTurnSteps
-        return copy(agentSteps = steps)
+
+        val lastTurnSteps =
+            steps.last().toMutableList()
+
+        val lastStep =
+            lastTurnSteps.lastOrNull()
+
+        if (
+            lastStep != null &&
+            lastStep.type == type
+        ) {
+
+            lastTurnSteps[
+                lastTurnSteps.lastIndex
+            ] =
+                update(
+                    lastStep
+                )
+
+        } else {
+
+            lastTurnSteps.add(
+                update(
+                    AgentStepItem(
+                        type = type
+                    )
+                )
+            )
+        }
+
+        steps[steps.lastIndex] =
+            lastTurnSteps
+
+        return copy(
+            agentSteps = steps
+        )
     }
 
-    /** Add a new step to the current turn. */
-    private fun SessionMessageState.addStep(step: AgentStepItem): SessionMessageState {
-        val steps = agentSteps.toMutableList()
-        if (steps.isEmpty()) steps.add(emptyList())
-        val lastTurnSteps = steps.last().toMutableList()
+    private fun SessionMessageState.addStep(
+        step: AgentStepItem
+    ): SessionMessageState {
+
+        val steps =
+            agentSteps.toMutableList()
+
+        if (steps.isEmpty()) {
+            steps.add(emptyList())
+        }
+
+        val lastTurnSteps =
+            steps.last().toMutableList()
+
         lastTurnSteps.add(step)
-        steps[steps.lastIndex] = lastTurnSteps
-        return copy(agentSteps = steps)
+
+        steps[steps.lastIndex] =
+            lastTurnSteps
+
+        return copy(
+            agentSteps = steps
+        )
     }
 
-    /** Update a specific tool call's status within the consolidated TOOL_CALL step. */
     private fun SessionMessageState.updateSingletonToolCallStatus(
         toolName: String,
         status: AgentToolStatus,
     ): SessionMessageState {
-        val steps = agentSteps.toMutableList()
-        if (steps.isEmpty()) return this
-        val lastTurnSteps = steps.last().toMutableList()
-        val idx = lastTurnSteps.indexOfFirst { it.type == AgentStepType.TOOL_CALL }
-        if (idx >= 0) {
-            val step = lastTurnSteps[idx]
-            val updatedCalls = step.toolCalls.toMutableList()
-            val callIdx = updatedCalls.indexOfLast { it.toolName == toolName && it.toolStatus == AgentToolStatus.CALLING }
-            if (callIdx >= 0) {
-                updatedCalls[callIdx] = updatedCalls[callIdx].copy(toolStatus = status)
-            }
-            lastTurnSteps[idx] = step.copy(
-                toolName = toolName,
-                toolStatus = status,
-                toolCalls = updatedCalls,
-            )
-            steps[steps.lastIndex] = lastTurnSteps
+
+        val steps =
+            agentSteps.toMutableList()
+
+        if (steps.isEmpty()) {
+            return this
         }
-        return copy(agentSteps = steps)
+
+        val lastTurnSteps =
+            steps.last().toMutableList()
+
+        val idx =
+            lastTurnSteps.indexOfFirst {
+                it.type ==
+                    AgentStepType.TOOL_CALL
+            }
+
+        if (idx >= 0) {
+
+            val step =
+                lastTurnSteps[idx]
+
+            val updatedCalls =
+                step.toolCalls.toMutableList()
+
+            val callIdx =
+                updatedCalls.indexOfLast {
+                    it.toolName == toolName &&
+                        it.toolStatus ==
+                        AgentToolStatus.CALLING
+                }
+
+            if (callIdx >= 0) {
+
+                updatedCalls[callIdx] =
+                    updatedCalls[callIdx]
+                        .copy(
+                            toolStatus =
+                                status
+                        )
+            }
+
+            lastTurnSteps[idx] =
+                step.copy(
+                    toolName =
+                        toolName,
+                    toolStatus =
+                        status,
+                    toolCalls =
+                        updatedCalls,
+                )
+
+            steps[steps.lastIndex] =
+                lastTurnSteps
+        }
+
+        return copy(
+            agentSteps = steps
+        )
     }
 
-    /** Update the last PLAN step with the updated plan state. */
     private fun SessionMessageState.updateLastPlanStep(
         plan: AgentPlan,
     ): SessionMessageState {
-        val steps = agentSteps.toMutableList()
-        if (steps.isEmpty()) return this
-        val lastTurnSteps = steps.last().toMutableList()
-        val idx = lastTurnSteps.indexOfLast { it.type == AgentStepType.PLAN }
-        if (idx >= 0) {
-            lastTurnSteps[idx] = lastTurnSteps[idx].copy(plan = plan)
-            steps[steps.lastIndex] = lastTurnSteps
+
+        val steps =
+            agentSteps.toMutableList()
+
+        if (steps.isEmpty()) {
+            return this
         }
-        return copy(agentSteps = steps)
+
+        val lastTurnSteps =
+            steps.last().toMutableList()
+
+        val idx =
+            lastTurnSteps.indexOfLast {
+                it.type ==
+                    AgentStepType.PLAN
+            }
+
+        if (idx >= 0) {
+
+            lastTurnSteps[idx] =
+                lastTurnSteps[idx]
+                    .copy(
+                        plan = plan
+                    )
+
+            steps[steps.lastIndex] =
+                lastTurnSteps
+        }
+
+        return copy(
+            agentSteps = steps
+        )
     }
 
-    /**
-     * Helper to update the first (index 0) assistant message in the last turn.
-     * Agent mode always has exactly 1 platform.
-     */
     private inline fun SessionMessageState.updateLastAssistant(
         transform: (MessageV2) -> MessageV2,
     ): SessionMessageState {
-        if (assistantMessages.isEmpty()) return this
-        val lastTurn = assistantMessages.last().toMutableList()
-        if (lastTurn.isEmpty()) return this
-        lastTurn[0] = transform(lastTurn[0])
-        val updated = assistantMessages.toMutableList()
-        updated[updated.lastIndex] = lastTurn
-        return copy(assistantMessages = updated)
+
+        if (
+            assistantMessages.isEmpty()
+        ) {
+            return this
+        }
+
+        val lastTurn =
+            assistantMessages
+                .last()
+                .toMutableList()
+
+        if (lastTurn.isEmpty()) {
+            return this
+        }
+
+        lastTurn[0] =
+            transform(
+                lastTurn[0]
+            )
+
+        val updated =
+            assistantMessages.toMutableList()
+
+        updated[updated.lastIndex] =
+            lastTurn
+
+        return copy(
+            assistantMessages =
+                updated
+        )
     }
 
-    // -- Persistence --
+    private suspend fun saveToRoom(
+        chatId: Int
+    ) {
 
-    private suspend fun saveToRoom(chatId: Int) {
-        val state = messageStates[chatId]?.value ?: return
-        val saveContext = saveContexts[chatId] ?: return
+        val state =
+            messageStates[chatId]
+                ?.value
+                ?: return
 
-        val messages = (state.userMessages + state.assistantMessages.flatten())
-            .filter { it.content.isNotBlank() }
-            .sortedBy { it.createdAt }
+        val saveContext =
+            saveContexts[chatId]
+                ?: return
+
+        val messages =
+            (
+                state.userMessages +
+                    state.assistantMessages
+                        .flatten()
+                )
+                .filter {
+                    it.content.isNotBlank()
+                }
+                .sortedBy {
+                    it.createdAt
+                }
 
         try {
-            val savedChatRoom = chatRepository.saveChat(
-                chatRoom = saveContext.chatRoom,
-                messages = messages,
-                chatPlatformModels = saveContext.chatPlatformModels,
+
+            val savedChatRoom =
+                chatRepository.saveChat(
+                    chatRoom =
+                        saveContext.chatRoom,
+                    messages =
+                        messages,
+                    chatPlatformModels =
+                        saveContext
+                            .chatPlatformModels,
+                )
+
+            saveContexts[chatId] =
+                saveContext.copy(
+                    chatRoom =
+                        savedChatRoom
+                )
+
+            Log.d(
+                TAG,
+                "Saved session state to Room " +
+                    "for chatId=$chatId " +
+                    "(savedId=${savedChatRoom.id})"
             )
-            // Update save context with the DB-assigned ID so subsequent saves
-            // (e.g., from ViewModel's observeStateChanges) are updates, not inserts.
-            saveContexts[chatId] = saveContext.copy(chatRoom = savedChatRoom)
-            Log.d(TAG, "Saved session state to Room for chatId=$chatId (savedId=${savedChatRoom.id})")
+
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to save session to Room for chatId=$chatId", e)
+
+            Log.e(
+                TAG,
+                "Failed to save session to Room " +
+                    "for chatId=$chatId",
+                e,
+            )
         }
     }
 
-    /**
-     * Returns the saved chat room (with DB-assigned ID) if the session has been persisted,
-     * or null if no save has occurred yet.
-     */
-    fun getSavedChatRoom(chatId: Int): ChatRoomV2? {
-        val ctx = saveContexts[chatId] ?: return null
-        return ctx.chatRoom.takeIf { it.id > 0 }
+    fun getSavedChatRoom(
+        chatId: Int
+    ): ChatRoomV2? {
+
+        val ctx =
+            saveContexts[chatId]
+                ?: return null
+
+        return ctx.chatRoom.takeIf {
+            it.id > 0
+        }
     }
 
-    // -- Lifecycle --
+    private fun removeSession(
+        chatId: Int
+    ) {
 
-    private fun removeSession(chatId: Int) {
-        _sessions.update { it - chatId }
-        // Keep messageStates around so reconnecting UI can still read final state.
-        // They will be cleaned up on next startSession() for the same chatId.
+        _sessions.update {
+            it - chatId
+        }
+
+        /*
+         * Keep messageStates around so reconnecting UI
+         * can still read final state.
+         */
         saveContexts.remove(chatId)
     }
 
-    private suspend fun onSessionFinished(chatId: Int, projectId: String?, success: Boolean) {
-        val projectName = projectId?.let {
-            try {
-                projectRepository.fetchProjectByChatId(chatId)?.name
-            } catch (e: Exception) {
-                null
+    private suspend fun onSessionFinished(
+        chatId: Int,
+        projectId: String?,
+        success: Boolean,
+    ) {
+
+        val projectName =
+            projectId?.let {
+
+                try {
+
+                    projectRepository
+                        .fetchProjectByChatId(
+                            chatId
+                        )
+                        ?.name
+
+                } catch (
+                    e: Exception
+                ) {
+                    null
+                }
             }
-        }
-        notificationHelper.showCompletionNotification(chatId, projectName, success)
+
+        notificationHelper
+            .showCompletionNotification(
+                chatId,
+                projectName,
+                success,
+            )
     }
 
     private data class SessionSaveContext(
@@ -488,75 +950,486 @@ class AgentSessionManager @Inject constructor(
     )
 
     companion object {
-        private const val TAG = "AgentSessionManager"
 
-        private val TOOL_LINE_REGEX = Regex("""\[Tool]\s+(\S+)""")
-        private val TOOL_RESULT_REGEX = Regex("""\[Tool Result]\s+(\S+):\s*(ok|error|fail)""")
-        private val PLAN_LINE_REGEX = Regex("""\[Plan]\s+Created:\s+(.+)""")
+        private const val TAG =
+            "AgentSessionManager"
 
-        /**
-         * Parse a raw thoughts string into AgentStepItems (for loading saved messages).
-         * Produces at most one THINKING step and one TOOL_CALL step (consolidated).
-         */
-        fun parseThoughtsToSteps(thoughts: String): List<AgentStepItem> {
-            val steps = mutableListOf<AgentStepItem>()
-            val thinkingBuffer = StringBuilder()
-            val toolCalls = mutableListOf<ToolCallInfo>()
-            var lastToolName: String? = null
-            var lastToolStatus: AgentToolStatus? = null
+        private val TOOL_LINE_REGEX =
+            Regex(
+                """\[Tool]\s+(\S+)"""
+            )
 
-            for (line in thoughts.lines()) {
-                val trimmed = line.trim()
-                val toolMatch = TOOL_LINE_REGEX.matchEntire(trimmed)
-                val resultMatch = TOOL_RESULT_REGEX.matchEntire(trimmed)
+        private val TOOL_RESULT_REGEX =
+            Regex(
+                """\[Tool Result]\s+(\S+):\s*(ok|error|fail)"""
+            )
+
+        private val PLAN_LINE_REGEX =
+            Regex(
+                """\[Plan]\s+Created:\s+(.+)"""
+            )
+
+        fun parseThoughtsToSteps(
+            thoughts: String
+        ): List<AgentStepItem> {
+
+            val steps =
+                mutableListOf<AgentStepItem>()
+
+            val thinkingBuffer =
+                StringBuilder()
+
+            val toolCalls =
+                mutableListOf<ToolCallInfo>()
+
+            var lastToolName:
+                String? = null
+
+            var lastToolStatus:
+                AgentToolStatus? = null
+
+            for (
+                line in thoughts.lines()
+            ) {
+
+                val trimmed =
+                    line.trim()
+
+                val toolMatch =
+                    TOOL_LINE_REGEX
+                        .matchEntire(
+                            trimmed
+                        )
+
+                val resultMatch =
+                    TOOL_RESULT_REGEX
+                        .matchEntire(
+                            trimmed
+                        )
 
                 when {
+
                     toolMatch != null -> {
-                        val name = toolMatch.groupValues[1]
-                        toolCalls.add(ToolCallInfo(toolName = name, toolStatus = AgentToolStatus.CALLING))
-                        lastToolName = name
-                        lastToolStatus = AgentToolStatus.CALLING
+
+                        val name =
+                            toolMatch
+                                .groupValues[1]
+
+                        toolCalls.add(
+                            ToolCallInfo(
+                                toolName =
+                                    name,
+                                toolStatus =
+                                    AgentToolStatus.CALLING,
+                            )
+                        )
+
+                        lastToolName =
+                            name
+
+                        lastToolStatus =
+                            AgentToolStatus.CALLING
                     }
+
                     resultMatch != null -> {
-                        val name = resultMatch.groupValues[1]
-                        val status = if (resultMatch.groupValues[2] == "ok") AgentToolStatus.OK else AgentToolStatus.ERROR
-                        val idx = toolCalls.indexOfLast { it.toolName == name && it.toolStatus == AgentToolStatus.CALLING }
+
+                        val name =
+                            resultMatch
+                                .groupValues[1]
+
+                        val status =
+                            if (
+                                resultMatch
+                                    .groupValues[2] ==
+                                "ok"
+                            ) {
+                                AgentToolStatus.OK
+                            } else {
+                                AgentToolStatus.ERROR
+                            }
+
+                        val idx =
+                            toolCalls
+                                .indexOfLast {
+                                    it.toolName == name &&
+                                        it.toolStatus ==
+                                        AgentToolStatus.CALLING
+                                }
+
                         if (idx >= 0) {
-                            toolCalls[idx] = toolCalls[idx].copy(toolStatus = status)
+
+                            toolCalls[idx] =
+                                toolCalls[idx]
+                                    .copy(
+                                        toolStatus =
+                                            status
+                                    )
                         }
-                        lastToolName = name
-                        lastToolStatus = status
+
+                        lastToolName =
+                            name
+
+                        lastToolStatus =
+                            status
                     }
-                    PLAN_LINE_REGEX.matchEntire(trimmed) != null -> {
-                        val planMatch = PLAN_LINE_REGEX.matchEntire(trimmed)!!
+
+                    PLAN_LINE_REGEX
+                        .matchEntire(
+                            trimmed
+                        ) != null -> {
+
+                        val planMatch =
+                            PLAN_LINE_REGEX
+                                .matchEntire(
+                                    trimmed
+                                )!!
+
                         steps.add(
                             AgentStepItem(
-                                type = AgentStepType.PLAN,
-                                content = planMatch.groupValues[1],
+                                type =
+                                    AgentStepType.PLAN,
+                                content =
+                                    planMatch
+                                        .groupValues[1],
                             )
                         )
                     }
+
                     trimmed.isNotEmpty() -> {
-                        thinkingBuffer.appendLine(line)
+
+                        thinkingBuffer
+                            .appendLine(
+                                line
+                            )
                     }
                 }
             }
 
-            // Build consolidated THINKING step
-            if (thinkingBuffer.isNotBlank()) {
-                steps.add(0, AgentStepItem(type = AgentStepType.THINKING, content = thinkingBuffer.toString().trim()))
+            if (
+                thinkingBuffer.isNotBlank()
+            ) {
+
+                steps.add(
+                    0,
+                    AgentStepItem(
+                        type =
+                            AgentStepType.THINKING,
+                        content =
+                            thinkingBuffer
+                                .toString()
+                                .trim(),
+                    )
+                )
             }
-            // Build consolidated TOOL_CALL step
-            if (toolCalls.isNotEmpty()) {
-                val insertIdx = if (thinkingBuffer.isNotBlank()) 1 else 0
-                steps.add(insertIdx, AgentStepItem(
-                    type = AgentStepType.TOOL_CALL,
-                    toolName = lastToolName,
-                    toolStatus = lastToolStatus,
-                    toolCalls = toolCalls,
-                ))
+
+            if (
+                toolCalls.isNotEmpty()
+            ) {
+
+                val insertIdx =
+                    if (
+                        thinkingBuffer
+                            .isNotBlank()
+                    ) {
+                        1
+                    } else {
+                        0
+                    }
+
+                steps.add(
+                    insertIdx,
+                    AgentStepItem(
+                        type =
+                            AgentStepType.TOOL_CALL,
+                        toolName =
+                            lastToolName,
+                        toolStatus =
+                            lastToolStatus,
+                        toolCalls =
+                            toolCalls,
+                    )
+                )
             }
+
             return steps
         }
+    }
+}
+
+/**
+ * Converts provider/API errors into short messages.
+ *
+ * We deliberately do NOT treat every 429 as an exhausted balance.
+ * A 429 can also mean temporary provider rate limiting.
+ */
+private object AgentErrorMessageFormatter {
+
+    fun format(
+        message: String
+    ): String {
+
+        if (
+            message.isBlank()
+        ) {
+
+            return localized(
+                arabic =
+                    "حدث خطأ. حاول مرة أخرى.",
+                english =
+                    "Something went wrong. Please try again.",
+            )
+        }
+
+        val normalized =
+            message.lowercase(
+                Locale.US
+            )
+
+        /*
+         * OpenRouter free daily quota.
+         *
+         * Examples:
+         * free-models-per-day
+         * openrouter_free_tier_daily
+         */
+        if (
+            normalized.contains(
+                "free-models-per-day"
+            ) ||
+            normalized.contains(
+                "openrouter_free_tier_daily"
+            )
+        ) {
+
+            val resetAt =
+                extractRateLimitReset(
+                    message
+                )
+
+            return if (
+                resetAt != null
+            ) {
+
+                val dateText =
+                    formatResetDate(
+                        resetAt
+                    )
+
+                localized(
+                    arabic =
+                        "انتهى الرصيد المجاني. " +
+                            "يتجدد في $dateText.",
+                    english =
+                        "Free quota ended. " +
+                            "It resets on $dateText.",
+                )
+
+            } else {
+
+                localized(
+                    arabic =
+                        "انتهى الرصيد المجاني. " +
+                            "حاول بعد التجديد.",
+                    english =
+                        "Free quota ended. " +
+                            "Try again after the reset.",
+                )
+            }
+        }
+
+        /*
+         * Paid balance / credits exhausted.
+         */
+        val paidBalanceError =
+            normalized.contains(
+                "insufficient credits"
+            ) ||
+                normalized.contains(
+                    "insufficient balance"
+                ) ||
+                normalized.contains(
+                    "credits exhausted"
+                ) ||
+                normalized.contains(
+                    "balance exhausted"
+                ) ||
+                normalized.contains(
+                    "not enough credits"
+                ) ||
+                normalized.contains(
+                    "payment required"
+                )
+
+        if (
+            paidBalanceError
+        ) {
+
+            return localized(
+                arabic =
+                    "انتهى الرصيد المدفوع. " +
+                        "يرجى الشحن مرة أخرى.",
+                english =
+                    "Paid balance exhausted. " +
+                        "Please add credits.",
+            )
+        }
+
+        /*
+         * Temporary provider errors.
+         */
+        val temporaryProviderError =
+            normalized.contains(
+                "temporarily overloaded"
+            ) ||
+                normalized.contains(
+                    "temporarily unavailable"
+                ) ||
+                normalized.contains(
+                    "upstream error"
+                ) ||
+                normalized.contains(
+                    "service unavailable"
+                )
+
+        if (
+            temporaryProviderError
+        ) {
+
+            return localized(
+                arabic =
+                    "الخدمة مشغولة حاليًا. " +
+                        "حاول مرة أخرى.",
+                english =
+                    "The service is busy. " +
+                        "Please try again.",
+            )
+        }
+
+        /*
+         * Tool support error.
+         */
+        if (
+            normalized.contains(
+                "no endpoints found that support tool use"
+            )
+        ) {
+
+            return localized(
+                arabic =
+                    "النموذج الحالي لا يدعم " +
+                        "أدوات إنشاء التطبيقات.",
+                english =
+                    "This model does not support " +
+                        "app-building tools.",
+            )
+        }
+
+        /*
+         * Agentic harness restriction.
+         */
+        if (
+            normalized.contains(
+                "only available on agentic harnesses"
+            ) ||
+            normalized.contains(
+                "only available on agentic"
+            )
+        ) {
+
+            return localized(
+                arabic =
+                    "هذا النموذج غير متاح " +
+                        "لهذا النوع من الاستخدام.",
+                english =
+                    "This model is not available " +
+                        "for this type of use.",
+            )
+        }
+
+        /*
+         * Generic fallback.
+         *
+         * Never expose the provider's huge JSON
+         * response to the user.
+         */
+        return localized(
+            arabic =
+                "حدث خطأ أثناء الاتصال " +
+                    "بالذكاء الاصطناعي.",
+            english =
+                "An error occurred while " +
+                    "contacting the AI.",
+        )
+    }
+
+    private fun localized(
+        arabic: String,
+        english: String,
+    ): String {
+
+        return if (
+            Locale.getDefault()
+                .language
+                .equals(
+                    "ar",
+                    ignoreCase = true
+                )
+        ) {
+            arabic
+        } else {
+            english
+        }
+    }
+
+    /**
+     * Reads OpenRouter's X-RateLimit-Reset value.
+     *
+     * Supports both:
+     * - Unix seconds
+     * - Unix milliseconds
+     */
+    private fun extractRateLimitReset(
+        message: String
+    ): Long? {
+
+        val regex =
+            Regex(
+                pattern =
+                    """X-RateLimit-Reset["']?\s*[:=]\s*["']?(\d{10,13})""",
+                option =
+                    RegexOption.IGNORE_CASE,
+            )
+
+        val match =
+            regex.find(
+                message
+            )
+                ?: return null
+
+        val raw =
+            match.groupValues
+                .getOrNull(1)
+                ?.toLongOrNull()
+                ?: return null
+
+        return if (
+            raw < 10_000_000_000L
+        ) {
+            raw * 1000L
+        } else {
+            raw
+        }
+    }
+
+    private fun formatResetDate(
+        timestampMillis: Long
+    ): String {
+
+        return SimpleDateFormat(
+            "dd/MM/yyyy HH:mm",
+            Locale.getDefault(),
+        ).format(
+            Date(timestampMillis)
+        )
     }
 }

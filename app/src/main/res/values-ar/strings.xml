@@ -1,108 +1,107 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <!-- App -->
+    <string name="system_default">النظام الافتراضي</string>
     <string name="app_name">VibeApp</string>
+
     <string name="sample_item_title">العنصر 1</string>
     <string name="sample_item_description">وصف العنصر</string>
 
-    <!-- API Providers -->
-    <string name="openrouter" translatable="false">OpenRouter</string>
-    <string name="openrouter_description">الوصول إلى نماذج ذكاء اصطناعي متعددة عبر واجهة OpenRouter API.</string>
-
-    <string name="custom_api" translatable="false">Custom API</string>
-    <string name="custom_api_description">استخدام نقطة اتصال مخصصة ومتوافقة مع الواجهة البرمجية.</string>
-
     <string name="openai_description">مُنشئ ChatGPT.</string>
-    <string name="anthropic_description">مُنشئ Claude.</string>
-    <string name="kimi_description">مُنشئ Kimi من Moonshot AI.</string>
-    <string name="minimax_description">مُنشئ MiniMax.</string>
-    <string name="deepseek_description">مُنشئ DeepSeek، نماذج استدلال متقدمة.</string>
+    <string name="anthropic_description">وُلد Claude هنا.</string>
 
-    <!-- Common -->
     <string name="next">التالي</string>
-    <string name="back">رجوع</string>
-    <string name="need_help">تحتاج إلى مساعدة؟</string>
-    <string name="done">تم</string>
-    <string name="confirm">تأكيد</string>
-    <string name="cancel">إلغاء</string>
-    <string name="save">حفظ</string>
-    <string name="edit">تعديل</string>
-    <string name="close">إغلاق</string>
-    <string name="delete">حذف</string>
-    <string name="remove">إزالة</string>
-    <string name="reset">إعادة ضبط</string>
-    <string name="clear">مسح</string>
-    <string name="options">الخيارات</string>
-    <string name="go_back">العودة</string>
-    <string name="unknown">غير معروف</string>
-    <string name="on">تشغيل</string>
-    <string name="off">إيقاف</string>
+    <string name="need_help">هل تحتاج مساعدة؟</string>
 
-    <!-- Setup -->
-    <string name="setup_complete">تم الإعداد بنجاح!</string>
-    <string name="setup_complete_description">لنبدأ باستخدام VibeApp!</string>
-    <string name="setup_complete_logo">اكتمل الإعداد</string>
-    <string name="finish">إنهاء</string>
+    <string name="setup_complete">أنت جاهز!</string>
 
-    <string name="choose_platform_type">اختر نوع المنصة</string>
-    <string name="choose_platform_type_description">اختر مزود API الذي تريد استخدامه.</string>
+    <string name="setup_complete_description">
+        لنبدأ باستخدام VibeApp!
+    </string>
 
-    <string name="platform_name">اسم المنصة</string>
-    <string name="platform_name_hint">منصتي في OpenRouter</string>
-    <string name="platform_name_supporting">اختر اسمًا لإعدادات هذه المنصة.</string>
-    <string name="platform_basics_description">إعداد خيارات منصة API.</string>
+    <string name="ask_a_question">اطرح سؤالاً…</string>
 
-    <string name="step_x_of_y">الخطوة %1$d من %2$d</string>
-    <string name="step_basics">الأساسيات</string>
-    <string name="step_api_key">مفتاح API</string>
-    <string name="step_model">النموذج</string>
+    <string name="some_platforms_disabled">
+        بعض واجهات برمجة التطبيقات معطلة
+    </string>
 
-    <string name="switched_platform_hint">تم التبديل إلى %1$s</string>
+    <string name="temperature">درجة الحرارة</string>
 
-    <!-- Language -->
-    <string name="language">اللغة</string>
-    <string name="arabic">العربية</string>
-    <string name="english">الإنجليزية</string>
+    <string name="top_p">
+        أخذ العينات الأساسية (أعلى p)
+    </string>
 
-    <!-- API -->
+    <string name="temperature_icon">
+        أيقونة درجة الحرارة
+    </string>
+
+    <string name="system_prompt_setting">
+        إعداد موجّه النظام
+    </string>
+
+    <string name="top_p_icon">
+        أيقونة أخذ العينات الأساسية
+    </string>
+
+    <string name="top_p_setting">
+        إعداد أخذ العينات الأساسية
+    </string>
+
+    <string name="about">حول</string>
+
+    <string name="about_description">
+        الإصدار، الترخيص، الملاحظات
+    </string>
+
+    <string name="model_name">اسم النموذج</string>
+
+    <string name="edit">تحرير</string>
+
+    <string name="edit_question">
+        تحرير رسالة المستخدم
+    </string>
+
+    <string name="user_message">
+        رسالة المستخدم
+    </string>
+
+    <string name="temperature_setting">
+        إعداد درجة الحرارة
+    </string>
+
+    <string name="system_prompt">
+        موجّه النظام
+    </string>
+
+    <string name="system_prompt_description">
+        موجّه النظام هي مجموعة من التعليمات والإرشادات والمعلومات السياقية التي تُعطى لنماذج الذكاء الاصطناعي قبل تفاعلها مع استفسارات المستخدم.
+    </string>
+
+    <string name="system_prompt_icon">
+        أيقونة موجّه النظام
+    </string>
+
+    <string name="update">تحديث</string>
+
+    <string name="enable_api">تمكين API</string>
+
     <string name="api_key">مفتاح API</string>
+
     <string name="api_model">نموذج API</string>
-    <string name="api_url">عنوان API</string>
-    <string name="api_url_hint">https://openrouter.ai/api/</string>
-    <string name="api_key_hint">sk-or-v1-…</string>
 
-    <string name="model_name">معرّف النموذج</string>
-    <string name="model">النموذج</string>
-    <string name="enable_api">تفعيل واجهة API</string>
+    <string name="dynamic_theme">سمة ديناميكية</string>
 
-    <string name="api_key_description">
-        أدخل مفتاح API الخاص بك. يتم تخزينه محليًا على جهازك.
-    </string>
+    <string name="dark_mode">الوضع الداكن</string>
 
-    <string name="api_key_supporting">
-        يتم تخزين مفتاح API محليًا على جهازك.
-    </string>
+    <string name="key_icon">أيقونة المفتاح</string>
 
-    <string name="api_url_cautions">
-        يجب أن ينتهي عنوان URL بـ &quot;/&quot;.
-    </string>
+    <string name="model_icon">أيقونة النموذج</string>
 
-    <string name="invalid_api_url">
-        عنوان API غير صالح.
-    </string>
+    <string name="send">إرسال</string>
 
-    <string name="model_description">
-        أدخل معرّف النموذج الذي تريد استخدامه.
-    </string>
+    <string name="copy_text">نسخ النص</string>
 
-    <string name="model_supporting">
-        أدخل معرّف النموذج.
-    </string>
-
-    <string name="model_examples">
-        مثال: gpt-4o، claude-3، deepseek-chat
-    </string>
+    <string name="retry">إعادة المحاولة</string>
 
     <string name="token_not_set">
         لم يتم تعيين الرمز المميز
@@ -112,189 +111,232 @@
         تم تعيين الرمز المميز كـ %s*****
     </string>
 
-    <!-- Settings -->
+    <string name="close">إغلاق</string>
+
+    <string name="delete">حذف</string>
+
+    <string name="this_operation_can_t_be_undone">
+        لا يمكن التراجع عن هذه العملية.
+    </string>
+
+    <string name="options">خيارات</string>
+
+    <string name="go_back">الرجوع</string>
+
+    <string name="arrow_icon">أيقونة السهم</string>
+
+    <string name="on">تشغيل</string>
+
+    <string name="off">إيقاف</string>
+
+    <string name="theme_settings">
+        إعدادات السمة
+    </string>
+
+    <string name="theme_description">
+        سمة ديناميكية، الوضع الداكن
+    </string>
+
+    <string name="done">تم</string>
+
+    <string name="setup_complete_logo">
+        شعار اكتمال الإعداد
+    </string>
+
     <string name="settings">الإعدادات</string>
 
-    <string name="theme_settings">إعدادات المظهر</string>
-    <string name="theme_description">تخصيص مظهر التطبيق.</string>
+    <string name="confirm">تأكيد</string>
 
-    <string name="dynamic_theme">المظهر الديناميكي</string>
-    <string name="dark_mode">الوضع الداكن</string>
-
-    <string name="system_default">الإعداد الافتراضي للنظام</string>
-
-    <string name="enabled">مفعّل</string>
-    <string name="disabled">معطّل</string>
-
-    <string name="add_platform">إضافة منصة</string>
-    <string name="add_platform_description">إضافة منصة API جديدة.</string>
-
-    <string name="delete_platform">حذف المنصة</string>
-    <string name="delete_platform_confirmation">
-        هل أنت متأكد من رغبتك في حذف هذه المنصة؟
-    </string>
-
-    <string name="debug_log">سجل التصحيح</string>
-    <string name="debug_log_description">
-        عرض معلومات تصحيح التطبيق.
-    </string>
-
-    <!-- Platform Settings -->
-    <string name="platform_settings">إعدادات المنصة</string>
-
-    <string name="platform_settings_description">
-        ضبط خيارات المنصة.
-    </string>
-
-    <!-- Temperature -->
-    <string name="temperature">درجة الحرارة</string>
-
-    <string name="temperature_setting">
-        إعداد درجة الحرارة
-    </string>
-
-    <string name="temperature_icon">
-        أيقونة درجة الحرارة
-    </string>
+    <string name="cancel">إلغاء</string>
 
     <string name="temperature_setting_description">
         درجة الحرارة هي مقدار العشوائية التي يتم إدخالها في الاستجابة.
         عادةً ما تكون القيمة الافتراضية 1.0.
-        \nعيّن درجة حرارة منخفضة للحصول على إجابات أكثر تركيزًا وحتمية،
+        عيّن درجة حرارة منخفضة للحصول على إجابات أكثر تركيزًا وحتمية،
         ودرجة حرارة عالية للحصول على إجابات أكثر عشوائية.
     </string>
 
-    <!-- Top P -->
-    <string name="top_p">
-        أخذ العينات النواتية (Top P)
-    </string>
-
-    <string name="top_p_setting">
-        إعداد أخذ العينات النواتية
-    </string>
-
-    <string name="top_p_icon">
-        أيقونة أخذ العينات النواتية
-    </string>
-
     <string name="top_p_setting_description">
-        في أخذ العينات النواتية، يتم حساب التوزيع التراكمي لجميع الخيارات لكل رمز لاحق
-        بترتيب تنازلي حسب الاحتمالية، ثم يتم قطعه عند الوصول إلى الاحتمال المحدد بهذه القيمة.
-        \nتوصي معظم النماذج عادةً بتغيير Top P أو درجة الحرارة، وليس كليهما.
+        في أخذ العينات الأساسية، نحسب التوزيع التراكمي على جميع الخيارات لكل رمز لاحق بترتيب تنازلي للاحتمالية ونقطعه بمجرد أن يصل إلى احتمال معين محدد بهذه القيمة.
+        توصي معظم النماذج عادةً بتغيير هذا أو درجة الحرارة ولكن ليس كليهما.
     </string>
-
-    <!-- System Prompt -->
-    <string name="system_prompt_setting">
-        تعليمات النظام
-    </string>
-
-    <string name="system_prompt">
-        تعليمات النظام
-    </string>
-
-    <string name="system_prompt_icon">
-        أيقونة تعليمات النظام
-    </string>
-
-    <string name="system_prompt_description">
-        تعليمات النظام هي مجموعة من التعليمات والإرشادات والمعلومات السياقية
-        التي تُعطى لنماذج الذكاء الاصطناعي قبل تفاعلها مع استفسارات المستخدم.
-    </string>
-
-    <!-- About -->
-    <string name="about">حول التطبيق</string>
-    <string name="about_description">معلومات التطبيق.</string>
 
     <string name="version">الإصدار</string>
-    <string name="version_icon">أيقونة الإصدار</string>
 
     <string name="license">الترخيص</string>
 
+    <string name="feedback">ملاحظات</string>
+
     <string name="license_description">
-        معلومات ترخيص المصدر المفتوح.
+        تراخيص مفتوحة المصدر
+    </string>
+
+    <string name="feedback_description">
+        نحن منفتحون على جميع أنواع الملاحظات!
+    </string>
+
+    <string name="version_icon">
+        أيقونة الإصدار
     </string>
 
     <string name="license_icon">
         أيقونة الترخيص
     </string>
 
-    <string name="github">GitHub</string>
-    <string name="github_icon">أيقونة GitHub</string>
-
-    <string name="github_link" translatable="false">
-        https://github.com/
-    </string>
-
-    <string name="feedback">الملاحظات</string>
-
-    <string name="feedback_description">
-        إرسال ملاحظات أو الإبلاغ عن المشكلات.
-    </string>
-
     <string name="feedback_icon">
         أيقونة الملاحظات
     </string>
 
-    <string name="feedback_link" translatable="false">
-        mailto:support@example.com
+    <string name="github_icon">
+        أيقونة GitHub
     </string>
 
-    <string name="bug_report">الإبلاغ عن خطأ</string>
+    <string name="api_url">
+        عنوان URL لواجهة برمجة التطبيقات
+    </string>
+
+    <string name="url_icon">
+        أيقونة URL
+    </string>
+
+    <string name="invalid_api_url">
+        الرجاء إدخال عنوان URL صالح.
+    </string>
+
+    <string name="reset">إعادة تعيين</string>
+
+    <string name="api_url_cautions">
+        يجب أن ينتهي عنوان URL بـ '/'.
+    </string>
+
+    <string name="bug_report">
+        الإبلاغ عن خطأ
+    </string>
 
     <string name="bug_report_description">
-        الإبلاغ عن الأخطاء ومشكلات التطبيق.
+        شيء ما لا يعمل بشكل صحيح؟
     </string>
 
     <string name="bug_report_icon">
         أيقونة الإبلاغ عن خطأ
     </string>
 
-    <string name="bug_report_link" translatable="false">
-        https://github.com/issues
+    <string name="scroll_to_bottom_icon">
+        أيقونة التمرير إلى الأسفل
     </string>
 
-    <!-- Home -->
-    <string name="projects">المشاريع</string>
-
-    <string name="projects_selected">
-        تم تحديد %1$d من المشاريع
+    <string name="export_chat">
+        تصدير الدردشة
     </string>
 
-    <string name="new_project">مشروع جديد</string>
-
-    <string name="delete_selected_projects">
-        حذف المشاريع المحددة
+    <string name="switched_platform_hint">
+        تم التبديل إلى %1$s، وتم تعطيل المنصة السابقة
     </string>
 
-    <string name="deleted_projects">
-        تم حذف %1$d من المشاريع
-    </string>
-
-    <string name="no_search_results">
-        لم يتم العثور على مشاريع
-    </string>
-
-    <string name="search_projects">
-        البحث في المشاريع
-    </string>
-
-    <string name="home_session_thinking">
-        باستخدام %1$s
-    </string>
-
-    <!-- Chat -->
-    <string name="ask_a_question">
-        اطرح سؤالًا...
-    </string>
-
-    <string name="send">إرسال</string>
     <string name="stop">إيقاف</string>
 
-    <string name="copy_text">نسخ النص</string>
-    <string name="retry">إعادة المحاولة</string>
+    <string name="select_image">
+        اختيار صورة
+    </string>
 
-    <string name="some_platforms_disabled">
-        بعض المنصات معطّلة
+    <string name="image_input_not_supported">
+        اختيار الصور مدعوم فقط في محادثات OpenAI وAnthropic وKimi.
+    </string>
+
+    <string name="supported_image_formats">
+        يدعم حاليًا صور png وjpeg وwebp وgif فقط.
+    </string>
+
+    <string name="failed_to_select_image">
+        فشل اختيار الصورة.
+    </string>
+
+    <string name="view_thinking">
+        عرض استدعاءات الأدوات
+    </string>
+
+    <string name="hide_thinking">
+        إخفاء استدعاءات الأدوات
+    </string>
+
+    <string name="tool_calling">
+        جارٍ استدعاء %s
+    </string>
+
+    <string name="tool_result_ok">
+        اكتمل %s
+    </string>
+
+    <string name="tool_result_error">
+        فشل %s
+    </string>
+
+    <string name="tool_name_read_project_file">
+        قراءة ملف
+    </string>
+
+    <string name="tool_name_write_project_file">
+        كتابة ملف
+    </string>
+
+    <string name="tool_name_delete_project_file">
+        حذف ملف
+    </string>
+
+    <string name="tool_name_list_project_files">
+        قائمة الملفات
+    </string>
+
+    <string name="tool_name_edit_project_file">
+        تحرير الملف
+    </string>
+
+    <string name="tool_name_run_build_pipeline">
+        تشغيل البناء
+    </string>
+
+    <string name="tool_name_rename_project">
+        إعادة تسمية المشروع
+    </string>
+
+    <string name="tool_name_update_project_icon">
+        تحديث الأيقونة
+    </string>
+
+    <string name="tool_name_update_project_icon_custom">
+        تحديث الأيقونة المخصصة
+    </string>
+
+    <string name="tool_name_launch_app">
+        تشغيل التطبيق
+    </string>
+
+    <string name="tool_name_close_app">
+        إغلاق التطبيق
+    </string>
+
+    <string name="tool_name_read_runtime_log">
+        قراءة سجل التطبيق
+    </string>
+
+    <string name="tool_name_fix_crash_guide">
+        تشخيص العطل
+    </string>
+
+    <string name="crash_detected_title">
+        تعطل التطبيق
+    </string>
+
+    <string name="crash_auto_fix">
+        إصلاح تلقائي
+    </string>
+
+    <string name="crash_dismiss">
+        تجاهل
+    </string>
+
+    <string name="kimi_description">
+        منشئ Kimi من Moonshot AI.
     </string>
 
     <string name="add_api_key">
@@ -310,146 +352,15 @@
     </string>
 
     <string name="add_api_key_prompt_description">
-        لم يتم إعداد أي منصة بعد. أضف مزودًا أولاً، ثم عد إلى هنا لبدء المحادثة.
+        لم يتم إعداد أي منصة بعد. أضف مزودًا أولًا، ثم عد إلى هنا لبدء المحادثة.
     </string>
 
-    <string name="clear_chat_history">
-        مسح سجل المحادثة
-    </string>
-
-    <string name="clear_chat_history_title">
-        مسح سجل المحادثة
-    </string>
-
-    <string name="clear_chat_history_message">
-        هل أنت متأكد من رغبتك في مسح سجل المحادثة؟
-    </string>
-
-    <string name="export_chat">
-        تصدير المحادثة
-    </string>
-
-    <string name="export_source_code">
-        تصدير الشفرة المصدرية
-    </string>
-
-    <string name="export_apk">
-        تصدير ملفات APK
+    <string name="minimax_description">
+        منشئ MiniMax.
     </string>
 
     <string name="install_apk">
         تثبيت APK
-    </string>
-
-    <string name="select_image">
-        اختيار صورة
-    </string>
-
-    <string name="image_input_not_supported">
-        إدخال الصور غير مدعوم في هذه المنصة.
-    </string>
-
-    <string name="supported_image_formats">
-        تنسيقات الصور المدعومة: PNG وJPEG وWebP وGIF.
-    </string>
-
-    <string name="failed_to_select_image">
-        فشل اختيار الصورة.
-    </string>
-
-    <string name="scroll_to_bottom_icon">
-        الانتقال إلى الأسفل
-    </string>
-
-    <!-- Chat Snapshot -->
-    <string name="snapshot_time_just_now">
-        الآن
-    </string>
-
-    <string name="snapshot_time_minutes_ago">
-        منذ %1$d دقيقة
-    </string>
-
-    <string name="snapshot_time_hours_ago">
-        منذ %1$d ساعة
-    </string>
-
-    <!-- Thinking / Tools -->
-    <string name="view_thinking">
-        عرض التفكير
-    </string>
-
-    <string name="hide_thinking">
-        إخفاء التفكير
-    </string>
-
-    <string name="thinking_in_progress">
-        جارٍ التفكير...
-    </string>
-
-    <string name="tool_calling">
-        جارٍ استدعاء %1$s...
-    </string>
-
-    <string name="tool_result_ok">
-        اكتمل %1$s
-    </string>
-
-    <string name="tool_result_error">
-        فشل %1$s
-    </string>
-
-    <!-- Tools -->
-    <string name="tool_name_read_project_file">
-        قراءة ملف المشروع
-    </string>
-
-    <string name="tool_name_write_project_file">
-        كتابة ملف المشروع
-    </string>
-
-    <string name="tool_name_delete_project_file">
-        حذف ملف المشروع
-    </string>
-
-    <string name="tool_name_list_project_files">
-        عرض ملفات المشروع
-    </string>
-
-    <string name="tool_name_edit_project_file">
-        تعديل ملف المشروع
-    </string>
-
-    <string name="tool_name_run_build_pipeline">
-        تشغيل عملية البناء
-    </string>
-
-    <string name="tool_name_rename_project">
-        إعادة تسمية المشروع
-    </string>
-
-    <string name="tool_name_update_project_icon">
-        تحديث أيقونة المشروع
-    </string>
-
-    <string name="tool_name_update_project_icon_custom">
-        تحديث أيقونة المشروع المخصصة
-    </string>
-
-    <string name="tool_name_launch_app">
-        تشغيل التطبيق
-    </string>
-
-    <string name="tool_name_close_app">
-        إغلاق التطبيق
-    </string>
-
-    <string name="tool_name_read_runtime_log">
-        قراءة سجل التشغيل
-    </string>
-
-    <string name="tool_name_fix_crash_guide">
-        دليل إصلاح التعطل
     </string>
 
     <string name="tool_name_create_plan">
@@ -457,229 +368,23 @@
     </string>
 
     <string name="tool_name_update_plan_step">
-        تحديث خطوة في الخطة
+        تحديث الخطة
     </string>
 
-    <string name="tool_name_fetch_web_page">
-        جلب صفحة ويب
-    </string>
-
-    <string name="tool_name_get_design_guide">
-        الحصول على دليل التصميم
-    </string>
-
-    <string name="tool_name_get_project_memo">
-        الحصول على مذكرة المشروع
-    </string>
-
-    <string name="tool_name_get_ui_pattern">
-        الحصول على نمط الواجهة
-    </string>
-
-    <string name="tool_name_grep_project_files">
-        البحث في ملفات المشروع
-    </string>
-
-    <string name="tool_name_inspect_ui">
-        فحص الواجهة
-    </string>
-
-    <string name="tool_name_interact_ui">
-        التفاعل مع الواجهة
-    </string>
-
-    <string name="tool_name_search_icon">
-        البحث عن أيقونة
-    </string>
-
-    <string name="tool_name_search_ui_pattern">
-        البحث عن نمط الواجهة
-    </string>
-
-    <string name="tool_name_web_search">
-        البحث على الويب
-    </string>
-
-    <string name="tool_name_update_project_intent">
-        تحديث هدف المشروع
-    </string>
-
-    <!-- Plan -->
     <string name="plan_header">
         الخطة (%1$d/%2$d مكتملة)
     </string>
 
-    <!-- Project Memo / History -->
-    <string name="project_memo_title">
-        مذكرة المشروع
+    <string name="deepseek_description">
+        مبتكر DeepSeek، نماذج استدلال متقدمة.
     </string>
 
-    <string name="snapshot_history_title">
-        سجل اللقطات
-    </string>
+    <!-- Language Settings -->
 
-    <string name="snapshot_history_empty">
-        لم يتم العثور على لقطات
-    </string>
+    <string name="language">اللغة</string>
 
-    <string name="snapshot_history_restore">
-        استعادة اللقطة
-    </string>
+    <string name="arabic">العربية</string>
 
-    <string name="snapshot_history_manual_label">
-        لقطة يدوية
-    </string>
-
-    <string name="history_auto_supporting">
-        سجل محفوظ تلقائيًا
-    </string>
-
-    <!-- Notifications -->
-    <string name="notification_channel_result">
-        نتيجة قناة الإشعارات
-    </string>
-
-    <string name="notification_single">
-        إشعار واحد
-    </string>
-
-    <string name="notification_multiple">
-        عدة إشعارات
-    </string>
-
-    <string name="notification_ongoing_single">
-        إشعار مستمر (واحد)
-    </string>
-
-    <string name="notification_ongoing_multiple">
-        إشعار مستمر (متعدد)
-    </string>
-
-    <string name="notification_permission_title">
-        إذن الإشعارات
-    </string>
-
-    <string name="notification_permission_rationale">
-        نحتاج إلى الإشعارات لإبقائك على اطلاع بتقدم عملية البناء.
-    </string>
-
-    <string name="notification_permission_grant">
-        منح الإذن
-    </string>
-
-    <string name="notification_permission_skip">
-        تخطي
-    </string>
-
-    <!-- Turn Undo -->
-    <string name="turn_undo_bar_label">
-        التراجع عن آخر دور
-    </string>
-
-    <string name="turn_undo_button">
-        تراجع
-    </string>
-
-    <string name="turn_undo_done_toast">
-        تم التراجع عن آخر دور
-    </string>
-
-    <string name="turn_undo_failed_toast">
-        فشل التراجع عن آخر دور
-    </string>
-
-    <!-- Diagnostics -->
-    <string name="diagnostic_events">
-        الأحداث
-    </string>
-
-    <string name="diagnostic_summary">
-        الملخص
-    </string>
-
-    <string name="diagnostic_context_size">
-        حجم السياق
-    </string>
-
-    <string name="diagnostic_compaction">
-        ضغط السياق
-    </string>
-
-    <string name="diagnostic_total_events">
-        إجمالي الأحداث
-    </string>
-
-    <string name="diagnostic_errors">
-        الأخطاء
-    </string>
-
-    <string name="diagnostic_warnings">
-        التحذيرات
-    </string>
-
-    <string name="diagnostic_log_size">
-        حجم السجل
-    </string>
-
-    <string name="diagnostic_event_copied">
-        تم نسخ الحدث
-    </string>
-
-    <!-- Dialog -->
-    <string name="this_operation_can_t_be_undone">
-        لا يمكن التراجع عن هذه العملية.
-    </string>
-
-    <!-- Crash -->
-    <string name="crash_detected_title">
-        تعطل التطبيق
-    </string>
-
-    <string name="crash_auto_fix">
-        إصلاح تلقائي
-    </string>
-
-    <string name="crash_dismiss">
-        تجاهل
-    </string>
-
-    <!-- Additional Settings -->
-    <string name="not_set">
-        غير مضبوط
-    </string>
-
-    <string name="update_project_name">
-        تحديث اسم المشروع
-    </string>
-
-    <!-- Icons -->
-    <string name="key_icon">
-        أيقونة المفتاح
-    </string>
-
-    <string name="model_icon">
-        أيقونة النموذج
-    </string>
-
-    <string name="url_icon">
-        أيقونة URL
-    </string>
-
-    <string name="arrow_icon">
-        أيقونة السهم
-    </string>
-
-    <string name="platform_name_icon">
-        أيقونة اسم المنصة
-    </string>
-
-    <!-- Expand / Collapse -->
-    <string name="collapse">
-        طي
-    </string>
-
-    <string name="expand">
-        توسيع
-    </string>
+    <string name="english">الإنجليزية</string>
 
 </resources>

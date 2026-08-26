@@ -34,7 +34,6 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.int
-import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
@@ -70,6 +69,9 @@ class DefaultAgentLoopCoordinator @Inject constructor(
         var mode = AgentMode.GREENFIELD
         var memo: ProjectMemo? = null
 
+        /*
+         * Prepare project workspace when a project exists.
+         */
         if (!projectId.isNullOrBlank()) {
             runCatching {
 
@@ -169,9 +171,18 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                 initialConversation
                     .toMutableList()
 
-            var currentPlan: AgentPlan? =
-                null
-
+            /*
+             * Main agent loop.
+             *
+             * Each iteration:
+             *
+             * 1. Send the conversation to the model.
+             * 2. Collect streamed output.
+             * 3. Collect tool calls.
+             * 4. Execute tools.
+             * 5. Add tool results to the conversation.
+             * 6. Continue until the model stops requesting tools.
+             */
             for (
                 iteration in
                 1..request.policy.maxIterations
@@ -200,6 +211,12 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                 var turnReasoningContent:
                     String? = null
 
+                /*
+                 * On the first iteration, require a tool when tools
+                 * are available. This is important for project-building
+                 * requests because the model must actually use the
+                 * project tools instead of merely describing code.
+                 */
                 val effectivePolicy =
                     if (
                         iteration == 1 &&
@@ -216,6 +233,10 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                         request.policy
                     }
 
+                /*
+                 * Compact the complete conversation before sending it
+                 * to the provider.
+                 */
                 val compactionResult =
                     conversationCompactor.compact(
                         items =
@@ -226,6 +247,9 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                             request.platform,
                     )
 
+                /*
+                 * Send the current turn to the selected provider.
+                 */
                 agentModelGateway
                     .streamTurn(
                         AgentModelRequest(
@@ -247,10 +271,9 @@ class DefaultAgentLoopCoordinator @Inject constructor(
 
                             instructions =
                                 buildInstructions(
-                                    request,
-                                    currentPlan,
-                                    mode,
-                                    memo,
+                                    request = request,
+                                    mode = mode,
+                                    memo = memo,
                                 ),
 
                             tools =
@@ -322,6 +345,9 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                         }
                     }
 
+                /*
+                 * Provider/model failure.
+                 */
                 if (failureMessage != null) {
 
                     emit(
@@ -336,6 +362,9 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                     return@flow
                 }
 
+                /*
+                 * No tools means the model has finished the task.
+                 */
                 if (pendingCalls.isEmpty()) {
 
                     emit(
@@ -353,6 +382,9 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                     return@flow
                 }
 
+                /*
+                 * Save the assistant turn including its tool calls.
+                 */
                 fullConversation +=
                     AgentConversationItem(
                         role =
@@ -376,6 +408,9 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                 var shouldStopAfterToolFailure =
                     false
 
+                /*
+                 * Execute every requested tool.
+                 */
                 pendingCalls.forEach { call ->
 
                     val tool =
@@ -383,6 +418,9 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                             call.name
                         )
 
+                    /*
+                     * Tool does not exist.
+                     */
                     if (tool == null) {
 
                         val result =
@@ -429,6 +467,10 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                         )
                     )
 
+                    /*
+                     * Execute the tool safely so one tool exception
+                     * does not crash the entire application.
+                     */
                     val result =
                         runCatching {
 
@@ -489,9 +531,9 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                      * provider/rate-limit/overload is not a
                      * project compilation error.
                      *
-                     * Do not allow the agent to repeatedly
-                     * call run_build_pipeline for the same
-                     * infrastructure failure.
+                     * Do not allow the agent to repeatedly call
+                     * run_build_pipeline for the same infrastructure
+                     * failure.
                      */
                     if (
                         call.name ==
@@ -524,6 +566,9 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                         }
                     }
 
+                    /*
+                     * Track files changed during the turn.
+                     */
                     if (
                         turnContext != null &&
                         !result.isError
@@ -569,50 +614,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                             result,
                         )
                     )
-
-                    when (call.name) {
-
-                        "create_plan" -> {
-
-                            parsePlanFromToolResult(
-                                result,
-                                iteration,
-                            )?.let { plan ->
-
-                                currentPlan =
-                                    plan
-
-                                emit(
-                                    AgentLoopEvent.PlanCreated(
-                                        iteration,
-                                        plan,
-                                    )
-                                )
-                            }
-                        }
-
-                        "update_plan_step" -> {
-
-                            currentPlan?.let { plan ->
-
-                                updatePlanFromToolResult(
-                                    plan,
-                                    result,
-                                )?.let { updated ->
-
-                                    currentPlan =
-                                        updated
-
-                                    emit(
-                                        AgentLoopEvent.PlanUpdated(
-                                            iteration,
-                                            updated,
-                                        )
-                                    )
-                                }
-                            }
-                        }
-                    }
                 }
 
                 /*
@@ -620,7 +621,7 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                  *
                  * Stop the loop immediately instead of:
                  *
-                 * build → overloaded → build → overloaded
+                 * build -> overloaded -> build -> overloaded
                  */
                 if (
                     shouldStopAfterToolFailure
@@ -634,6 +635,7 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                                     "but the build service returned an upstream " +
                                     "rate-limit or overload error. " +
                                     "Please retry the build later.",
+
                             iteration =
                                 iteration,
                         )
@@ -642,6 +644,10 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                     return@flow
                 }
 
+                /*
+                 * Convert tool results into conversation items
+                 * for the next model iteration.
+                 */
                 val toolResultItems =
                     pendingToolResults.map { result ->
 
@@ -663,10 +669,20 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                 fullConversation +=
                     toolResultItems
 
+                /*
+                 * Only the new tool results are sent as the next
+                 * conversation delta.
+                 */
                 conversationDelta =
                     toolResultItems
             }
 
+            /*
+             * Maximum iterations reached.
+             *
+             * Give the model one final read-only turn to summarize
+             * the work instead of attempting more tools.
+             */
             val windDownMessage =
                 AgentConversationItem(
                     role =
@@ -728,10 +744,9 @@ class DefaultAgentLoopCoordinator @Inject constructor(
 
                         instructions =
                             buildInstructions(
-                                request,
-                                currentPlan,
-                                mode,
-                                memo,
+                                request = request,
+                                mode = mode,
+                                memo = memo,
                             ),
 
                         tools =
@@ -812,6 +827,9 @@ class DefaultAgentLoopCoordinator @Inject constructor(
 
         } finally {
 
+            /*
+             * Finalize the project turn.
+             */
             if (turnContext != null) {
 
                 runCatching {
@@ -870,6 +888,10 @@ class DefaultAgentLoopCoordinator @Inject constructor(
         }
     }
 
+    /*
+     * Detect provider/infrastructure failures that should not cause
+     * the agent to repeatedly rebuild the project.
+     */
     private fun isExternalBuildFailure(
         error: String
     ): Boolean {
@@ -903,6 +925,9 @@ class DefaultAgentLoopCoordinator @Inject constructor(
         }
     }
 
+    /*
+     * Build the initial conversation from the stored messages.
+     */
     private fun buildInitialConversation(
         request: AgentLoopRequest
     ): List<AgentConversationItem> {
@@ -950,6 +975,9 @@ class DefaultAgentLoopCoordinator @Inject constructor(
         )
     }
 
+    /*
+     * Keep cross-turn history inside the provider context budget.
+     */
     private fun compactCrossTurnHistory(
         items: List<AgentConversationItem>,
         request: AgentLoopRequest,
@@ -1041,164 +1069,9 @@ class DefaultAgentLoopCoordinator @Inject constructor(
         return result
     }
 
-    private fun parsePlanFromToolResult(
-        result: AgentToolResult,
-        iteration: Int,
-    ): AgentPlan? {
-
-        if (result.isError) {
-            return null
-        }
-
-        return try {
-
-            val json =
-                result.output.jsonObject
-
-            val summary =
-                json["summary"]
-                    ?.jsonPrimitive
-                    ?.content
-                    ?: return null
-
-            val stepsArray =
-                json["steps"]
-                    ?.jsonArray
-                    ?: return null
-
-            val steps =
-                stepsArray.map { element ->
-
-                    val obj =
-                        element.jsonObject
-
-                    AgentPlanStep(
-
-                        id =
-                            obj["id"]
-                                ?.jsonPrimitive
-                                ?.int
-                                ?: 0,
-
-                        description =
-                            obj["description"]
-                                ?.jsonPrimitive
-                                ?.content
-                                ?: "",
-
-                        status =
-                            PlanStepStatus.PENDING,
-                    )
-                }
-
-            AgentPlan(
-                summary =
-                    summary,
-
-                steps =
-                    steps,
-
-                createdAtIteration =
-                    iteration,
-            )
-
-        } catch (_: Exception) {
-
-            null
-        }
-    }
-
-    private fun updatePlanFromToolResult(
-        plan: AgentPlan,
-        result: AgentToolResult,
-    ): AgentPlan? {
-
-        if (result.isError) {
-            return null
-        }
-
-        return try {
-
-            val json =
-                result.output.jsonObject
-
-            val stepId =
-                json["step_id"]
-                    ?.jsonPrimitive
-                    ?.int
-                    ?: return null
-
-            val statusStr =
-                json["status"]
-                    ?.jsonPrimitive
-                    ?.content
-                    ?: return null
-
-            val notes =
-                json["notes"]
-                    ?.jsonPrimitive
-                    ?.content
-
-            val newStatus =
-                when (statusStr) {
-
-                    "COMPLETED" ->
-                        PlanStepStatus.COMPLETED
-
-                    "FAILED" ->
-                        PlanStepStatus.FAILED
-
-                    "SKIPPED" ->
-                        PlanStepStatus.SKIPPED
-
-                    else ->
-                        return null
-                }
-
-            val updatedSteps =
-                plan.steps.map { step ->
-
-                    if (
-                        step.id == stepId
-                    ) {
-
-                        step.copy(
-                            status =
-                                newStatus,
-
-                            notes =
-                                notes,
-                        )
-
-                    } else if (
-                        step.id ==
-                            stepId + 1 &&
-                        newStatus ==
-                            PlanStepStatus.COMPLETED
-                    ) {
-
-                        step.copy(
-                            status =
-                                PlanStepStatus.IN_PROGRESS
-                        )
-
-                    } else {
-
-                        step
-                    }
-                }
-
-            plan.copy(
-                steps =
-                    updatedSteps
-            )
-
-        } catch (_: Exception) {
-
-            null
-        }
-    }
-
+    /*
+     * Convert a stored database message into an agent conversation item.
+     */
     private fun MessageV2.toAgentConversationItem():
         AgentConversationItem {
 
@@ -1252,6 +1125,9 @@ class DefaultAgentLoopCoordinator @Inject constructor(
         )
     }
 
+    /*
+     * Base system prompt.
+     */
     private val promptTemplate: String by lazy {
 
         context.assets
@@ -1264,6 +1140,9 @@ class DefaultAgentLoopCoordinator @Inject constructor(
             }
     }
 
+    /*
+     * Additional instructions used by iteration mode.
+     */
     private val iterationAppendix: String by lazy {
 
         context.assets
@@ -1283,9 +1162,17 @@ class DefaultAgentLoopCoordinator @Inject constructor(
             .lastOrNull()
             ?.content
 
+    /*
+     * Build the system instructions sent to the model.
+     *
+     * NOTE:
+     * There is deliberately no AgentPlan here.
+     *
+     * The project version supplied by the user does not require
+     * AgentPlan / AgentPlanStep / PlanStepStatus for the agent loop.
+     */
     private suspend fun buildInstructions(
         request: AgentLoopRequest,
-        activePlan: AgentPlan? = null,
         mode: AgentMode = AgentMode.GREENFIELD,
         memo: ProjectMemo? = null,
     ): String {
@@ -1353,59 +1240,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
 
                 append(
                     custom
-                )
-            }
-
-            if (activePlan != null) {
-
-                append(
-                    "\n\n[Active Plan]\n"
-                )
-
-                append(
-                    "Goal: ${activePlan.summary}\n"
-                )
-
-                activePlan.steps
-                    .forEach { step ->
-
-                        val icon =
-                            when (step.status) {
-
-                                PlanStepStatus.COMPLETED ->
-                                    "done"
-
-                                PlanStepStatus.IN_PROGRESS ->
-                                    "current"
-
-                                PlanStepStatus.FAILED ->
-                                    "failed"
-
-                                PlanStepStatus.SKIPPED ->
-                                    "skipped"
-
-                                PlanStepStatus.PENDING ->
-                                    "pending"
-                            }
-
-                        append(
-                            "  [$icon] " +
-                                "${step.id}. " +
-                                step.description
-                        )
-
-                        step.notes?.let {
-                            append(
-                                " ($it)"
-                            )
-                        }
-
-                        append("\n")
-                    }
-
-                append(
-                    "Continue with the next pending step. " +
-                        "Call update_plan_step after completing each step.\n"
                 )
             }
         }

@@ -69,9 +69,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
         var mode = AgentMode.GREENFIELD
         var memo: ProjectMemo? = null
 
-        /*
-         * Prepare project workspace when a project exists.
-         */
         if (!projectId.isNullOrBlank()) {
             runCatching {
 
@@ -171,18 +168,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                 initialConversation
                     .toMutableList()
 
-            /*
-             * Main agent loop.
-             *
-             * Each iteration:
-             *
-             * 1. Send the conversation to the model.
-             * 2. Collect streamed output.
-             * 3. Collect tool calls.
-             * 4. Execute tools.
-             * 5. Add tool results to the conversation.
-             * 6. Continue until the model stops requesting tools.
-             */
             for (
                 iteration in
                 1..request.policy.maxIterations
@@ -211,12 +196,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                 var turnReasoningContent:
                     String? = null
 
-                /*
-                 * On the first iteration, require a tool when tools
-                 * are available. This is important for project-building
-                 * requests because the model must actually use the
-                 * project tools instead of merely describing code.
-                 */
                 val effectivePolicy =
                     if (
                         iteration == 1 &&
@@ -233,10 +212,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                         request.policy
                     }
 
-                /*
-                 * Compact the complete conversation before sending it
-                 * to the provider.
-                 */
                 val compactionResult =
                     conversationCompactor.compact(
                         items =
@@ -247,9 +222,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                             request.platform,
                     )
 
-                /*
-                 * Send the current turn to the selected provider.
-                 */
                 agentModelGateway
                     .streamTurn(
                         AgentModelRequest(
@@ -345,9 +317,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                         }
                     }
 
-                /*
-                 * Provider/model failure.
-                 */
                 if (failureMessage != null) {
 
                     emit(
@@ -362,9 +331,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                     return@flow
                 }
 
-                /*
-                 * No tools means the model has finished the task.
-                 */
                 if (pendingCalls.isEmpty()) {
 
                     emit(
@@ -382,9 +348,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                     return@flow
                 }
 
-                /*
-                 * Save the assistant turn including its tool calls.
-                 */
                 fullConversation +=
                     AgentConversationItem(
                         role =
@@ -408,9 +371,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                 var shouldStopAfterToolFailure =
                     false
 
-                /*
-                 * Execute every requested tool.
-                 */
                 pendingCalls.forEach { call ->
 
                     val tool =
@@ -418,9 +378,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                             call.name
                         )
 
-                    /*
-                     * Tool does not exist.
-                     */
                     if (tool == null) {
 
                         val result =
@@ -467,10 +424,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                         )
                     )
 
-                    /*
-                     * Execute the tool safely so one tool exception
-                     * does not crash the entire application.
-                     */
                     val result =
                         runCatching {
 
@@ -524,17 +477,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                     collectedToolResults +=
                         result
 
-                    /*
-                     * IMPORTANT:
-                     *
-                     * A build failure caused by an upstream
-                     * provider/rate-limit/overload is not a
-                     * project compilation error.
-                     *
-                     * Do not allow the agent to repeatedly call
-                     * run_build_pipeline for the same infrastructure
-                     * failure.
-                     */
                     if (
                         call.name ==
                             "run_build_pipeline" &&
@@ -566,9 +508,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                         }
                     }
 
-                    /*
-                     * Track files changed during the turn.
-                     */
                     if (
                         turnContext != null &&
                         !result.isError
@@ -583,9 +522,10 @@ class DefaultAgentLoopCoordinator @Inject constructor(
 
                                     val path =
                                         call.arguments
-                                            .requireString(
-                                                "path"
-                                            )
+                                            .jsonObject["path"]
+                                            ?.jsonPrimitive
+                                            ?.content
+                                            ?: return@runCatching
 
                                     turnContext!!
                                         .writtenFiles +=
@@ -596,9 +536,10 @@ class DefaultAgentLoopCoordinator @Inject constructor(
 
                                     val path =
                                         call.arguments
-                                            .requireString(
-                                                "path"
-                                            )
+                                            .jsonObject["path"]
+                                            ?.jsonPrimitive
+                                            ?.content
+                                            ?: return@runCatching
 
                                     turnContext!!
                                         .deletedFiles +=
@@ -616,13 +557,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                     )
                 }
 
-                /*
-                 * External build infrastructure failure.
-                 *
-                 * Stop the loop immediately instead of:
-                 *
-                 * build -> overloaded -> build -> overloaded
-                 */
                 if (
                     shouldStopAfterToolFailure
                 ) {
@@ -644,10 +578,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                     return@flow
                 }
 
-                /*
-                 * Convert tool results into conversation items
-                 * for the next model iteration.
-                 */
                 val toolResultItems =
                     pendingToolResults.map { result ->
 
@@ -669,20 +599,10 @@ class DefaultAgentLoopCoordinator @Inject constructor(
                 fullConversation +=
                     toolResultItems
 
-                /*
-                 * Only the new tool results are sent as the next
-                 * conversation delta.
-                 */
                 conversationDelta =
                     toolResultItems
             }
 
-            /*
-             * Maximum iterations reached.
-             *
-             * Give the model one final read-only turn to summarize
-             * the work instead of attempting more tools.
-             */
             val windDownMessage =
                 AgentConversationItem(
                     role =
@@ -827,9 +747,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
 
         } finally {
 
-            /*
-             * Finalize the project turn.
-             */
             if (turnContext != null) {
 
                 runCatching {
@@ -888,10 +805,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
         }
     }
 
-    /*
-     * Detect provider/infrastructure failures that should not cause
-     * the agent to repeatedly rebuild the project.
-     */
     private fun isExternalBuildFailure(
         error: String
     ): Boolean {
@@ -925,9 +838,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
         }
     }
 
-    /*
-     * Build the initial conversation from the stored messages.
-     */
     private fun buildInitialConversation(
         request: AgentLoopRequest
     ): List<AgentConversationItem> {
@@ -975,9 +885,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
         )
     }
 
-    /*
-     * Keep cross-turn history inside the provider context budget.
-     */
     private fun compactCrossTurnHistory(
         items: List<AgentConversationItem>,
         request: AgentLoopRequest,
@@ -1069,9 +976,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
         return result
     }
 
-    /*
-     * Convert a stored database message into an agent conversation item.
-     */
     private fun MessageV2.toAgentConversationItem():
         AgentConversationItem {
 
@@ -1125,9 +1029,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
         )
     }
 
-    /*
-     * Base system prompt.
-     */
     private val promptTemplate: String by lazy {
 
         context.assets
@@ -1140,9 +1041,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
             }
     }
 
-    /*
-     * Additional instructions used by iteration mode.
-     */
     private val iterationAppendix: String by lazy {
 
         context.assets
@@ -1162,15 +1060,6 @@ class DefaultAgentLoopCoordinator @Inject constructor(
             .lastOrNull()
             ?.content
 
-    /*
-     * Build the system instructions sent to the model.
-     *
-     * NOTE:
-     * There is deliberately no AgentPlan here.
-     *
-     * The project version supplied by the user does not require
-     * AgentPlan / AgentPlanStep / PlanStepStatus for the agent loop.
-     */
     private suspend fun buildInstructions(
         request: AgentLoopRequest,
         mode: AgentMode = AgentMode.GREENFIELD,

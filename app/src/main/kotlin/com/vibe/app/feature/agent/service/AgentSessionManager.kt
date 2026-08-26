@@ -34,13 +34,11 @@ import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
-
 data class SessionMessageState(
     val userMessages: List<MessageV2>,
     val assistantMessages: List<List<MessageV2>>,
     val agentSteps: List<List<AgentStepItem>> = emptyList(),
 )
-
 
 @Singleton
 class AgentSessionManager @Inject constructor(
@@ -56,7 +54,6 @@ class AgentSessionManager @Inject constructor(
         CoroutineScope(
             SupervisorJob() + Dispatchers.Default
         )
-
 
     private val _sessions =
         MutableStateFlow<Map<Int, AgentSession>>(emptyMap())
@@ -76,7 +73,6 @@ class AgentSessionManager @Inject constructor(
     val hasActiveSessions: StateFlow<Boolean> =
         _hasActiveSessions.asStateFlow()
 
-
     init {
         scope.launch {
             _sessions.collect { map ->
@@ -85,7 +81,6 @@ class AgentSessionManager @Inject constructor(
             }
         }
     }
-
 
     fun startSession(
         chatId: Int,
@@ -98,7 +93,6 @@ class AgentSessionManager @Inject constructor(
         chatRoom: ChatRoomV2,
         chatPlatformModels: Map<String, String>,
     ) {
-
         stopSession(chatId)
 
         val stateFlow =
@@ -262,7 +256,6 @@ class AgentSessionManager @Inject constructor(
         )
     }
 
-
     fun stopSession(
         chatId: Int
     ) {
@@ -274,7 +267,6 @@ class AgentSessionManager @Inject constructor(
 
         removeSession(chatId)
     }
-
 
     fun stopAllSessions() {
 
@@ -291,7 +283,6 @@ class AgentSessionManager @Inject constructor(
         saveContexts.clear()
     }
 
-
     fun clearMessageState(
         chatId: Int
     ) {
@@ -299,14 +290,12 @@ class AgentSessionManager @Inject constructor(
         saveContexts.remove(chatId)
     }
 
-
     fun getMessageState(
         chatId: Int
     ): StateFlow<SessionMessageState>? {
         return messageStates[chatId]
             ?.asStateFlow()
     }
-
 
     fun getSessionStatus(
         chatId: Int
@@ -316,7 +305,6 @@ class AgentSessionManager @Inject constructor(
             ?.status
     }
 
-
     fun getActiveSessionPlatformName(
         chatId: Int
     ): String? {
@@ -324,7 +312,6 @@ class AgentSessionManager @Inject constructor(
             .value[chatId]
             ?.platformName
     }
-
 
     fun isSessionRunning(
         chatId: Int
@@ -336,12 +323,10 @@ class AgentSessionManager @Inject constructor(
             AgentSessionStatus.RUNNING
     }
 
-
     private fun applyEvent(
         chatId: Int,
         event: AgentLoopEvent,
     ) {
-
         val stateFlow =
             messageStates[chatId]
                 ?: return
@@ -374,7 +359,6 @@ class AgentSessionManager @Inject constructor(
                 }
             }
 
-
             is AgentLoopEvent.OutputDelta -> {
 
                 stateFlow.update { state ->
@@ -400,7 +384,6 @@ class AgentSessionManager @Inject constructor(
                     }
                 }
             }
-
 
             is AgentLoopEvent.ToolExecutionStarted -> {
 
@@ -437,7 +420,6 @@ class AgentSessionManager @Inject constructor(
                     }
                 }
             }
-
 
             is AgentLoopEvent.ToolExecutionFinished -> {
 
@@ -476,7 +458,6 @@ class AgentSessionManager @Inject constructor(
                 }
             }
 
-
             is AgentLoopEvent.LoopCompleted -> {
 
                 stateFlow.update { state ->
@@ -501,14 +482,6 @@ class AgentSessionManager @Inject constructor(
                 }
             }
 
-
-            /*
-             * Provider/API errors are converted into
-             * short user-friendly messages.
-             *
-             * The raw OpenRouter JSON is NOT shown
-             * to the user anymore.
-             */
             is AgentLoopEvent.LoopFailed -> {
 
                 stateFlow.update { state ->
@@ -521,7 +494,6 @@ class AgentSessionManager @Inject constructor(
                     state.updateLastAssistant { msg ->
 
                         msg.copy(
-
                             content =
                                 if (
                                     msg.content.isBlank()
@@ -543,7 +515,6 @@ class AgentSessionManager @Inject constructor(
                     }
                 }
             }
-
 
             is AgentLoopEvent.PlanCreated -> {
 
@@ -572,7 +543,6 @@ class AgentSessionManager @Inject constructor(
                 }
             }
 
-
             is AgentLoopEvent.PlanUpdated -> {
 
                 stateFlow.update { state ->
@@ -583,11 +553,9 @@ class AgentSessionManager @Inject constructor(
                 }
             }
 
-
             else -> Unit
         }
     }
-
 
     private fun SessionMessageState.updateSingletonStep(
         type: AgentStepType,
@@ -634,7 +602,6 @@ class AgentSessionManager @Inject constructor(
             agentSteps = steps
         )
     }
-
 
     private fun SessionMessageState.appendOrUpdateLastStep(
         type: AgentStepType,
@@ -685,7 +652,6 @@ class AgentSessionManager @Inject constructor(
         )
     }
 
-
     private fun SessionMessageState.addStep(
         step: AgentStepItem
     ): SessionMessageState {
@@ -709,7 +675,6 @@ class AgentSessionManager @Inject constructor(
             agentSteps = steps
         )
     }
-
 
     private fun SessionMessageState.updateSingletonToolCallStatus(
         toolName: String,
@@ -776,7 +741,6 @@ class AgentSessionManager @Inject constructor(
         )
     }
 
-
     private fun SessionMessageState.updateLastPlanStep(
         plan: AgentPlan,
     ): SessionMessageState {
@@ -814,7 +778,6 @@ class AgentSessionManager @Inject constructor(
         )
     }
 
-
     private inline fun SessionMessageState.updateLastAssistant(
         transform: (MessageV2) -> MessageV2,
     ): SessionMessageState {
@@ -851,7 +814,6 @@ class AgentSessionManager @Inject constructor(
         )
     }
 
-
     private suspend fun saveToRoom(
         chatId: Int
     ) {
@@ -870,7 +832,7 @@ class AgentSessionManager @Inject constructor(
                 state.userMessages +
                     state.assistantMessages
                         .flatten()
-            )
+                )
                 .filter {
                     it.content.isNotBlank()
                 }
@@ -908,13 +870,12 @@ class AgentSessionManager @Inject constructor(
 
             Log.e(
                 TAG,
-                "Failed to save session to Room " +
+                "Failed to save session state to Room " +
                     "for chatId=$chatId",
                 e,
             )
         }
     }
-
 
     fun getSavedChatRoom(
         chatId: Int
@@ -928,7 +889,6 @@ class AgentSessionManager @Inject constructor(
             it.id > 0
         }
     }
-
 
     private fun removeSession(
         chatId: Int
@@ -944,7 +904,6 @@ class AgentSessionManager @Inject constructor(
          */
         saveContexts.remove(chatId)
     }
-
 
     private suspend fun onSessionFinished(
         chatId: Int,
@@ -978,12 +937,10 @@ class AgentSessionManager @Inject constructor(
             )
     }
 
-
     private data class SessionSaveContext(
         val chatRoom: ChatRoomV2,
         val chatPlatformModels: Map<String, String>,
     )
-
 
     companion object {
 
@@ -1067,7 +1024,6 @@ class AgentSessionManager @Inject constructor(
                             AgentToolStatus.CALLING
                     }
 
-
                     resultMatch != null -> {
 
                         val name =
@@ -1110,7 +1066,6 @@ class AgentSessionManager @Inject constructor(
                             status
                     }
 
-
                     PLAN_LINE_REGEX
                         .matchEntire(
                             trimmed
@@ -1132,7 +1087,6 @@ class AgentSessionManager @Inject constructor(
                             )
                         )
                     }
-
 
                     trimmed.isNotEmpty() -> {
 
@@ -1195,12 +1149,10 @@ class AgentSessionManager @Inject constructor(
     }
 }
 
-
 /**
  * Converts provider/API errors into short messages.
  *
- * We deliberately do NOT treat every 429 as an exhausted balance.
- * A 429 can also mean temporary provider rate limiting.
+ * There is intentionally ONE formatter in this file.
  */
 private object AgentErrorMessageFormatter {
 
@@ -1389,7 +1341,7 @@ private object AgentErrorMessageFormatter {
         /*
          * Generic fallback.
          *
-         * Never expose the provider's huge JSON
+         * Do not expose the provider's huge JSON
          * response to the user.
          */
         return localized(
@@ -1401,7 +1353,6 @@ private object AgentErrorMessageFormatter {
                     "contacting the AI.",
         )
     }
-
 
     private fun localized(
         arabic: String,
@@ -1421,7 +1372,6 @@ private object AgentErrorMessageFormatter {
             english
         }
     }
-
 
     /**
      * Reads OpenRouter's X-RateLimit-Reset value.
@@ -1462,7 +1412,6 @@ private object AgentErrorMessageFormatter {
             raw
         }
     }
-
 
     private fun formatResetDate(
         timestampMillis: Long

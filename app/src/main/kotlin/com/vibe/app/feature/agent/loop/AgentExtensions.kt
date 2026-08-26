@@ -4,6 +4,7 @@ import com.vibe.app.feature.agent.AgentLoopRequest
 import com.vibe.app.feature.agent.AgentModelRequest
 import com.vibe.app.feature.agent.AgentModelEvent
 import com.vibe.app.feature.agent.AgentLoopEvent
+import com.vibe.app.feature.agent.AgentConversationItem
 import com.vibe.app.feature.agent.AgentToolDefinition
 
 
@@ -13,11 +14,19 @@ fun AgentLoopRequest.toModelRequest(
 
     return AgentModelRequest(
         platform = platform,
-        instructions = systemPrompt,
-        tools = tools,
         diagnosticContext = diagnosticContext,
-        policy = policy,
-        conversation = conversation
+
+        // الموجود في AgentLoopRequest
+        conversation = conversation,
+
+        // كامل المحادثة
+        fullConversation = fullConversation,
+
+        instructions = systemPrompt,
+
+        tools = tools,
+
+        policy = policy
     )
 }
 

@@ -13,8 +13,6 @@ class ProviderAgentGatewayRouter @Inject constructor(
     private val openAiGateway: OpenAiResponsesAgentGateway,
     private val qwenGateway: QwenChatCompletionsAgentGateway,
     private val kimiGateway: KimiChatCompletionsAgentGateway,
-    private val anthropicGateway: AnthropicMessagesAgentGateway,
-    private val deepSeekGateway: DeepSeekChatCompletionsAgentGateway,
 ) : AgentModelGateway {
 
     override suspend fun streamTurn(
@@ -22,14 +20,6 @@ class ProviderAgentGatewayRouter @Inject constructor(
     ): Flow<AgentModelEvent> {
 
         return when (request.platform.compatibleType) {
-
-            ClientType.ANTHROPIC ->
-                anthropicGateway.streamTurn(request)
-
-            ClientType.MINIMAX ->
-                anthropicGateway.streamTurn(
-                    request.withMiniMaxAnthropicUrl()
-                )
 
             ClientType.QWEN ->
                 qwenGateway.streamTurn(request)
@@ -40,49 +30,31 @@ class ProviderAgentGatewayRouter @Inject constructor(
             ClientType.OPENAI ->
                 openAiGateway.streamTurn(request)
 
-            ClientType.DEEPSEEK ->
-                deepSeekGateway.streamTurn(request)
-
             /*
-             * OpenRouter is OpenAI Chat-Completions compatible.
+             * OpenRouter uses the OpenAI-compatible
+             * Chat Completions API in this project.
              *
-             * Route it through the Qwen/OpenAI-compatible
-             * Chat Completions gateway instead of Responses API.
-             *
-             * This preserves:
-             * - tool_calls
-             * - write_project_file
-             * - multi-turn tool execution
+             * This is the important route for the
+             * current problem.
              */
             ClientType.OPEN_ROUTER ->
                 qwenGateway.streamTurn(request)
 
             /*
-             * Custom endpoints in this fork are also treated
-             * as OpenAI-compatible Chat Completions endpoints.
+             * Custom providers in this fork use the
+             * OpenAI-compatible Chat Completions path.
              */
             ClientType.CUSTOM ->
                 qwenGateway.streamTurn(request)
+
+            /*
+             * Keep the Responses gateway as the fallback
+             * for provider types supported by it.
+             */
+            ClientType.ANTHROPIC,
+            ClientType.MINIMAX,
+            ClientType.DEEPSEEK ->
+                openAiGateway.streamTurn(request)
         }
     }
-}
-
-private fun AgentModelRequest.withMiniMaxAnthropicUrl(): AgentModelRequest {
-
-    val url =
-        platform.apiUrl
-            .trimEnd('/')
-
-    if (
-        url.endsWith("/anthropic")
-    ) {
-        return this
-    }
-
-    return copy(
-        platform =
-            platform.copy(
-                apiUrl = "$url/anthropic/"
-            )
-    )
 }

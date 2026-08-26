@@ -1,67 +1,124 @@
 package com.vibe.app.feature.agent.loop
 
-import com.vibe.app.feature.agent.AgentLoopRequest
-import com.vibe.app.feature.agent.AgentModelRequest
-import com.vibe.app.feature.agent.AgentModelEvent
+import com.vibe.app.data.database.entity.MessageV2
+import com.vibe.app.feature.agent.AgentConversationItem
 import com.vibe.app.feature.agent.AgentLoopEvent
+import com.vibe.app.feature.agent.AgentLoopRequest
+import com.vibe.app.feature.agent.AgentMessageRole
+import com.vibe.app.feature.agent.AgentModelEvent
+import com.vibe.app.feature.agent.AgentModelRequest
 import com.vibe.app.feature.agent.AgentToolDefinition
 
+/**
+ * تحويل رسالة قاعدة البيانات إلى عنصر محادثة للـ Agent.
+ */
+private fun MessageV2.toAgentConversationItem(
+    role: AgentMessageRole
+): AgentConversationItem {
+    return AgentConversationItem(
+        role = role,
+        text = content,
+        attachments = files,
+    )
+}
 
+/**
+ * تحويل AgentLoopRequest إلى AgentModelRequest.
+ *
+ * AgentLoopRequest في المشروع لا يحتوي conversation/fullConversation
+ * بشكل مباشر، لذلك نبنيهما من userMessages و assistantMessages.
+ */
 fun AgentLoopRequest.toModelRequest(
     tools: List<AgentToolDefinition>
 ): AgentModelRequest {
+
+    val fullConversation = buildList {
+        userMessages.forEachIndexed { index, userMessage ->
+
+            add(
+                userMessage.toAgentConversationItem(
+                    role = AgentMessageRole.USER
+                )
+            )
+
+            assistantMessages
+                .getOrNull(index)
+                ?.forEach { assistantMessage ->
+
+                    if (assistantMessage.content.isNotBlank()) {
+                        add(
+                            assistantMessage.toAgentConversationItem(
+                                role = AgentMessageRole.ASSISTANT
+                            )
+                        )
+                    }
+                }
+        }
+    }
 
     return AgentModelRequest(
         platform = platform,
         diagnosticContext = diagnosticContext,
 
-        conversation = emptyList(),
-
-        fullConversation = emptyList(),
+        // لا توجد previousResponseId في AgentLoopRequest،
+        // لذلك نرسل كامل السياق في كل دورة.
+        conversation = fullConversation,
+        fullConversation = fullConversation,
 
         instructions = systemPrompt,
 
         tools = tools,
 
-        policy = policy
+        policy = policy,
+
+        previousResponseId = null,
     )
 }
 
-
-fun AgentModelEvent.toLoopEvent(): AgentLoopEvent {
+/**
+ * تحويل حدث النموذج إلى حدث حلقة الوكيل.
+ *
+ * iteration يجب أن يأتي من الـ Coordinator،
+ * لأن AgentModelEvent لا يحتوي iteration.
+ */
+fun AgentModelEvent.toLoopEvent(
+    iteration: Int
+): AgentLoopEvent {
 
     return when (this) {
 
-        is AgentModelEvent.OutputDelta ->
-            AgentLoopEvent.OutputDelta(
-                delta = delta
-            )
-
-
-        is AgentModelEvent.ThinkingDelta ->
+        is AgentModelEvent.ThinkingDelta -> {
             AgentLoopEvent.ThinkingDelta(
-                delta = delta
+                iteration = iteration,
+                delta = delta,
             )
+        }
 
+        is AgentModelEvent.OutputDelta -> {
+            AgentLoopEvent.OutputDelta(
+                iteration = iteration,
+                delta = delta,
+            )
+        }
 
-        is AgentModelEvent.ToolCallReady ->
-            AgentLoopEvent.ToolExecutionStarted(
+        is AgentModelEvent.ToolCallReady -> {
+            AgentLoopEvent.ToolCallDiscovered(
+                iteration = iteration,
                 call = call,
-                iteration = 0
             )
+        }
 
-
-        is AgentModelEvent.Completed ->
+        is AgentModelEvent.Completed -> {
             AgentLoopEvent.LoopCompleted(
-                finalText = finalText ?: "",
-                iteration = 0
+                finalText = finalText.orEmpty(),
             )
+        }
 
-
-        is AgentModelEvent.Failed ->
+        is AgentModelEvent.Failed -> {
             AgentLoopEvent.LoopFailed(
                 message = message,
-                iteration = 0
+                iteration = iteration,
             )
+        }
     }
 }

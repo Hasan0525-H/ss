@@ -179,17 +179,6 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                                 )
                             },
 
-                    /*
-                     * IMPORTANT:
-                     *
-                     * When the agent says REQUIRED,
-                     * send "required" to the provider.
-                     *
-                     * The old code converted REQUIRED
-                     * into "auto", which allowed the model
-                     * to answer with text without calling
-                     * write_project_file.
-                     */
                     toolChoice =
                         effectiveToolChoice,
 
@@ -240,9 +229,6 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                 val message =
                     choice.message
 
-                /*
-                 * Normal streamed text.
-                 */
                 val content =
                     delta?.content
                         ?: message?.content
@@ -284,9 +270,6 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                     return@collect
                 }
 
-                /*
-                 * Reasoning / thinking.
-                 */
                 delta
                     ?.reasoningContent
                     ?.takeIf {
@@ -304,14 +287,6 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                         )
                     }
 
-                /*
-                 * IMPORTANT:
-                 *
-                 * Tool calls can arrive in several
-                 * streaming chunks.
-                 *
-                 * Accumulate them until the stream ends.
-                 */
                 val toolCalls =
                     delta?.toolCalls
                         ?: message?.toolCalls
@@ -356,9 +331,6 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                     }
             }
 
-        /*
-         * Provider error.
-         */
         streamError
             ?.let { error ->
 
@@ -388,10 +360,6 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                 return@flow
             }
 
-        /*
-         * Convert accumulated tool calls
-         * into AgentModelEvent.ToolCallReady.
-         */
         toolCallAccumulators
             .entries
             .sortedBy {
@@ -457,7 +425,7 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                                 arguments,
                         )
                     )
-                }
+                ) // تم تصحيح القوس هنا بدلاً من }
             }
 
         val reasoningContent =
@@ -576,13 +544,6 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                 )
         }
 
-        /*
-         * Rebuild the complete conversation.
-         *
-         * IMPORTANT:
-         * Preserve assistant tool_calls.
-         * The old implementation dropped them.
-         */
         request.fullConversation
             .forEach { item ->
 
@@ -669,7 +630,6 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                     }
 
                     AgentMessageRole.SYSTEM -> {
-                        // System instructions are handled above.
                     }
                 }
             }
@@ -750,18 +710,6 @@ fun String.toQwenChatCompletionsBaseUrl(): String {
     }
 }
 
-/*
- * IMPORTANT FIX:
- *
- * REQUIRED must remain REQUIRED.
- *
- * The previous implementation converted:
- *
- *     REQUIRED -> "auto"
- *
- * which allowed Qwen/OpenRouter to return a
- * normal text response without calling tools.
- */
 fun AgentModelRequest.toQwenToolChoice(): String? {
 
     if (

@@ -9,12 +9,10 @@ import javax.inject.Singleton
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
-
 @Singleton
 class LanguageManager @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
-
 
     private val preferences =
         context.getSharedPreferences(
@@ -22,57 +20,105 @@ class LanguageManager @Inject constructor(
             Context.MODE_PRIVATE
         )
 
-
     private val _language =
         MutableStateFlow(
             getLanguage()
         )
 
-
     val language: StateFlow<String> =
         _language
 
+    /**
+     * Returns true when the user has explicitly selected
+     * a language before.
+     */
+    fun isLanguageSelected(): Boolean {
+        return preferences.getBoolean(
+            KEY_LANGUAGE_SELECTED,
+            false
+        )
+    }
 
-
+    /**
+     * Saves and applies the selected application language.
+     *
+     * Supported languages:
+     * - ar = Arabic / RTL
+     * - en = English / LTR
+     */
     fun setLanguage(
         language: String
     ) {
 
+        val normalizedLanguage =
+            when (language.lowercase()) {
+                "ar" -> "ar"
+                "en" -> "en"
+                else -> "en"
+            }
+
         preferences.edit()
             .putString(
-                "language",
-                language
+                KEY_LANGUAGE,
+                normalizedLanguage
+            )
+            .putBoolean(
+                KEY_LANGUAGE_SELECTED,
+                true
             )
             .apply()
 
-
-        _language.value = language
-
+        _language.value =
+            normalizedLanguage
 
         AppCompatDelegate
             .setApplicationLocales(
                 LocaleListCompat.forLanguageTags(
-                    language
+                    normalizedLanguage
                 )
             )
     }
 
-
-
+    /**
+     * Returns the currently active language.
+     */
     fun getCurrentLanguage(): String {
         return _language.value
     }
 
-
-
+    /**
+     * Returns the stored language.
+     *
+     * Arabic remains the default language until the user
+     * makes the first explicit selection.
+     */
     private fun getLanguage(): String {
-
         return preferences
             .getString(
-                "language",
+                KEY_LANGUAGE,
                 "ar"
             )
+            ?.lowercase()
+            ?.let { storedLanguage ->
+
+                when (storedLanguage) {
+                    "ar" -> "ar"
+                    "en" -> "en"
+                    else -> "ar"
+                }
+            }
             ?: "ar"
     }
 
+    companion object {
+
+        private const val PREFS_NAME =
+            "language_settings"
+
+        private const val KEY_LANGUAGE =
+            "language"
+
+        private const val KEY_LANGUAGE_SELECTED =
+            "language_selected"
+    }
 }

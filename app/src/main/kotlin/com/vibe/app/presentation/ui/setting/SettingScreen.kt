@@ -14,7 +14,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Cloud
-import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material3.AlertDialog
@@ -72,8 +71,7 @@ fun SettingScreen(
     languageViewModel: LanguageViewModel = hiltViewModel(),
     onNavigationClick: () -> Unit,
     onNavigateToAddPlatform: () -> Unit,
-    onNavigateToPlatformSetting: (String) -> Unit,
-    onNavigateToAboutPage: () -> Unit
+    onNavigateToPlatformSetting: (String) -> Unit
 ) {
     val scrollState = rememberScrollState()
 
@@ -242,25 +240,6 @@ fun SettingScreen(
                             MaterialTheme.colorScheme.primary
                     )
                 }
-            )
-
-            HorizontalDivider(
-                modifier =
-                    Modifier.padding(
-                        horizontal = 16.dp
-                    ),
-
-                color =
-                    MaterialTheme.colorScheme
-                        .outlineVariant
-            )
-
-            /*
-             * About
-             */
-            AboutPageItem(
-                onItemClick =
-                    onNavigateToAboutPage
             )
 
             HorizontalDivider(
@@ -452,44 +431,6 @@ fun ThemeSetting(
             Icon(
                 imageVector =
                     Icons.Outlined.Palette,
-
-                contentDescription = null,
-
-                tint =
-                    MaterialTheme.colorScheme
-                        .onSurfaceVariant
-            )
-        }
-    )
-}
-
-@Composable
-fun AboutPageItem(
-    onItemClick: () -> Unit
-) {
-    SettingItem(
-
-        title =
-            stringResource(
-                R.string.about
-            ),
-
-        description =
-            stringResource(
-                R.string.about_description
-            ),
-
-        onItemClick =
-            onItemClick,
-
-        showTrailingIcon = true,
-        showLeadingIcon = true,
-
-        leadingIcon = {
-
-            Icon(
-                imageVector =
-                    Icons.Outlined.Info,
 
                 contentDescription = null,
 

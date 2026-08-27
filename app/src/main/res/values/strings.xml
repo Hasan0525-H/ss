@@ -15,6 +15,14 @@
         Access multiple AI models through the OpenRouter API.
     </string>
 
+    <string name="google_ai_studio" translatable="false">
+        Google AI Studio
+    </string>
+
+    <string name="google_ai_studio_description">
+        Use Gemini models through the Google AI Studio API.
+    </string>
+
     <string name="custom_api" translatable="false">
         Custom API
     </string>
@@ -99,6 +107,37 @@
 
     <string name="model">
         Model
+    </string>
+
+    <!-- Google AI Studio -->
+
+    <string name="google_ai_studio_api_key">
+        Google AI Studio API Key
+    </string>
+
+    <string name="google_ai_studio_api_key_description">
+        Enter your Google AI Studio API key to use Gemini models.
+        Your API key is stored locally on your device.
+    </string>
+
+    <string name="google_ai_studio_api_key_supporting">
+        Get your API key from Google AI Studio.
+    </string>
+
+    <string name="google_ai_studio_api_url_supporting">
+        Google Gemini API endpoint.
+    </string>
+
+    <string name="google_ai_studio_model_description">
+        Select or enter the Gemini model you want to use.
+    </string>
+
+    <string name="google_ai_studio_model_supporting">
+        Enter a supported Gemini model ID.
+    </string>
+
+    <string name="google_ai_studio_model_examples">
+        Examples: gemini-2.5-flash, gemini-2.5-pro
     </string>
 
     <!-- Setup Wizard -->

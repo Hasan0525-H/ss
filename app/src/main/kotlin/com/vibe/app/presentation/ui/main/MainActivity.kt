@@ -6,6 +6,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
@@ -13,6 +14,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.rememberNavController
 import com.vibe.app.data.preferences.LanguageManager
+import com.vibe.app.feature.agent.service.AgentNotificationHelper
 import com.vibe.app.presentation.common.LocalDynamicTheme
 import com.vibe.app.presentation.common.LocalThemeMode
 import com.vibe.app.presentation.common.SetupNavGraph
@@ -28,6 +30,9 @@ class MainActivity : AppCompatActivity() {
 
     @Inject
     lateinit var languageManager: LanguageManager
+
+    @Inject
+    lateinit var notificationHelper: AgentNotificationHelper
 
     override fun onCreate(
         savedInstanceState: Bundle?
@@ -65,6 +70,12 @@ class MainActivity : AppCompatActivity() {
                 } else {
                     LayoutDirection.Ltr
                 }
+
+            // Re-create the existing channels so their visible names and
+            // descriptions follow the currently selected app language.
+            LaunchedEffect(currentLanguage) {
+                notificationHelper.createChannels()
+            }
 
             CompositionLocalProvider(
                 LocalLayoutDirection provides layoutDirection

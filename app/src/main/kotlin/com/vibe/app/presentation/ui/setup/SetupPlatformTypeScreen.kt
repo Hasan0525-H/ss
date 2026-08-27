@@ -1,5 +1,6 @@
 package com.vibe.app.presentation.ui.setup
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -13,7 +14,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Card
@@ -66,19 +66,16 @@ fun SetupPlatformTypeScreen(
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            SetupAppBar(
-                onBackAction
-            )
+            SetupAppBar(onBackAction)
         }
     ) { innerPadding ->
-
         Column(
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
         ) {
-
             PlatformTypeHeader()
 
             LazyColumn(
@@ -87,12 +84,10 @@ fun SetupPlatformTypeScreen(
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-
                 items(
                     items = platformTypes,
                     key = { it.clientType.name }
                 ) { platformTypeInfo ->
-
                     PlatformTypeCard(
                         platformTypeInfo = platformTypeInfo,
                         onClick = {
@@ -105,9 +100,7 @@ fun SetupPlatformTypeScreen(
                 }
 
                 item {
-                    Spacer(
-                        modifier = Modifier.height(16.dp)
-                    )
+                    Spacer(modifier = Modifier.height(20.dp))
                 }
             }
         }
@@ -121,27 +114,24 @@ private fun PlatformTypeHeader(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(20.dp)
+            .padding(horizontal = 20.dp, vertical = 18.dp)
     ) {
-
         Text(
             modifier = Modifier
-                .padding(4.dp)
-                .semantics {
-                    heading()
-                },
-            text = stringResource(
-                R.string.choose_platform_type
-            ),
-            style = MaterialTheme.typography.headlineMedium
+                .padding(horizontal = 4.dp)
+                .semantics { heading() },
+            text = stringResource(R.string.choose_platform_type),
+            style = MaterialTheme.typography.headlineMedium,
+            color = MaterialTheme.colorScheme.onBackground,
         )
 
+        Spacer(Modifier.height(8.dp))
+
         Text(
-            modifier = Modifier.padding(4.dp),
-            text = stringResource(
-                R.string.choose_platform_type_description
-            ),
-            style = MaterialTheme.typography.bodyLarge
+            modifier = Modifier.padding(horizontal = 4.dp),
+            text = stringResource(R.string.choose_platform_type_description),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -155,58 +145,47 @@ private fun PlatformTypeCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(
-                onClick = onClick
-            ),
+            .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
-            containerColor =
-                MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = MaterialTheme.colorScheme.surface,
         ),
-        shape = RoundedCornerShape(16.dp)
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant,
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        shape = MaterialTheme.shapes.large,
     ) {
-
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-
             Column(
                 modifier = Modifier.weight(1f)
             ) {
-
                 Text(
-                    text = stringResource(
-                        platformTypeInfo.titleResId
-                    ),
-                    style = MaterialTheme.typography.titleMedium
+                    text = stringResource(platformTypeInfo.titleResId),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
 
-                Spacer(
-                    modifier = Modifier.height(4.dp)
-                )
+                Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    text = stringResource(
-                        platformTypeInfo.descriptionResId
-                    ),
+                    text = stringResource(platformTypeInfo.descriptionResId),
                     style = MaterialTheme.typography.bodyMedium,
-                    color =
-                        MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
-            Spacer(
-                modifier = Modifier.width(16.dp)
-            )
+            Spacer(modifier = Modifier.width(16.dp))
 
             Icon(
-                imageVector =
-                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
-                tint =
-                    MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(24.dp)
             )
         }

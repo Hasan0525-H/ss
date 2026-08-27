@@ -1,14 +1,19 @@
 package com.vibe.app.presentation.ui.setting
 
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -107,6 +112,7 @@ fun PlatformSettingScreen(
 
         Scaffold(
             modifier = modifier,
+            containerColor = MaterialTheme.colorScheme.background,
             topBar = {
                 PlatformTopAppBar(
                     title = platformData.name,
@@ -120,6 +126,7 @@ fun PlatformSettingScreen(
                 modifier = Modifier
                     .padding(paddingValues)
                     .verticalScroll(scrollState)
+                    .padding(bottom = 24.dp)
             ) {
                 PreferenceSwitchWithContainer(
                     title = stringResource(R.string.enable_api),
@@ -127,89 +134,91 @@ fun PlatformSettingScreen(
                     onCheckedChange = { settingViewModel.toggleEnabled() },
                 )
 
-                SettingItem(
-                    modifier = Modifier.height(64.dp),
-                    title = stringResource(R.string.platform_name),
-                    description = platformData.name,
-                    enabled = platformData.enabled,
-                    onItemClick = settingViewModel::openPlatformNameDialog,
-                    showTrailingIcon = false,
-                )
-
-                SettingItem(
-                    modifier = Modifier.height(64.dp),
-                    title = stringResource(R.string.api_url),
-                    description = platformData.apiUrl,
-                    enabled = platformData.enabled,
-                    onItemClick = settingViewModel::openApiUrlDialog,
-                    showTrailingIcon = false,
-                )
-
-                SettingItem(
-                    modifier = Modifier.height(64.dp),
-                    title = if (isGoogleAIStudio) {
-                        stringResource(R.string.google_ai_studio_api_key)
-                    } else {
-                        stringResource(R.string.api_key)
-                    },
-                    description = if (platformData.token.isNullOrBlank()) {
-                        stringResource(R.string.not_set)
-                    } else {
-                        "${platformData.token!!.take(4)}*****"
-                    },
-                    enabled = platformData.enabled,
-                    onItemClick = settingViewModel::openApiTokenDialog,
-                    showTrailingIcon = false,
-                )
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    Text(
-                        text = if (isGoogleAIStudio) {
-                            stringResource(R.string.google_ai_studio_model_description)
-                        } else {
-                            stringResource(R.string.api_model)
-                        },
-                        style = MaterialTheme.typography.titleMedium,
+                SettingsCard {
+                    SettingItem(
+                        modifier = Modifier.height(72.dp),
+                        title = stringResource(R.string.platform_name),
+                        description = platformData.name,
+                        enabled = platformData.enabled,
+                        onItemClick = settingViewModel::openPlatformNameDialog,
+                        showTrailingIcon = false,
                     )
+                    SettingsDivider()
+                    SettingItem(
+                        modifier = Modifier.height(72.dp),
+                        title = stringResource(R.string.api_url),
+                        description = platformData.apiUrl,
+                        enabled = platformData.enabled,
+                        onItemClick = settingViewModel::openApiUrlDialog,
+                        showTrailingIcon = false,
+                    )
+                    SettingsDivider()
+                    SettingItem(
+                        modifier = Modifier.height(72.dp),
+                        title = if (isGoogleAIStudio) {
+                            stringResource(R.string.google_ai_studio_api_key)
+                        } else {
+                            stringResource(R.string.api_key)
+                        },
+                        description = if (platformData.token.isNullOrBlank()) {
+                            stringResource(R.string.not_set)
+                        } else {
+                            "${platformData.token!!.take(4)}*****"
+                        },
+                        enabled = platformData.enabled,
+                        onItemClick = settingViewModel::openApiTokenDialog,
+                        showTrailingIcon = false,
+                    )
+                }
 
-                    Spacer(Modifier.height(10.dp))
+                SettingsCard {
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Text(
+                            text = if (isGoogleAIStudio) {
+                                stringResource(R.string.google_ai_studio_model_description)
+                            } else {
+                                stringResource(R.string.api_model)
+                            },
+                            style = MaterialTheme.typography.titleMedium,
+                        )
 
-                    if (isCatalogProvider) {
-                        ModelCatalogSelector(
-                            providerType = platformData.compatibleType,
-                            selectedModel = platformData.model,
-                            isFreePlan = isFreeFilter,
-                            models = models,
-                            isLoading = isOpenRouter && isLoadingOpenRouterModels,
-                            enabled = platformData.enabled,
-                            onPlanTypeChange = { isFree ->
-                                isFreeFilter = isFree
-                                settingViewModel.updatePlatform(
-                                    platformData.copy(isFree = isFree)
-                                )
-                                if (isOpenRouter && !platformData.token.isNullOrBlank()) {
-                                    settingViewModel.loadModels(
-                                        isFreeOnly = isFree
+                        Spacer(Modifier.height(12.dp))
+
+                        if (isCatalogProvider) {
+                            ModelCatalogSelector(
+                                providerType = platformData.compatibleType,
+                                selectedModel = platformData.model,
+                                isFreePlan = isFreeFilter,
+                                models = models,
+                                isLoading = isOpenRouter && isLoadingOpenRouterModels,
+                                enabled = platformData.enabled,
+                                onPlanTypeChange = { isFree ->
+                                    isFreeFilter = isFree
+                                    settingViewModel.updatePlatform(
+                                        platformData.copy(isFree = isFree)
                                     )
-                                }
-                            },
-                            onModelSelected = { modelInfo ->
-                                settingViewModel.updateApiModel(modelInfo.id)
-                            },
-                        )
-                    } else {
-                        SettingItem(
-                            modifier = Modifier.height(64.dp),
-                            title = stringResource(R.string.api_model),
-                            description = displayedModel,
-                            enabled = platformData.enabled,
-                            onItemClick = settingViewModel::openApiModelDialog,
-                            showTrailingIcon = false,
-                        )
+                                    if (isOpenRouter && !platformData.token.isNullOrBlank()) {
+                                        settingViewModel.loadModels(
+                                            isFreeOnly = isFree
+                                        )
+                                    }
+                                },
+                                onModelSelected = { modelInfo ->
+                                    settingViewModel.updateApiModel(modelInfo.id)
+                                },
+                            )
+                        } else {
+                            SettingItem(
+                                modifier = Modifier.height(72.dp),
+                                title = stringResource(R.string.api_model),
+                                description = displayedModel,
+                                enabled = platformData.enabled,
+                                onItemClick = settingViewModel::openApiModelDialog,
+                                showTrailingIcon = false,
+                            )
+                        }
                     }
                 }
 
@@ -218,23 +227,25 @@ fun PlatformSettingScreen(
                         platformData.reasoning
                 val notSetText = stringResource(R.string.not_set)
 
-                SettingItem(
-                    modifier = Modifier.height(64.dp),
-                    title = stringResource(R.string.temperature),
-                    description = platformData.temperature?.toString() ?: notSetText,
-                    enabled = platformData.enabled && !isReasoningDisabled,
-                    onItemClick = settingViewModel::openTemperatureDialog,
-                    showTrailingIcon = false,
-                )
-
-                SettingItem(
-                    modifier = Modifier.height(64.dp),
-                    title = stringResource(R.string.top_p),
-                    description = platformData.topP?.toString() ?: notSetText,
-                    enabled = platformData.enabled && !isReasoningDisabled,
-                    onItemClick = settingViewModel::openTopPDialog,
-                    showTrailingIcon = false,
-                )
+                SettingsCard {
+                    SettingItem(
+                        modifier = Modifier.height(72.dp),
+                        title = stringResource(R.string.temperature),
+                        description = platformData.temperature?.toString() ?: notSetText,
+                        enabled = platformData.enabled && !isReasoningDisabled,
+                        onItemClick = settingViewModel::openTemperatureDialog,
+                        showTrailingIcon = false,
+                    )
+                    SettingsDivider()
+                    SettingItem(
+                        modifier = Modifier.height(72.dp),
+                        title = stringResource(R.string.top_p),
+                        description = platformData.topP?.toString() ?: notSetText,
+                        enabled = platformData.enabled && !isReasoningDisabled,
+                        onItemClick = settingViewModel::openTopPDialog,
+                        showTrailingIcon = false,
+                    )
+                }
 
                 PlatformNameDialog(
                     dialogState = dialogState,
@@ -272,4 +283,34 @@ fun PlatformSettingScreen(
             }
         }
     }
+}
+
+@Composable
+private fun SettingsCard(
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+        ),
+        border = BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant,
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+    ) {
+        Column(content = content)
+    }
+}
+
+@Composable
+private fun SettingsDivider() {
+    HorizontalDivider(
+        modifier = Modifier.padding(horizontal = 16.dp),
+        color = MaterialTheme.colorScheme.outlineVariant,
+    )
 }

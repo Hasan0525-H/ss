@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vibe.app.data.database.entity.PlatformV2
 import com.vibe.app.data.dto.OpenRouterModel
+import com.vibe.app.data.model.ClientType
 import com.vibe.app.data.network.OpenRouterModelsAPI
 import com.vibe.app.data.repository.SettingRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -30,45 +31,30 @@ class PlatformSettingViewModel @Inject constructor(
             savedStateHandle["platformUid"]
         )
 
-    /*
-     * Platform state
-     */
     private val _platformState =
         MutableStateFlow<PlatformV2?>(null)
 
     val platformState: StateFlow<PlatformV2?> =
         _platformState.asStateFlow()
 
-    /*
-     * Dialog state
-     */
     private val _dialogState =
         MutableStateFlow(DialogState())
 
     val dialogState: StateFlow<DialogState> =
         _dialogState.asStateFlow()
 
-    /*
-     * Delete state
-     */
     private val _isDeleted =
         MutableStateFlow(false)
 
     val isDeleted: StateFlow<Boolean> =
         _isDeleted.asStateFlow()
 
-    /*
-     * Platform switching event
-     */
     private val _switchedPlatformEvent =
         MutableSharedFlow<String>()
 
     val switchedPlatformEvent: SharedFlow<String> =
         _switchedPlatformEvent.asSharedFlow()
 
-    /*
-     * OpenRouter models
-     */
     private val _availableModels =
         MutableStateFlow<List<OpenRouterModel>>(
             emptyList()
@@ -77,27 +63,18 @@ class PlatformSettingViewModel @Inject constructor(
     val availableModels: StateFlow<List<OpenRouterModel>> =
         _availableModels.asStateFlow()
 
-    /*
-     * Loading state
-     */
     private val _isLoadingModels =
         MutableStateFlow(false)
 
     val isLoadingModels: StateFlow<Boolean> =
         _isLoadingModels.asStateFlow()
 
-    /*
-     * Current Free / Paid filter
-     */
     private var currentIsFreeFilter = true
 
     init {
         loadPlatform()
     }
 
-    /*
-     * Load the platform from the database.
-     */
     private fun loadPlatform() {
         viewModelScope.launch {
             try {
@@ -109,58 +86,136 @@ class PlatformSettingViewModel @Inject constructor(
                         it.uid == platformUid
                     }
 
-                _platformState.value = platform
+                _platformState.value =
+                    platform
 
-                if (!platform?.token.isNullOrBlank()) {
+                /*
+                 * Google AI Studio is completely independent
+                 * from OpenRouter.
+                 *
+                 * Therefore Google must NEVER trigger
+                 * OpenRouter model loading.
+                 */
+                if (
+                    platform != null &&
+                    platform.compatibleType ==
+                    ClientType.OPEN_ROUTER &&
+                    !platform.token.isNullOrBlank()
+                ) {
                     loadModels(
-                        isFreeOnly = currentIsFreeFilter
+                        isFreeOnly =
+                            currentIsFreeFilter
                     )
+                } else {
+                    _availableModels.value =
+                        emptyList()
                 }
 
             } catch (_: Exception) {
-                _platformState.value = null
+                _platformState.value =
+                    null
+
+                _availableModels.value =
+                    emptyList()
             }
         }
     }
 
     /*
-     * Load models from OpenRouter.
+     * Load models from OpenRouter only.
      */
     fun loadModels(
         isFreeOnly: Boolean
     ) {
-        currentIsFreeFilter = isFreeOnly
+
+        currentIsFreeFilter =
+            isFreeOnly
+
+        /*
+         * Safety check:
+         *
+         * This method is strictly for OpenRouter.
+         * Google AI Studio must never reach this API.
+         */
+        if (
+            _platformState.value?.compatibleType !=
+            ClientType.OPEN_ROUTER
+        ) {
+            _availableModels.value =
+                emptyList()
+
+            _isLoadingModels.value =
+                false
+
+            return
+        }
+
+        if (
+            _platformState.value?.token.isNullOrBlank()
+        ) {
+            _availableModels.value =
+                emptyList()
+
+            _isLoadingModels.value =
+                false
+
+            return
+        }
 
         viewModelScope.launch {
-            _isLoadingModels.value = true
+
+            _isLoadingModels.value =
+                true
 
             try {
+
                 val models =
                     fetchOpenRouterModels(
-                        isFreeOnly = isFreeOnly
+                        isFreeOnly =
+                            isFreeOnly
                     )
 
-                _availableModels.value = models
+                _availableModels.value =
+                    models
 
             } catch (_: Exception) {
+
                 _availableModels.value =
                     emptyList()
 
             } finally {
-                _isLoadingModels.value = false
+
+                _isLoadingModels.value =
+                    false
             }
         }
     }
 
     /*
      * Fetch models using the current platform API key.
+     *
+     * This method is intentionally restricted to
+     * ClientType.OPEN_ROUTER.
      */
     suspend fun fetchOpenRouterModels(
         isFreeOnly: Boolean
     ): List<OpenRouterModel> {
 
+        val platform =
+            _platformState.value
+
+        /*
+         * Never use this endpoint for Google AI Studio.
+         */
+        if (
+            platform?.compatibleType !=
+            ClientType.OPEN_ROUTER
+        ) {
+            return emptyList()
+        }
+
         var apiKey =
-            _platformState.value?.token
+            platform.token
 
         /*
          * If the state has not been updated yet,
@@ -171,12 +226,24 @@ class PlatformSettingViewModel @Inject constructor(
             val platforms =
                 settingRepository.fetchPlatformV2s()
 
+            val storedPlatform =
+                platforms.firstOrNull {
+                    it.uid == platformUid
+                }
+
+            /*
+             * Double-check the provider after
+             * loading from the database.
+             */
+            if (
+                storedPlatform?.compatibleType !=
+                ClientType.OPEN_ROUTER
+            ) {
+                return emptyList()
+            }
+
             apiKey =
-                platforms
-                    .firstOrNull {
-                        it.uid == platformUid
-                    }
-                    ?.token
+                storedPlatform.token
         }
 
         if (apiKey.isNullOrBlank()) {
@@ -185,8 +252,10 @@ class PlatformSettingViewModel @Inject constructor(
 
         return openRouterModelsAPI
             .fetchOpenRouterModels(
-                apiKey = apiKey,
-                isFreeOnly = isFreeOnly
+                apiKey =
+                    apiKey,
+                isFreeOnly =
+                    isFreeOnly
             )
     }
 
@@ -265,7 +334,9 @@ class PlatformSettingViewModel @Inject constructor(
                  * Notify the UI if another platform
                  * was disabled.
                  */
-                if (otherEnabledPlatforms.isNotEmpty()) {
+                if (
+                    otherEnabledPlatforms.isNotEmpty()
+                ) {
 
                     _switchedPlatformEvent.emit(
                         platform.name
@@ -289,7 +360,8 @@ class PlatformSettingViewModel @Inject constructor(
 
             updatePlatform(
                 platform.copy(
-                    reasoning = !platform.reasoning
+                    reasoning =
+                        !platform.reasoning
                 )
             )
         }
@@ -301,6 +373,7 @@ class PlatformSettingViewModel @Inject constructor(
     fun updatePlatform(
         platform: PlatformV2
     ) {
+
         viewModelScope.launch {
 
             try {
@@ -329,6 +402,7 @@ class PlatformSettingViewModel @Inject constructor(
     fun updateApiToken(
         token: String
     ) {
+
         _platformState.value?.let { platform ->
 
             val newToken =
@@ -346,7 +420,18 @@ class PlatformSettingViewModel @Inject constructor(
 
             closeApiTokenDialog()
 
-            if (!newToken.isNullOrBlank()) {
+            /*
+             * Only OpenRouter needs to fetch a
+             * model list after changing the API key.
+             *
+             * Google AI Studio uses its configured
+             * Gemini model and does not call OpenRouter.
+             */
+            if (
+                platform.compatibleType ==
+                ClientType.OPEN_ROUTER &&
+                !newToken.isNullOrBlank()
+            ) {
 
                 loadModels(
                     currentIsFreeFilter
@@ -366,11 +451,13 @@ class PlatformSettingViewModel @Inject constructor(
     fun updateApiModel(
         model: String
     ) {
+
         _platformState.value?.let { platform ->
 
             updatePlatform(
                 platform.copy(
-                    model = model.trim()
+                    model =
+                        model.trim()
                 )
             )
 
@@ -384,11 +471,13 @@ class PlatformSettingViewModel @Inject constructor(
     fun updateApiUrl(
         url: String
     ) {
+
         _platformState.value?.let { platform ->
 
             updatePlatform(
                 platform.copy(
-                    apiUrl = url.trim()
+                    apiUrl =
+                        url.trim()
                 )
             )
 
@@ -402,18 +491,22 @@ class PlatformSettingViewModel @Inject constructor(
     fun updatePlatformName(
         name: String
     ) {
+
         _platformState.value?.let { platform ->
 
             val cleanedName =
                 name.trim()
 
-            if (cleanedName.isEmpty()) {
+            if (
+                cleanedName.isEmpty()
+            ) {
                 return
             }
 
             updatePlatform(
                 platform.copy(
-                    name = cleanedName
+                    name =
+                        cleanedName
                 )
             )
 
@@ -430,6 +523,7 @@ class PlatformSettingViewModel @Inject constructor(
     fun updateTemperature(
         temperature: Float?
     ) {
+
         _platformState.value?.let { platform ->
 
             val normalizedTemperature =
@@ -458,6 +552,7 @@ class PlatformSettingViewModel @Inject constructor(
     fun updateTopP(
         topP: Float?
     ) {
+
         _platformState.value?.let { platform ->
 
             val normalizedTopP =
@@ -468,7 +563,8 @@ class PlatformSettingViewModel @Inject constructor(
 
             updatePlatform(
                 platform.copy(
-                    topP = normalizedTopP
+                    topP =
+                        normalizedTopP
                 )
             )
 
@@ -482,6 +578,7 @@ class PlatformSettingViewModel @Inject constructor(
     fun updateSystemPrompt(
         prompt: String
     ) {
+
         _platformState.value?.let { platform ->
 
             updatePlatform(
@@ -499,17 +596,21 @@ class PlatformSettingViewModel @Inject constructor(
      * Platform name dialog
      */
     fun openPlatformNameDialog() {
+
         _dialogState.update {
             it.copy(
-                isPlatformNameDialogOpen = true
+                isPlatformNameDialogOpen =
+                    true
             )
         }
     }
 
     fun closePlatformNameDialog() {
+
         _dialogState.update {
             it.copy(
-                isPlatformNameDialogOpen = false
+                isPlatformNameDialogOpen =
+                    false
             )
         }
     }
@@ -518,17 +619,21 @@ class PlatformSettingViewModel @Inject constructor(
      * API URL dialog
      */
     fun openApiUrlDialog() {
+
         _dialogState.update {
             it.copy(
-                isApiUrlDialogOpen = true
+                isApiUrlDialogOpen =
+                    true
             )
         }
     }
 
     fun closeApiUrlDialog() {
+
         _dialogState.update {
             it.copy(
-                isApiUrlDialogOpen = false
+                isApiUrlDialogOpen =
+                    false
             )
         }
     }
@@ -537,17 +642,21 @@ class PlatformSettingViewModel @Inject constructor(
      * API Key dialog
      */
     fun openApiTokenDialog() {
+
         _dialogState.update {
             it.copy(
-                isApiTokenDialogOpen = true
+                isApiTokenDialogOpen =
+                    true
             )
         }
     }
 
     fun closeApiTokenDialog() {
+
         _dialogState.update {
             it.copy(
-                isApiTokenDialogOpen = false
+                isApiTokenDialogOpen =
+                    false
             )
         }
     }
@@ -556,17 +665,21 @@ class PlatformSettingViewModel @Inject constructor(
      * Model dialog
      */
     fun openApiModelDialog() {
+
         _dialogState.update {
             it.copy(
-                isApiModelDialogOpen = true
+                isApiModelDialogOpen =
+                    true
             )
         }
     }
 
     fun closeApiModelDialog() {
+
         _dialogState.update {
             it.copy(
-                isApiModelDialogOpen = false
+                isApiModelDialogOpen =
+                    false
             )
         }
     }
@@ -575,17 +688,21 @@ class PlatformSettingViewModel @Inject constructor(
      * Temperature dialog
      */
     fun openTemperatureDialog() {
+
         _dialogState.update {
             it.copy(
-                isTemperatureDialogOpen = true
+                isTemperatureDialogOpen =
+                    true
             )
         }
     }
 
     fun closeTemperatureDialog() {
+
         _dialogState.update {
             it.copy(
-                isTemperatureDialogOpen = false
+                isTemperatureDialogOpen =
+                    false
             )
         }
     }
@@ -594,17 +711,21 @@ class PlatformSettingViewModel @Inject constructor(
      * Top P dialog
      */
     fun openTopPDialog() {
+
         _dialogState.update {
             it.copy(
-                isTopPDialogOpen = true
+                isTopPDialogOpen =
+                    true
             )
         }
     }
 
     fun closeTopPDialog() {
+
         _dialogState.update {
             it.copy(
-                isTopPDialogOpen = false
+                isTopPDialogOpen =
+                    false
             )
         }
     }
@@ -613,17 +734,21 @@ class PlatformSettingViewModel @Inject constructor(
      * System prompt dialog
      */
     fun openSystemPromptDialog() {
+
         _dialogState.update {
             it.copy(
-                isSystemPromptDialogOpen = true
+                isSystemPromptDialogOpen =
+                    true
             )
         }
     }
 
     fun closeSystemPromptDialog() {
+
         _dialogState.update {
             it.copy(
-                isSystemPromptDialogOpen = false
+                isSystemPromptDialogOpen =
+                    false
             )
         }
     }
@@ -632,17 +757,21 @@ class PlatformSettingViewModel @Inject constructor(
      * Delete dialog
      */
     fun openDeleteDialog() {
+
         _dialogState.update {
             it.copy(
-                isDeleteDialogOpen = true
+                isDeleteDialogOpen =
+                    true
             )
         }
     }
 
     fun closeDeleteDialog() {
+
         _dialogState.update {
             it.copy(
-                isDeleteDialogOpen = false
+                isDeleteDialogOpen =
+                    false
             )
         }
     }
@@ -680,17 +809,29 @@ class PlatformSettingViewModel @Inject constructor(
         }
     }
 
-    /*
-     * Dialog state
-     */
     data class DialogState(
-        val isPlatformNameDialogOpen: Boolean = false,
-        val isApiUrlDialogOpen: Boolean = false,
-        val isApiTokenDialogOpen: Boolean = false,
-        val isApiModelDialogOpen: Boolean = false,
-        val isTemperatureDialogOpen: Boolean = false,
-        val isTopPDialogOpen: Boolean = false,
-        val isSystemPromptDialogOpen: Boolean = false,
-        val isDeleteDialogOpen: Boolean = false
+        val isPlatformNameDialogOpen:
+            Boolean = false,
+
+        val isApiUrlDialogOpen:
+            Boolean = false,
+
+        val isApiTokenDialogOpen:
+            Boolean = false,
+
+        val isApiModelDialogOpen:
+            Boolean = false,
+
+        val isTemperatureDialogOpen:
+            Boolean = false,
+
+        val isTopPDialogOpen:
+            Boolean = false,
+
+        val isSystemPromptDialogOpen:
+            Boolean = false,
+
+        val isDeleteDialogOpen:
+            Boolean = false
     )
 }

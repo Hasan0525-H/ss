@@ -188,16 +188,6 @@ class OpenAIAPIImpl @Inject constructor(
             ModelExecutionTrace?,
     ): Flow<ChatCompletionChunk> {
 
-        /*
-         * Capture provider configuration now.
-         *
-         * OpenAIAPIImpl is a Singleton and its provider
-         * configuration is mutable.
-         *
-         * Capturing it here prevents another request
-         * from changing this request while the Flow
-         * is already running.
-         */
         val requestProvider =
             providerType
 
@@ -217,13 +207,12 @@ class OpenAIAPIImpl @Inject constructor(
             )
 
         /*
-         * The request is serialized exactly as received.
-         *
-         * The selected model is therefore preserved.
-         * No model fallback is added here.
+         * Qwen / OpenAI-compatible request DTOs use
+         * the normal JSON serializer, matching the
+         * original VibeApp implementation.
          */
         val requestBody =
-            NetworkClient.openAIJson
+            NetworkClient.json
                 .encodeToJsonElement(
                     request
                 )
@@ -251,8 +240,8 @@ class OpenAIAPIImpl @Inject constructor(
                         )
 
                         /*
-                         * Custom API is allowed to have
-                         * no API key.
+                         * Custom API may intentionally
+                         * have no API key.
                          */
                         requestToken?.let {
                             bearerAuth(
@@ -297,6 +286,9 @@ class OpenAIAPIImpl @Inject constructor(
                         }
 
                         consumeChatCompletionStream(
+                            endpoint =
+                                endpoint,
+
                             response =
                                 response,
 
@@ -353,7 +345,7 @@ class OpenAIAPIImpl @Inject constructor(
             )
 
         val requestBody =
-            NetworkClient.openAIJson
+            NetworkClient.json
                 .encodeToJsonElement(
                     request
                 )
@@ -416,7 +408,7 @@ class OpenAIAPIImpl @Inject constructor(
                         )
                     }
 
-                    NetworkClient.openAIJson
+                    NetworkClient.json
                         .decodeFromString<QwenChatCompletionResponse>(
                             body
                         )
@@ -537,6 +529,9 @@ class OpenAIAPIImpl @Inject constructor(
                         }
 
                         consumeChatCompletionStream(
+                            endpoint =
+                                endpoint,
+
                             response =
                                 response,
 
@@ -681,15 +676,18 @@ class OpenAIAPIImpl @Inject constructor(
     }
 
     /*
-     * Shared Chat Completions SSE parser.
+     * =========================================================
+     * CHAT COMPLETIONS SSE STREAM
+     * =========================================================
      *
-     * Used for:
+     * Used by:
      *
      * OpenRouter
      * Google AI Studio
      * Custom OpenAI-compatible APIs
      */
     private suspend fun consumeChatCompletionStream(
+        endpoint: String,
         response: HttpResponse,
         collector:
             FlowCollector<ChatCompletionChunk>,
@@ -713,12 +711,27 @@ class OpenAIAPIImpl @Inject constructor(
                 line.isBlank()
             ) {
 
-                collector
-                    .handleChatCompletionSseEvent(
-                        eventLines
-                    )
+                val shouldStop =
+                    collector
+                        .handleChatCompletionSseEvent(
+                            endpoint =
+                                endpoint,
+
+                            eventLines =
+                                eventLines
+                        )
 
                 eventLines.clear()
+
+                /*
+                 * [DONE] means the provider explicitly
+                 * finished the current SSE stream.
+                 */
+                if (
+                    shouldStop
+                ) {
+                    break
+                }
 
             } else {
 
@@ -727,17 +740,30 @@ class OpenAIAPIImpl @Inject constructor(
             }
         }
 
+        /*
+         * Some providers close the connection without
+         * a final blank line.
+         */
         if (
             eventLines.isNotEmpty()
         ) {
 
             collector
                 .handleChatCompletionSseEvent(
-                    eventLines
+                    endpoint =
+                        endpoint,
+
+                    eventLines =
+                        eventLines
                 )
         }
     }
 
+    /*
+     * =========================================================
+     * RESPONSES API STREAM
+     * =========================================================
+     */
     private suspend fun consumeResponsesStream(
         response: HttpResponse,
         collector:
@@ -798,19 +824,62 @@ class OpenAIAPIImpl @Inject constructor(
             } catch (
                 _: Exception
             ) {
+
                 /*
-                 * Ignore SSE event types that are not
-                 * represented by the current DTO.
+                 * Responses API can emit event variants
+                 * which are not represented in the current
+                 * DTO set.
+                 *
+                 * Ignore the individual unknown event.
                  */
             }
         }
     }
 
+    /*
+     * =========================================================
+     * CHAT COMPLETIONS SSE EVENT
+     * =========================================================
+     */
     private suspend fun FlowCollector<ChatCompletionChunk>
         .handleChatCompletionSseEvent(
+            endpoint: String,
             eventLines: List<String>,
-        ) {
+        ): Boolean {
 
+        if (
+            eventLines.isEmpty()
+        ) {
+            return false
+        }
+
+        /*
+         * Preserve the raw SSE event in Logcat.
+         *
+         * This mirrors the behavior of the original
+         * VibeApp and makes provider-specific stream
+         * problems diagnosable.
+         */
+        val block =
+            eventLines.joinToString(
+                "\n"
+            )
+
+        NetworkLogcatLogger.logSseEvent(
+            endpoint,
+            block,
+        )
+
+        /*
+         * SSE blocks may include:
+         *
+         * event:
+         * id:
+         * retry:
+         * data:
+         *
+         * Only concatenate the data fields.
+         */
         val data =
             eventLines
                 .filter {
@@ -824,16 +893,44 @@ class OpenAIAPIImpl @Inject constructor(
                     it.removePrefix(
                         "data:"
                     )
-                        .trim()
+                        .trimStart()
                 }
+                .trim()
 
         if (
-            data.isBlank() ||
-            data == "[DONE]"
+            data.isBlank()
         ) {
-            return
+            return false
         }
 
+        if (
+            data == "[DONE]"
+        ) {
+            return true
+        }
+
+        /*
+         * =====================================================
+         * CRITICAL FIX
+         * =====================================================
+         *
+         * Before:
+         *
+         * one unrecognized SSE event
+         * -> ChatCompletionChunk(error = parse_error)
+         * -> AgentModelEvent.Failed
+         * -> complete Agent stopped.
+         *
+         * Now:
+         *
+         * one unrecognized SSE event
+         * -> log it
+         * -> ignore only that event
+         * -> continue reading later chunks.
+         *
+         * This matches the more tolerant behavior
+         * of the original VibeApp.
+         */
         try {
 
             val chunk =
@@ -850,23 +947,22 @@ class OpenAIAPIImpl @Inject constructor(
             e: Exception
         ) {
 
-            emit(
-                ChatCompletionChunk(
-                    error =
-                        ErrorDetail(
-                            message =
-                                e.message
-                                    ?: "Failed parsing SSE event",
-
-                            type =
-                                "parse_error",
-
-                            code =
-                                "invalid_stream_chunk"
-                        )
-                )
+            NetworkLogcatLogger.logDecodeFailure(
+                endpoint,
+                data,
+                e,
             )
+
+            /*
+             * DO NOT emit ErrorDetail here.
+             *
+             * OpenRouter / Google / Custom providers
+             * may send metadata or extra SSE events
+             * that are irrelevant to the Agent.
+             */
         }
+
+        return false
     }
 
     /*
@@ -887,13 +983,13 @@ class OpenAIAPIImpl @Inject constructor(
         return when (provider) {
 
             /*
-             * Google base:
+             * Google AI Studio OpenAI compatibility:
              *
+             * Base:
              * https://generativelanguage.googleapis.com/v1beta/openai
              *
              * Final:
-             *
-             * .../openai/chat/completions
+             * https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
              */
             PROVIDER_GOOGLE_AI_STUDIO -> {
 
@@ -916,12 +1012,9 @@ class OpenAIAPIImpl @Inject constructor(
              *
              * https://openrouter.ai/api
              *
-             * becomes:
+             * ->
              *
              * https://openrouter.ai/api/v1/chat/completions
-             *
-             * Custom uses the same OpenAI-compatible
-             * normalization.
              */
             PROVIDER_OPEN_ROUTER,
             PROVIDER_CUSTOM ->
@@ -939,7 +1032,7 @@ class OpenAIAPIImpl @Inject constructor(
     }
 
     /*
-     * Supports all of these:
+     * Supports:
      *
      * https://example.com
      * ->
@@ -952,8 +1045,6 @@ class OpenAIAPIImpl @Inject constructor(
      * https://example.com/v1/chat/completions
      * ->
      * unchanged
-     *
-     * Therefore /v1 is NEVER duplicated.
      */
     private fun buildOpenAICompatibleChatEndpoint(
         baseUrl: String,
@@ -982,7 +1073,7 @@ class OpenAIAPIImpl @Inject constructor(
     }
 
     /*
-     * Kept for the existing Responses API path.
+     * Existing Responses API endpoint builder.
      */
     private fun buildResponsesEndpoint(
         baseUrl: String,
@@ -1010,6 +1101,11 @@ class OpenAIAPIImpl @Inject constructor(
         }
     }
 
+    /*
+     * =========================================================
+     * PROVIDER-SPECIFIC HEADERS
+     * =========================================================
+     */
     private fun applyProviderHeaders(
         request:
             io.ktor.client.request.HttpRequestBuilder,
@@ -1043,8 +1139,9 @@ class OpenAIAPIImpl @Inject constructor(
     }
 
     /*
-     * Normalize old provider names into the
-     * three canonical values used by the app.
+     * =========================================================
+     * PROVIDER NORMALIZATION
+     * =========================================================
      */
     private fun normalizeProviderType(
         rawType: String,
@@ -1084,7 +1181,7 @@ class OpenAIAPIImpl @Inject constructor(
      *
      * bearer sk-...
      *
-     * Store/use internally without Bearer.
+     * Internally always store only the actual key.
      */
     private fun normalizeApiKey(
         rawApiKey: String?,
@@ -1101,8 +1198,11 @@ class OpenAIAPIImpl @Inject constructor(
         val normalized =
             if (
                 trimmed.startsWith(
-                    prefix = "Bearer ",
-                    ignoreCase = true,
+                    prefix =
+                        "Bearer ",
+
+                    ignoreCase =
+                        true,
                 )
             ) {
 
@@ -1154,9 +1254,9 @@ class OpenAIAPIImpl @Inject constructor(
             "https://openrouter.ai/api"
 
         /*
-         * Google OpenAI-compatible base.
+         * Google AI Studio OpenAI-compatible base.
          *
-         * Final Chat Completions endpoint:
+         * Final endpoint:
          *
          * https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
          */

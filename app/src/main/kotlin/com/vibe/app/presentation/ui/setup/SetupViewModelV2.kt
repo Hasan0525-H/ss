@@ -10,6 +10,7 @@ import com.vibe.app.data.dto.qwen.request.QwenChatCompletionRequest
 import com.vibe.app.data.dto.qwen.request.QwenChatMessage
 import com.vibe.app.data.dto.qwen.request.qwenTextContent
 import com.vibe.app.data.model.ClientType
+import com.vibe.app.data.model.GoogleAiStudioModelCatalog
 import com.vibe.app.data.network.OpenAIAPI
 import com.vibe.app.data.repository.SettingRepository
 import com.vibe.app.feature.agent.service.AgentErrorMessageFormatter
@@ -100,7 +101,9 @@ class SetupViewModelV2 @Inject constructor(
         _apiUrl.value = getDefaultApiUrl(clientType)
         _apiKey.value = ""
         _model.value = getDefaultModel(clientType)
-        _isFreePlan.value = clientType == ClientType.OPEN_ROUTER
+        _isFreePlan.value =
+            clientType == ClientType.OPEN_ROUTER ||
+                clientType == ClientType.GOOGLE_AI_STUDIO
         _modelsFetchStatus.value = ModelsFetchStatus.Idle
         _saveStatus.value = SaveStatus.Idle
         _wizardStep.value = WIZARD_STEP_BASICS
@@ -123,23 +126,32 @@ class SetupViewModelV2 @Inject constructor(
     }
 
     fun updatePlanType(isFree: Boolean) {
-        if (_selectedClientType.value != ClientType.OPEN_ROUTER) return
-
-        _isFreePlan.value = isFree
-        if (_apiKey.value.isNotBlank()) {
-            fetchModels()
-        }
-    }
-
-    /**
-     * OpenRouter is the only provider that dynamically loads a model catalog.
-     */
-    fun fetchModels() {
-        if (_selectedClientType.value != ClientType.OPEN_ROUTER) {
-            _modelsFetchStatus.value = ModelsFetchStatus.Idle
+        val provider = _selectedClientType.value
+        if (
+            provider != ClientType.OPEN_ROUTER &&
+            provider != ClientType.GOOGLE_AI_STUDIO
+        ) {
             return
         }
 
+        _isFreePlan.value = isFree
+        fetchModels()
+    }
+
+    /**
+     * OpenRouter models are fetched live from OpenRouter.
+     * Google AI Studio uses a curated current catalog because Google's model-list
+     * endpoint does not include free/paid pricing metadata.
+     */
+    fun fetchModels() {
+        when (_selectedClientType.value) {
+            ClientType.OPEN_ROUTER -> fetchOpenRouterModels()
+            ClientType.GOOGLE_AI_STUDIO -> loadGoogleModels()
+            else -> _modelsFetchStatus.value = ModelsFetchStatus.Idle
+        }
+    }
+
+    private fun fetchOpenRouterModels() {
         val currentApiKey = normalizeApiKey(_apiKey.value)
         if (currentApiKey.isNullOrBlank()) {
             _modelsFetchStatus.value = ModelsFetchStatus.Error(
@@ -150,29 +162,12 @@ class SetupViewModelV2 @Inject constructor(
 
         viewModelScope.launch {
             _modelsFetchStatus.value = ModelsFetchStatus.Loading
-
             try {
                 val fetchedModels = settingRepository.fetchOpenRouterModels(
                     apiKey = currentApiKey,
                     isFreeOnly = _isFreePlan.value,
                 )
-
-                _modelsFetchStatus.value = ModelsFetchStatus.Success(fetchedModels)
-
-                if (fetchedModels.isNotEmpty()) {
-                    val currentModel = _model.value.trim()
-                    val currentModelExists = fetchedModels.any {
-                        it.id == currentModel
-                    }
-
-                    if (!currentModelExists) {
-                        val preferredModel = fetchedModels.firstOrNull {
-                            it.supportsTools
-                        } ?: fetchedModels.first()
-
-                        _model.value = preferredModel.id
-                    }
-                }
+                applyFetchedModels(fetchedModels)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to fetch OpenRouter models", e)
                 _modelsFetchStatus.value = ModelsFetchStatus.Error(
@@ -182,14 +177,38 @@ class SetupViewModelV2 @Inject constructor(
         }
     }
 
+    private fun loadGoogleModels() {
+        val models = GoogleAiStudioModelCatalog.models(
+            isFreeOnly = _isFreePlan.value
+        )
+        applyFetchedModels(models)
+    }
+
+    private fun applyFetchedModels(models: List<OpenRouterModel>) {
+        _modelsFetchStatus.value = ModelsFetchStatus.Success(models)
+
+        if (models.isEmpty()) {
+            _model.value = ""
+            return
+        }
+
+        val currentModel = _model.value.trim()
+        val currentModelExists = models.any { it.id == currentModel }
+        if (!currentModelExists) {
+            _model.value = models.first().id
+        }
+    }
+
     fun nextWizardStep() {
         if (!canProceedFromStep(_wizardStep.value)) return
 
-        if (
-            _wizardStep.value == WIZARD_STEP_API_KEY &&
-            _selectedClientType.value == ClientType.OPEN_ROUTER
-        ) {
-            fetchModels()
+        if (_wizardStep.value == WIZARD_STEP_API_KEY) {
+            when (_selectedClientType.value) {
+                ClientType.OPEN_ROUTER,
+                ClientType.GOOGLE_AI_STUDIO -> fetchModels()
+
+                else -> Unit
+            }
         }
 
         _wizardStep.update {
@@ -212,18 +231,8 @@ class SetupViewModelV2 @Inject constructor(
         _model.value = ""
         _isFreePlan.value = true
         _modelsFetchStatus.value = ModelsFetchStatus.Idle
-
-        // SaveStatus intentionally remains unchanged. The screen consumes
-        // Success/Error and then calls clearSaveStatus().
     }
 
-    /**
-     * Saves and enables a provider only after a real Chat Completions request
-     * proves that API URL + API key + Model ID work together.
-     *
-     * This prevents an invalid provider from replacing the currently working
-     * provider and moves 401/404/model errors from the chat screen to setup.
-     */
     fun savePlatform() {
         if (_saveStatus.value == SaveStatus.Saving) return
 
@@ -237,21 +246,15 @@ class SetupViewModelV2 @Inject constructor(
             _saveStatus.value = SaveStatus.Error("Platform name is required")
             return
         }
-
         if (cleanApiUrl.isBlank()) {
             _saveStatus.value = SaveStatus.Error("API URL is required")
             return
         }
-
         if (cleanModel.isBlank()) {
             _saveStatus.value = SaveStatus.Error("Model ID is required")
             return
         }
-
-        if (
-            clientType != ClientType.CUSTOM &&
-            cleanApiKey.isNullOrBlank()
-        ) {
+        if (clientType != ClientType.CUSTOM && cleanApiKey.isNullOrBlank()) {
             _saveStatus.value = SaveStatus.Error("API key is required")
             return
         }
@@ -260,8 +263,6 @@ class SetupViewModelV2 @Inject constructor(
             _saveStatus.value = SaveStatus.Saving
 
             try {
-                // Critical ordering: validate before disabling the current
-                // provider or writing anything to the database.
                 val connectionError = validateProviderConnection(
                     clientType = clientType,
                     apiUrl = cleanApiUrl,
@@ -274,6 +275,10 @@ class SetupViewModelV2 @Inject constructor(
                     return@launch
                 }
 
+                val catalogProvider =
+                    clientType == ClientType.OPEN_ROUTER ||
+                        clientType == ClientType.GOOGLE_AI_STUDIO
+
                 val platform = PlatformV2(
                     name = cleanName,
                     compatibleType = clientType,
@@ -281,11 +286,7 @@ class SetupViewModelV2 @Inject constructor(
                     apiUrl = cleanApiUrl,
                     token = cleanApiKey,
                     model = cleanModel,
-                    isFree = if (clientType == ClientType.OPEN_ROUTER) {
-                        _isFreePlan.value
-                    } else {
-                        null
-                    },
+                    isFree = if (catalogProvider) _isFreePlan.value else null,
                     temperature = 1.0f,
                     topP = 1.0f,
                     systemPrompt = null,
@@ -323,13 +324,6 @@ class SetupViewModelV2 @Inject constructor(
         }
     }
 
-    /**
-     * Returns null on success; otherwise returns a localized user-facing
-     * provider/network error.
-     *
-     * It intentionally uses the same OpenAI-compatible networking path as the
-     * Agent runtime so setup validates the exact endpoint that chat will use.
-     */
     private suspend fun validateProviderConnection(
         clientType: ClientType,
         apiUrl: String,
@@ -365,15 +359,11 @@ class SetupViewModelV2 @Inject constructor(
                     val code = error.code ?: error.type ?: "error"
                     if (code.all { it.isDigit() }) {
                         append("HTTP ")
-                        append(code)
-                        append(": ")
-                    } else {
-                        append(code)
-                        append(": ")
                     }
+                    append(code)
+                    append(": ")
                     append(error.message)
                 }
-
                 AgentErrorMessageFormatter.format(rawError)
             }
         } catch (e: Exception) {
@@ -439,8 +429,8 @@ class SetupViewModelV2 @Inject constructor(
 
     private fun getDefaultModel(clientType: ClientType): String =
         when (clientType) {
-            ClientType.OPEN_ROUTER -> "google/gemini-2.5-pro"
-            ClientType.GOOGLE_AI_STUDIO -> "gemini-2.5-flash"
+            ClientType.OPEN_ROUTER -> ""
+            ClientType.GOOGLE_AI_STUDIO -> "gemini-3.7-flash"
             ClientType.CUSTOM -> ""
             ClientType.OPENAI -> "gpt-4o"
             ClientType.ANTHROPIC -> "claude-3-5-sonnet"

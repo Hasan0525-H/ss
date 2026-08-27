@@ -15,4 +15,25 @@
     <string name="model_agent_compatible">متوافق مع وكيل بناء التطبيقات (Tools)</string>
     <string name="openrouter_live_catalog_note">قائمة مباشرة من OpenRouter. تظهر فقط نماذج النص الحقيقية التي تعلن حاليًا دعم استدعاء الأدوات.</string>
     <string name="google_catalog_pricing_note">أسعار Google المعروضة هي لقطة من تسعير Standard. توفر المجاني وحدوده قد يختلف حسب الحساب والمنطقة.</string>
+
+    <string name="model_picker_title">اختر النموذج</string>
+    <string name="model_picker_subtitle">ابحث وفلتر وقارن بين النماذج قبل الاختيار.</string>
+    <string name="model_picker_current_model">النموذج الحالي</string>
+    <string name="model_picker_none_selected">لم يتم اختيار نموذج</string>
+    <string name="model_picker_browse_models">تصفح وابحث في النماذج</string>
+    <string name="model_picker_results_count">%1$d نموذج</string>
+    <string name="model_picker_clear_filters">مسح</string>
+    <string name="model_picker_try_filters">جرّب بحثًا آخر أو امسح عوامل التصفية.</string>
+    <string name="model_filter_tools">الأدوات</string>
+    <string name="model_filter_reasoning">الاستدلال</string>
+    <string name="model_filter_structured">مخرجات منظمة</string>
+    <string name="model_filter_long_context">سياق طويل</string>
+    <string name="model_filter_fast">سريع</string>
+    <string name="model_filter_all_providers">كل المزودين</string>
+    <string name="model_sort_recommended">الموصى به</string>
+    <string name="model_sort_name">الاسم</string>
+    <string name="model_sort_context">السياق</string>
+    <string name="model_sort_price">السعر</string>
+    <string name="model_context_label">سياق %1$s</string>
+    <string name="model_price_compact">إدخال $%1$s · إخراج $%2$s / مليون</string>
 </resources>

@@ -172,8 +172,8 @@ private val highContrastLightColorScheme = lightColorScheme(
     surfaceContainerLowest = surfaceContainerLowestLightHighContrast,
     surfaceContainerLow = surfaceContainerLowLightHighContrast,
     surfaceContainer = surfaceContainerLightHighContrast,
-    surfaceContainerHigh = surfaceContainerHighLightContrast,
-    surfaceContainerHighest = surfaceContainerHighestLightContrast
+    surfaceContainerHigh = surfaceContainerHighLightHighContrast,
+    surfaceContainerHighest = surfaceContainerHighestLightHighContrast
 )
 
 private val mediumContrastDarkColorScheme = darkColorScheme(
@@ -419,7 +419,6 @@ fun VibeAppTheme(
         }
 
         useDarkTheme -> darkScheme
-
         else -> lightScheme
     }
 

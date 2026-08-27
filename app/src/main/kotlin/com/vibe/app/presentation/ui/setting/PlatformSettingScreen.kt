@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
@@ -43,10 +44,12 @@ import com.vibe.app.util.pinnedExitUntilCollapsedScrollBehavior
 @Composable
 fun PlatformSettingScreen(
     modifier: Modifier = Modifier,
-    settingViewModel: PlatformSettingViewModel = hiltViewModel(),
+    settingViewModel: PlatformSettingViewModel =
+        hiltViewModel(),
     onNavigationClick: () -> Unit
 ) {
-    val scrollState = rememberScrollState()
+    val scrollState =
+        rememberScrollState()
 
     val scrollBehavior =
         pinnedExitUntilCollapsedScrollBehavior(
@@ -56,65 +59,67 @@ fun PlatformSettingScreen(
             }
         )
 
-    val platform by settingViewModel.platformState
-        .collectAsStateWithLifecycle()
+    val platform by
+        settingViewModel.platformState
+            .collectAsStateWithLifecycle()
 
-    val dialogState by settingViewModel.dialogState
-        .collectAsStateWithLifecycle()
+    val dialogState by
+        settingViewModel.dialogState
+            .collectAsStateWithLifecycle()
 
-    val isDeleted by settingViewModel.isDeleted
-        .collectAsStateWithLifecycle()
+    val isDeleted by
+        settingViewModel.isDeleted
+            .collectAsStateWithLifecycle()
 
-    val availableModels by settingViewModel.availableModels
-        .collectAsStateWithLifecycle()
+    val availableModels by
+        settingViewModel.availableModels
+            .collectAsStateWithLifecycle()
 
-    val isLoadingModels by settingViewModel.isLoadingModels
-        .collectAsStateWithLifecycle()
+    val isLoadingModels by
+        settingViewModel.isLoadingModels
+            .collectAsStateWithLifecycle()
 
-    var isFreeFilter by remember {
-        mutableStateOf(true)
-    }
+    var isFreeFilter by
+        remember {
+            mutableStateOf(true)
+        }
 
-    var isDropdownExpanded by remember {
-        mutableStateOf(false)
-    }
+    var isDropdownExpanded by
+        remember {
+            mutableStateOf(false)
+        }
 
-    val context = LocalContext.current
+    val context =
+        LocalContext.current
 
     val switchedHint =
-        stringResource(R.string.switched_platform_hint)
+        stringResource(
+            R.string.switched_platform_hint
+        )
 
-    /*
-     * Load OpenRouter models whenever:
-     * - the API token changes
-     * - the Free/Paid filter changes
-     */
     LaunchedEffect(
         isFreeFilter,
         platform?.token
     ) {
         if (!platform?.token.isNullOrBlank()) {
-            settingViewModel.loadModels(isFreeFilter)
+            settingViewModel.loadModels(
+                isFreeFilter
+            )
         }
     }
 
-    /*
-     * Show a message when another enabled platform
-     * is automatically disabled.
-     */
     LaunchedEffect(Unit) {
-        settingViewModel.switchedPlatformEvent.collect { name ->
-            Toast.makeText(
-                context,
-                switchedHint.format(name),
-                Toast.LENGTH_SHORT
-            ).show()
-        }
+        settingViewModel
+            .switchedPlatformEvent
+            .collect { name ->
+                Toast.makeText(
+                    context,
+                    switchedHint.format(name),
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
     }
 
-    /*
-     * Return to the previous screen after deletion.
-     */
     LaunchedEffect(isDeleted) {
         if (isDeleted) {
             onNavigationClick()
@@ -129,146 +134,201 @@ fun PlatformSettingScreen(
             topBar = {
                 PlatformTopAppBar(
                     title = platformData.name,
-                    onNavigationClick = onNavigationClick,
+
+                    onBackClick =
+                        onNavigationClick,
+
                     onDeleteClick = {
-                        settingViewModel.openDeleteDialog()
+                        settingViewModel
+                            .openDeleteDialog()
                     },
-                    scrollBehavior = scrollBehavior
+
+                    scrollBehavior =
+                        scrollBehavior
                 )
             }
 
         ) { paddingValues ->
 
             Column(
-                modifier = Modifier
-                    .padding(paddingValues)
-                    .verticalScroll(scrollState)
+                modifier =
+                    Modifier
+                        .padding(
+                            paddingValues
+                        )
+                        .verticalScroll(
+                            scrollState
+                        )
             ) {
 
-                /*
-                 * Enable / Disable API
-                 */
                 PreferenceSwitchWithContainer(
-                    title = stringResource(
-                        R.string.enable_api
-                    ),
-                    isChecked = platformData.enabled,
+                    title =
+                        stringResource(
+                            R.string.enable_api
+                        ),
+                    isChecked =
+                        platformData.enabled,
                     onCheckedChange = {
-                        settingViewModel.toggleEnabled()
+                        settingViewModel
+                            .toggleEnabled()
                     }
                 )
 
-                /*
-                 * Platform Name
-                 */
                 SettingItem(
-                    modifier = Modifier.height(64.dp),
-                    title = stringResource(
-                        R.string.platform_name
-                    ),
-                    description = platformData.name,
-                    enabled = platformData.enabled,
-                    onItemClick = {
-                        settingViewModel.openPlatformNameDialog()
-                    },
-                    showTrailingIcon = false
-                )
+                    modifier =
+                        Modifier.height(64.dp),
 
-                /*
-                 * API URL
-                 */
-                SettingItem(
-                    modifier = Modifier.height(64.dp),
-                    title = stringResource(
-                        R.string.api_url
-                    ),
-                    description = platformData.apiUrl,
-                    enabled = platformData.enabled,
-                    onItemClick = {
-                        settingViewModel.openApiUrlDialog()
-                    },
-                    showTrailingIcon = false
-                )
+                    title =
+                        stringResource(
+                            R.string.platform_name
+                        ),
 
-                /*
-                 * API Key
-                 */
-                SettingItem(
-                    modifier = Modifier.height(64.dp),
-                    title = stringResource(
-                        R.string.api_key
-                    ),
                     description =
-                        if (platformData.token.isNullOrBlank()) {
+                        platformData.name,
+
+                    enabled =
+                        platformData.enabled,
+
+                    onItemClick = {
+                        settingViewModel
+                            .openPlatformNameDialog()
+                    },
+
+                    showTrailingIcon = false
+                )
+
+                SettingItem(
+                    modifier =
+                        Modifier.height(64.dp),
+
+                    title =
+                        stringResource(
+                            R.string.api_url
+                        ),
+
+                    description =
+                        platformData.apiUrl,
+
+                    enabled =
+                        platformData.enabled,
+
+                    onItemClick = {
+                        settingViewModel
+                            .openApiUrlDialog()
+                    },
+
+                    showTrailingIcon = false
+                )
+
+                SettingItem(
+                    modifier =
+                        Modifier.height(64.dp),
+
+                    title =
+                        stringResource(
+                            R.string.api_key
+                        ),
+
+                    description =
+                        if (
+                            platformData.token
+                                .isNullOrBlank()
+                        ) {
                             stringResource(
-                                R.string.token_not_set
+                                R.string.not_set
                             )
                         } else {
-                            stringResource(
-                                R.string.token_set,
-                                platformData.token!!.take(4)
-                            )
+                            "${platformData.token!!.take(4)}*****"
                         },
-                    enabled = platformData.enabled,
+
+                    enabled =
+                        platformData.enabled,
+
                     onItemClick = {
-                        settingViewModel.openApiTokenDialog()
+                        settingViewModel
+                            .openApiTokenDialog()
                     },
+
                     showTrailingIcon = false
                 )
 
-                /*
-                 * Model selector
-                 */
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            horizontal = 16.dp,
-                            vertical = 8.dp
-                        )
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                horizontal = 16.dp,
+                                vertical = 8.dp
+                            )
                 ) {
 
                     Text(
-                        text = stringResource(
-                            R.string.api_model
-                        ),
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(
-                            bottom = 8.dp
-                        )
+                        text =
+                            stringResource(
+                                R.string.api_model
+                            ),
+
+                        style =
+                            MaterialTheme
+                                .typography
+                                .titleMedium,
+
+                        modifier =
+                            Modifier.padding(
+                                bottom = 8.dp
+                            )
                     )
 
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier =
+                            Modifier.fillMaxWidth(),
+
                         horizontalArrangement =
-                            Arrangement.spacedBy(8.dp)
+                            Arrangement.spacedBy(
+                                8.dp
+                            )
                     ) {
 
                         FilterChip(
-                            selected = isFreeFilter,
+                            selected =
+                                isFreeFilter,
+
                             onClick = {
                                 isFreeFilter = true
                             },
+
                             label = {
-                                Text("مجاني (Free)")
+                                Text(
+                                    "مجاني (Free)"
+                                )
                             },
-                            enabled = platformData.enabled
+
+                            enabled =
+                                platformData.enabled
                         )
 
                         FilterChip(
-                            selected = !isFreeFilter,
+                            selected =
+                                !isFreeFilter,
+
                             onClick = {
                                 isFreeFilter = false
                             },
+
                             label = {
-                                Text("مدفوع (Paid)")
+                                Text(
+                                    "مدفوع (Paid)"
+                                )
                             },
-                            enabled = platformData.enabled
+
+                            enabled =
+                                platformData.enabled
                         )
                     }
 
                     Spacer(
-                        modifier = Modifier.height(8.dp)
+                        modifier =
+                            Modifier.height(8.dp)
                     )
 
                     ExposedDropdownMenuBox(
@@ -277,7 +337,9 @@ fun PlatformSettingScreen(
                                 platformData.enabled,
 
                         onExpandedChange = {
-                            if (platformData.enabled) {
+                            if (
+                                platformData.enabled
+                            ) {
                                 isDropdownExpanded =
                                     !isDropdownExpanded
                             }
@@ -285,10 +347,15 @@ fun PlatformSettingScreen(
                     ) {
 
                         OutlinedTextField(
-                            value = platformData.model,
+                            value =
+                                platformData.model,
+
                             onValueChange = {},
+
                             readOnly = true,
-                            enabled = platformData.enabled,
+
+                            enabled =
+                                platformData.enabled,
 
                             label = {
                                 Text(
@@ -307,18 +374,17 @@ fun PlatformSettingScreen(
                             },
 
                             trailingIcon = {
-
-                                if (isLoadingModels) {
-
+                                if (
+                                    isLoadingModels
+                                ) {
                                     CircularProgressIndicator(
-                                        modifier = Modifier.size(
-                                            20.dp
-                                        ),
+                                        modifier =
+                                            Modifier.size(
+                                                20.dp
+                                            ),
                                         strokeWidth = 2.dp
                                     )
-
                                 } else {
-
                                     ExposedDropdownMenuDefaults
                                         .TrailingIcon(
                                             expanded =
@@ -327,9 +393,10 @@ fun PlatformSettingScreen(
                                 }
                             },
 
-                            modifier = Modifier
-                                .menuAnchor()
-                                .fillMaxWidth(),
+                            modifier =
+                                Modifier
+                                    .menuAnchor()
+                                    .fillMaxWidth(),
 
                             singleLine = true
                         )
@@ -340,7 +407,8 @@ fun PlatformSettingScreen(
                                     platformData.enabled,
 
                             onDismissRequest = {
-                                isDropdownExpanded = false
+                                isDropdownExpanded =
+                                    false
                             }
                         ) {
 
@@ -355,90 +423,85 @@ fun PlatformSettingScreen(
                                             "لا توجد نماذج متاحة"
                                         )
                                     },
+
                                     onClick = {
-                                        isDropdownExpanded = false
+                                        isDropdownExpanded =
+                                            false
                                     }
                                 )
 
                             } else {
 
-                                availableModels.forEach { modelInfo ->
+                                availableModels
+                                    .forEach { modelInfo ->
 
-                                    val priceText =
-                                        if (
-                                            modelInfo.pricing?.isFree == true
-                                        ) {
-                                            "مجاني"
-                                        } else {
-                                            val price =
+                                        val priceText =
+                                            if (
                                                 modelInfo.pricing
-                                                    ?.averagePrice
-                                                    ?: 0.0
+                                                    ?.isFree == true
+                                            ) {
+                                                "مجاني"
+                                            } else {
+                                                val price =
+                                                    modelInfo
+                                                        .pricing
+                                                        ?.averagePrice
+                                                        ?: 0.0
 
-                                            "$" +
-                                                String.format(
-                                                    "%.6f",
-                                                    price
-                                                ) +
-                                                " / 1K tokens"
-                                        }
-
-                                    DropdownMenuItem(
-
-                                        text = {
-
-                                            Column {
-
-                                                Text(
-                                                    text =
-                                                        modelInfo.name
-                                                            ?: modelInfo.id,
-
-                                                    style =
-                                                        MaterialTheme
-                                                            .typography
-                                                            .bodyLarge
-                                                )
-
-                                                Text(
-                                                    text = priceText,
-
-                                                    style =
-                                                        MaterialTheme
-                                                            .typography
-                                                            .bodySmall,
-
-                                                    color =
-                                                        MaterialTheme
-                                                            .colorScheme
-                                                            .onSurfaceVariant
-                                                )
+                                                "$" +
+                                                    String.format(
+                                                        "%.6f",
+                                                        price
+                                                    ) +
+                                                    " / 1K tokens"
                                             }
-                                        },
 
-                                        onClick = {
+                                        DropdownMenuItem(
 
-                                            settingViewModel
-                                                .updateApiModel(
-                                                    modelInfo.id
-                                                )
+                                            text = {
+                                                Column {
 
-                                            isDropdownExpanded =
-                                                false
-                                        }
-                                    )
-                                }
+                                                    Text(
+                                                        text =
+                                                            modelInfo
+                                                                .name
+                                                                ?: modelInfo.id
+                                                    )
+
+                                                    Text(
+                                                        text =
+                                                            priceText,
+
+                                                        style =
+                                                            MaterialTheme
+                                                                .typography
+                                                                .bodySmall,
+
+                                                        color =
+                                                            MaterialTheme
+                                                                .colorScheme
+                                                                .onSurfaceVariant
+                                                    )
+                                                }
+                                            },
+
+                                            onClick = {
+
+                                                settingViewModel
+                                                    .updateApiModel(
+                                                        modelInfo.id
+                                                    )
+
+                                                isDropdownExpanded =
+                                                    false
+                                            }
+                                        )
+                                    }
                             }
                         }
                     }
                 }
 
-                /*
-                 * Reasoning models:
-                 *
-                 * Temperature and Top P are disabled
-                 * when reasoning is enabled for OpenAI.
-                 */
                 val isReasoningDisabled =
                     platformData.compatibleType ==
                         ClientType.OPENAI &&
@@ -449,15 +512,14 @@ fun PlatformSettingScreen(
                         R.string.not_set
                     )
 
-                /*
-                 * Temperature
-                 */
                 SettingItem(
-                    modifier = Modifier.height(64.dp),
+                    modifier =
+                        Modifier.height(64.dp),
 
-                    title = stringResource(
-                        R.string.temperature
-                    ),
+                    title =
+                        stringResource(
+                            R.string.temperature
+                        ),
 
                     description =
                         platformData.temperature
@@ -476,15 +538,14 @@ fun PlatformSettingScreen(
                     showTrailingIcon = false
                 )
 
-                /*
-                 * Top P
-                 */
                 SettingItem(
-                    modifier = Modifier.height(64.dp),
+                    modifier =
+                        Modifier.height(64.dp),
 
-                    title = stringResource(
-                        R.string.top_p
-                    ),
+                    title =
+                        stringResource(
+                            R.string.top_p
+                        ),
 
                     description =
                         platformData.topP
@@ -503,65 +564,63 @@ fun PlatformSettingScreen(
                     showTrailingIcon = false
                 )
 
-                /*
-                 * Platform Name Dialog
-                 */
                 PlatformNameDialog(
-                    dialogState = dialogState,
-                    initialValue = platformData.name,
-                    settingViewModel = settingViewModel
+                    dialogState =
+                        dialogState,
+                    initialValue =
+                        platformData.name,
+                    settingViewModel =
+                        settingViewModel
                 )
 
-                /*
-                 * API URL Dialog
-                 */
                 APIUrlDialog(
-                    dialogState = dialogState,
-                    initialValue = platformData.apiUrl,
-                    settingViewModel = settingViewModel
+                    dialogState =
+                        dialogState,
+                    initialValue =
+                        platformData.apiUrl,
+                    settingViewModel =
+                        settingViewModel
                 )
 
-                /*
-                 * API Key Dialog
-                 */
                 APIKeyDialog(
-                    dialogState = dialogState,
-                    settingViewModel = settingViewModel
+                    dialogState =
+                        dialogState,
+                    settingViewModel =
+                        settingViewModel
                 )
 
-                /*
-                 * Model Dialog
-                 */
                 ModelDialog(
-                    dialogState = dialogState,
-                    model = platformData.model,
-                    settingViewModel = settingViewModel
+                    dialogState =
+                        dialogState,
+                    model =
+                        platformData.model,
+                    settingViewModel =
+                        settingViewModel
                 )
 
-                /*
-                 * Temperature Dialog
-                 */
                 TemperatureDialog(
-                    dialogState = dialogState,
-                    temperature = platformData.temperature,
-                    settingViewModel = settingViewModel
+                    dialogState =
+                        dialogState,
+                    temperature =
+                        platformData.temperature,
+                    settingViewModel =
+                        settingViewModel
                 )
 
-                /*
-                 * Top P Dialog
-                 */
                 TopPDialog(
-                    dialogState = dialogState,
-                    topP = platformData.topP,
-                    settingViewModel = settingViewModel
+                    dialogState =
+                        dialogState,
+                    topP =
+                        platformData.topP,
+                    settingViewModel =
+                        settingViewModel
                 )
 
-                /*
-                 * Delete Dialog
-                 */
                 DeletePlatformDialog(
-                    dialogState = dialogState,
-                    settingViewModel = settingViewModel
+                    dialogState =
+                        dialogState,
+                    settingViewModel =
+                        settingViewModel
                 )
             }
         }

@@ -19,7 +19,7 @@ import com.vibe.app.presentation.common.LocalDynamicTheme
 import com.vibe.app.presentation.common.LocalThemeMode
 import com.vibe.app.presentation.common.SetupNavGraph
 import com.vibe.app.presentation.common.ThemeSettingProvider
-import com.vibe.app.presentation.theme.VibeAppTheme
+import com.vibe.app.presentation.theme.CleanVibeTheme
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -81,7 +81,7 @@ class MainActivity : AppCompatActivity() {
                 LocalLayoutDirection provides layoutDirection
             ) {
                 ThemeSettingProvider {
-                    VibeAppTheme(
+                    CleanVibeTheme(
                         dynamicTheme = LocalDynamicTheme.current,
                         themeMode = LocalThemeMode.current
                     ) {

@@ -1,5 +1,7 @@
 package com.vibe.app.di
 
+import com.vibe.app.data.network.OpenAIAPI
+import com.vibe.app.data.network.OpenAIAPIImpl
 import com.vibe.app.feature.agent.AgentLoopCoordinator
 import com.vibe.app.feature.agent.AgentModelGateway
 import com.vibe.app.feature.agent.AgentToolRegistry
@@ -15,6 +17,12 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class AgentModule {
+
+    @Binds
+    @Singleton
+    abstract fun bindOpenAIAPI(
+        implementation: OpenAIAPIImpl
+    ): OpenAIAPI
 
     @Binds
     @Singleton

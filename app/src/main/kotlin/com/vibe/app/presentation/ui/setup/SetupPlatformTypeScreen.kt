@@ -67,10 +67,13 @@ fun SetupPlatformTypeScreen(
     onPlatformTypeSelected: () -> Unit,
     onBackAction: () -> Unit
 ) {
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
-            SetupAppBar(onBackAction)
+            SetupAppBar(
+                onBackAction
+            )
         }
     ) { innerPadding ->
 
@@ -105,6 +108,7 @@ fun SetupPlatformTypeScreen(
                 }
 
                 item {
+
                     Spacer(
                         modifier = Modifier.height(16.dp)
                     )
@@ -118,6 +122,7 @@ fun SetupPlatformTypeScreen(
 private fun PlatformTypeHeader(
     modifier: Modifier = Modifier
 ) {
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -152,6 +157,7 @@ private fun PlatformTypeCard(
     platformTypeInfo: PlatformTypeInfo,
     onClick: () -> Unit
 ) {
+
     Card(
         modifier = modifier
             .fillMaxWidth()

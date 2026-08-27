@@ -7,14 +7,30 @@ import com.vibe.app.feature.agent.AgentModelRequest
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 
+/**
+ * Routes Agent requests to the model protocol implementation.
+ *
+ * Current supported providers:
+ *
+ * - OpenRouter
+ * - Google AI Studio
+ * - Custom OpenAI-compatible API
+ *
+ * All three use the OpenAI-compatible Chat Completions protocol,
+ * therefore they intentionally share [QwenChatCompletionsAgentGateway].
+ *
+ * The gateway name is historical; its current responsibility is effectively
+ * "OpenAI-compatible Chat Completions Agent Gateway".
+ */
 @Singleton
 class ProviderAgentGatewayRouter @Inject constructor(
     private val qwenGateway: QwenChatCompletionsAgentGateway,
 ) : AgentModelGateway {
 
     override suspend fun streamTurn(
-        request: AgentModelRequest
+        request: AgentModelRequest,
     ): Flow<AgentModelEvent> {
 
         return when (
@@ -22,36 +38,84 @@ class ProviderAgentGatewayRouter @Inject constructor(
         ) {
 
             /*
-             * Current supported providers.
+             * =====================================================
+             * SUPPORTED PROVIDERS
+             * =====================================================
              *
-             * All three use the OpenAI-compatible
-             * Chat Completions implementation.
+             * These providers all use:
+             *
+             * POST /chat/completions
+             *
+             * with OpenAI-compatible:
+             *
+             * messages
+             * tools
+             * tool_choice
+             * streaming SSE
              */
-            ClientType.OPEN_ROUTER ->
-                qwenGateway.streamTurn(request)
+            ClientType.OPEN_ROUTER,
+            ClientType.GOOGLE_AI_STUDIO,
+            ClientType.CUSTOM -> {
 
-            ClientType.GOOGLE_AI_STUDIO ->
-                qwenGateway.streamTurn(request)
-
-            ClientType.CUSTOM ->
-                qwenGateway.streamTurn(request)
+                qwenGateway.streamTurn(
+                    request
+                )
+            }
 
             /*
-             * Legacy ClientType values remain in the enum
-             * for Room/database compatibility.
+             * =====================================================
+             * LEGACY PROVIDERS
+             * =====================================================
              *
-             * They are no longer exposed in setup UI.
-             * Routing them through the compatible gateway
-             * also prevents unused legacy gateways from
-             * forcing Hilt dependencies such as AnthropicAPI.
+             * These enum values remain for:
+             *
+             * Room database compatibility
+             * old saved platforms
+             * source compatibility
+             *
+             * They are intentionally NOT exposed by the current
+             * setup UI.
+             *
+             * Do NOT silently route them through qwenGateway.
+             *
+             * Example:
+             *
+             * Anthropic Messages API != OpenAI Chat Completions.
+             *
+             * Silently sending an Anthropic configuration to the
+             * compatible gateway creates confusing HTTP/schema errors.
              */
             ClientType.OPENAI,
             ClientType.ANTHROPIC,
             ClientType.QWEN,
             ClientType.KIMI,
             ClientType.MINIMAX,
-            ClientType.DEEPSEEK ->
-                qwenGateway.streamTurn(request)
+            ClientType.DEEPSEEK -> {
+
+                flowOf<AgentModelEvent>(
+                    AgentModelEvent.Failed(
+                        message =
+                            buildString {
+
+                                append(
+                                    "Unsupported provider in the current configuration: "
+                                )
+
+                                append(
+                                    request.platform.compatibleType.name
+                                )
+
+                                append(
+                                    ". Supported providers are "
+                                )
+
+                                append(
+                                    "OPEN_ROUTER, GOOGLE_AI_STUDIO, and CUSTOM."
+                                )
+                            }
+                    )
+                )
+            }
         }
     }
 }

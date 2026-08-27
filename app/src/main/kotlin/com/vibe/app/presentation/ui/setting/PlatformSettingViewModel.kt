@@ -12,6 +12,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -99,9 +100,7 @@ class PlatformSettingViewModel @Inject constructor(
      */
     private fun loadPlatform() {
         viewModelScope.launch {
-
             try {
-
                 val platforms =
                     settingRepository.fetchPlatformV2s()
 
@@ -119,7 +118,6 @@ class PlatformSettingViewModel @Inject constructor(
                 }
 
             } catch (_: Exception) {
-
                 _platformState.value = null
             }
         }
@@ -134,11 +132,9 @@ class PlatformSettingViewModel @Inject constructor(
         currentIsFreeFilter = isFreeOnly
 
         viewModelScope.launch {
-
             _isLoadingModels.value = true
 
             try {
-
                 val models =
                     fetchOpenRouterModels(
                         isFreeOnly = isFreeOnly
@@ -147,12 +143,10 @@ class PlatformSettingViewModel @Inject constructor(
                 _availableModels.value = models
 
             } catch (_: Exception) {
-
                 _availableModels.value =
                     emptyList()
 
             } finally {
-
                 _isLoadingModels.value = false
             }
         }
@@ -210,6 +204,9 @@ class PlatformSettingViewModel @Inject constructor(
         val enable =
             !platform.enabled
 
+        /*
+         * Disable current platform.
+         */
         if (!enable) {
 
             updatePlatform(
@@ -276,7 +273,9 @@ class PlatformSettingViewModel @Inject constructor(
                 }
 
             } catch (_: Exception) {
-                // Keep the current state if the update fails.
+                /*
+                 * Keep the current state if the update fails.
+                 */
             }
         }
     }
@@ -316,7 +315,10 @@ class PlatformSettingViewModel @Inject constructor(
                 }
 
             } catch (_: Exception) {
-                // Keep the current UI state if persistence fails.
+                /*
+                 * Keep the current UI state
+                 * if persistence fails.
+                 */
             }
         }
     }
@@ -670,7 +672,10 @@ class PlatformSettingViewModel @Inject constructor(
                 }
 
             } catch (_: Exception) {
-                // Do not navigate away if deletion fails.
+                /*
+                 * Do not navigate away
+                 * if deletion fails.
+                 */
             }
         }
     }

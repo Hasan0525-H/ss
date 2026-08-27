@@ -97,6 +97,51 @@ fun PlatformSettingScreen(
             mutableStateOf(false)
         }
 
+    var modelSearchQuery by
+        remember(
+            platform?.uid
+        ) {
+            mutableStateOf("")
+        }
+
+    /*
+     * Local in-memory OpenRouter search.
+     *
+     * No network request is made while typing.
+     */
+    val filteredModels =
+        remember(
+            availableModels,
+            modelSearchQuery,
+        ) {
+
+            val query =
+                modelSearchQuery.trim()
+
+            if (
+                query.isBlank()
+            ) {
+
+                availableModels
+
+            } else {
+
+                availableModels
+                    .filter { modelInfo ->
+
+                        modelInfo.id.contains(
+                            other = query,
+                            ignoreCase = true,
+                        ) ||
+                            modelInfo.name
+                                ?.contains(
+                                    other = query,
+                                    ignoreCase = true,
+                                ) == true
+                    }
+            }
+        }
+
     val context =
         LocalContext.current
 
@@ -109,8 +154,8 @@ fun PlatformSettingScreen(
      * Only OpenRouter loads its model list
      * dynamically.
      *
-     * Google AI Studio and all other providers
-     * remain independent from OpenRouter.
+     * Google AI Studio and Custom remain
+     * independent from OpenRouter.
      */
     LaunchedEffect(
         platform?.compatibleType,
@@ -129,12 +174,11 @@ fun PlatformSettingScreen(
                     isFreeOnly =
                         isFreeFilter
                 )
-
         }
     }
 
     /*
-     * Show provider-switch notification.
+     * Provider-switch notification.
      */
     LaunchedEffect(Unit) {
 
@@ -432,6 +476,9 @@ fun PlatformSettingScreen(
 
                                     isDropdownExpanded =
                                         false
+
+                                    modelSearchQuery =
+                                        ""
                                 },
 
                                 label = {
@@ -456,6 +503,9 @@ fun PlatformSettingScreen(
 
                                     isDropdownExpanded =
                                         false
+
+                                    modelSearchQuery =
+                                        ""
                                 },
 
                                 label = {
@@ -469,6 +519,61 @@ fun PlatformSettingScreen(
                                     platformData.enabled,
                             )
                         }
+
+                        Spacer(
+                            modifier =
+                                Modifier.height(
+                                    8.dp
+                                )
+                        )
+
+                        /*
+                         * Search already-loaded OpenRouter models.
+                         *
+                         * No API request per keystroke.
+                         */
+                        OutlinedTextField(
+                            value =
+                                modelSearchQuery,
+
+                            onValueChange = { query ->
+
+                                modelSearchQuery =
+                                    query
+
+                                if (
+                                    platformData.enabled &&
+                                    !isLoadingModels
+                                ) {
+
+                                    isDropdownExpanded =
+                                        true
+                                }
+                            },
+
+                            enabled =
+                                platformData.enabled,
+
+                            label = {
+
+                                Text(
+                                    "بحث في موديلات OpenRouter"
+                                )
+                            },
+
+                            placeholder = {
+
+                                Text(
+                                    "اسم الموديل أو Model ID"
+                                )
+                            },
+
+                            modifier =
+                                Modifier.fillMaxWidth(),
+
+                            singleLine =
+                                true,
+                        )
 
                         Spacer(
                             modifier =
@@ -608,16 +713,26 @@ fun PlatformSettingScreen(
                                     }
 
                                     /*
-                                     * No models.
+                                     * No models / no search results.
                                      */
-                                    availableModels
+                                    filteredModels
                                         .isEmpty() -> {
 
                                         DropdownMenuItem(
                                             text = {
 
                                                 Text(
-                                                    "لا توجد نماذج متاحة"
+                                                    if (
+                                                        modelSearchQuery
+                                                            .isBlank()
+                                                    ) {
+
+                                                        "لا توجد نماذج متاحة"
+
+                                                    } else {
+
+                                                        "لا توجد نتائج مطابقة"
+                                                    }
                                                 )
                                             },
 
@@ -634,7 +749,7 @@ fun PlatformSettingScreen(
                                      */
                                     else -> {
 
-                                        availableModels
+                                        filteredModels
                                             .forEach { modelInfo ->
 
                                                 val isFree =
@@ -644,11 +759,11 @@ fun PlatformSettingScreen(
                                                         true
 
                                                 /*
-                                                 * OpenRouter pricing values
-                                                 * are USD per token.
+                                                 * OpenRouter pricing is
+                                                 * USD per token.
                                                  *
                                                  * OpenRouterPricing converts
-                                                 * them here to USD / 1K tokens.
+                                                 * it to USD / 1K tokens.
                                                  */
                                                 val priceText =
                                                     if (isFree) {
@@ -680,6 +795,24 @@ fun PlatformSettingScreen(
                                                         }
                                                     }
 
+                                                /*
+                                                 * Capability comes directly
+                                                 * from OpenRouter's
+                                                 * supported_parameters.
+                                                 */
+                                                val capabilityText =
+                                                    if (
+                                                        modelInfo
+                                                            .supportsTools
+                                                    ) {
+
+                                                        "✓ يدعم Tools"
+
+                                                    } else {
+
+                                                        "دردشة فقط (Chat only)"
+                                                    }
+
                                                 DropdownMenuItem(
                                                     text = {
 
@@ -689,6 +822,9 @@ fun PlatformSettingScreen(
                                                                     .fillMaxWidth()
                                                         ) {
 
+                                                            /*
+                                                             * Friendly name.
+                                                             */
                                                             Text(
                                                                 text =
                                                                     modelInfo
@@ -701,6 +837,9 @@ fun PlatformSettingScreen(
                                                                         .bodyLarge,
                                                             )
 
+                                                            /*
+                                                             * Exact OpenRouter ID.
+                                                             */
                                                             if (
                                                                 modelInfo.name !=
                                                                 null
@@ -722,6 +861,39 @@ fun PlatformSettingScreen(
                                                                 )
                                                             }
 
+                                                            /*
+                                                             * Agent capability.
+                                                             */
+                                                            Text(
+                                                                text =
+                                                                    capabilityText,
+
+                                                                style =
+                                                                    MaterialTheme
+                                                                        .typography
+                                                                        .bodySmall,
+
+                                                                color =
+                                                                    if (
+                                                                        modelInfo
+                                                                            .supportsTools
+                                                                    ) {
+
+                                                                        MaterialTheme
+                                                                            .colorScheme
+                                                                            .primary
+
+                                                                    } else {
+
+                                                                        MaterialTheme
+                                                                            .colorScheme
+                                                                            .onSurfaceVariant
+                                                                    },
+                                                            )
+
+                                                            /*
+                                                             * Price.
+                                                             */
                                                             Text(
                                                                 text =
                                                                     priceText,
@@ -742,14 +914,39 @@ fun PlatformSettingScreen(
                                                     onClick = {
 
                                                         /*
-                                                         * Save exact model ID.
+                                                         * Save the exact
+                                                         * OpenRouter model ID.
                                                          *
-                                                         * No fallback.
+                                                         * Never replace it
+                                                         * with openrouter/free.
                                                          */
                                                         settingViewModel
                                                             .updateApiModel(
                                                                 modelInfo.id
                                                             )
+
+                                                        /*
+                                                         * Chat-only models are
+                                                         * still selectable.
+                                                         *
+                                                         * The user asked for
+                                                         * access to every
+                                                         * OpenRouter model.
+                                                         *
+                                                         * Warn only when Tools
+                                                         * are unavailable.
+                                                         */
+                                                        if (
+                                                            !modelInfo
+                                                                .supportsTools
+                                                        ) {
+
+                                                            Toast.makeText(
+                                                                context,
+                                                                "هذا الموديل مناسب للدردشة فقط. إنشاء التطبيقات يحتاج موديل يدعم Tools.",
+                                                                Toast.LENGTH_LONG,
+                                                            ).show()
+                                                        }
 
                                                         isDropdownExpanded =
                                                             false
@@ -765,19 +962,10 @@ fun PlatformSettingScreen(
 
                         /*
                          * =================================================
-                         * OTHER PROVIDERS
+                         * GOOGLE AI STUDIO / CUSTOM
                          * =================================================
                          *
-                         * Google AI Studio
-                         * OpenAI
-                         * Anthropic
-                         * Qwen
-                         * Kimi
-                         * MiniMax
-                         * DeepSeek
-                         * Custom
-                         *
-                         * use manually entered model IDs.
+                         * These use manually entered model IDs.
                          */
                         SettingItem(
                             modifier =

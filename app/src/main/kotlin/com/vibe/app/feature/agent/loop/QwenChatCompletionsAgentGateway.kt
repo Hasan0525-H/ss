@@ -47,18 +47,20 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
             request.platform.token
         )
 
+        /*
+         * Google AI Studio, OpenRouter, Qwen and
+         * Custom providers all use the OpenAI-compatible
+         * Chat Completions gateway here.
+         *
+         * setProvider() is called after setAPIUrl()
+         * so OpenAIAPIImpl can identify the provider
+         * and select the correct endpoint.
+         */
         openAIAPI.setAPIUrl(
             request.platform.apiUrl
                 .toQwenChatCompletionsBaseUrl()
         )
 
-        /*
-         * Set the provider AFTER setAPIUrl.
-         *
-         * This is important for Google AI Studio:
-         * OpenAIAPIImpl selects the Google endpoint
-         * from ClientType.GOOGLE_AI_STUDIO.
-         */
         openAIAPI.setProvider(
             type = request.platform.compatibleType.name,
             customUrl = request.platform.apiUrl,
@@ -166,18 +168,15 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
             false
 
         /*
-         * Do NOT use an OpenRouter fallback such as:
+         * Never use an OpenRouter fallback model.
          *
-         *     openrouter/free
+         * The selected model is sent directly to
+         * the selected provider.
          *
-         * here.
-         *
-         * The selected model must be sent directly.
-         *
-         * This also applies to Google AI Studio:
-         * the selected Gemini model is sent directly.
+         * This is especially important for Google AI Studio:
+         * the selected Gemini model is sent directly to
+         * Google's OpenAI-compatible endpoint.
          */
-
         openAIAPI
             .streamQwenChatCompletion(
                 QwenChatCompletionRequest(
@@ -234,9 +233,6 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
 
                 /*
                  * Provider/API error.
-                 *
-                 * Do not retry here.
-                 * The caller receives one Failed event.
                  */
                 if (chunk.error != null) {
 
@@ -283,7 +279,7 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
 
                         if (
                             text ==
-                                lastAssistantText
+                            lastAssistantText
                         ) {
 
                             repeatCount++
@@ -298,9 +294,8 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                         }
 
                         /*
-                         * Protect against a provider
-                         * repeatedly streaming the same
-                         * content forever.
+                         * Protect against providers that
+                         * repeatedly stream the same content.
                          */
                         if (
                             repeatCount >= 3
@@ -397,8 +392,7 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
 
         /*
          * If the provider returned an error,
-         * emit exactly one AgentModelEvent.Failed
-         * and stop this model turn.
+         * emit exactly one Failed event.
          */
         streamError
             ?.let { error ->
@@ -430,8 +424,8 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
             }
 
         /*
-         * Convert accumulated streamed tool calls
-         * into AgentToolCall objects.
+         * Convert streamed tool calls into
+         * AgentToolCall objects.
          */
         toolCallAccumulators
             .entries
@@ -619,13 +613,13 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
         }
 
         /*
-         * Use the complete conversation here.
-         *
          * OpenAI-compatible Chat Completions
-         * endpoints are stateless, so every request
-         * must contain the accumulated conversation.
+         * endpoints are stateless.
          *
-         * This applies to Google AI Studio as well.
+         * Therefore the complete conversation
+         * must be sent with every request.
+         *
+         * This also applies to Google AI Studio.
          */
         request.fullConversation
             .forEach { item ->
@@ -767,13 +761,13 @@ internal fun AgentModelRequest.toQwenToolChoice(): String? {
 
 /*
  * Converts provider URLs to the base URL expected by
- * the OpenAI-compatible Qwen/Google gateway.
+ * the OpenAI-compatible gateway.
  *
  * Google AI Studio already uses:
  *
  * https://generativelanguage.googleapis.com/v1beta/openai
  *
- * so it must NOT receive an additional /v1 segment.
+ * Therefore it must NOT receive an additional /v1 segment.
  */
 private fun String.toQwenChatCompletionsBaseUrl(): String {
 

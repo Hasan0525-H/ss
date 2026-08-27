@@ -78,18 +78,11 @@ fun APIKeyDialog(
     settingViewModel: PlatformSettingViewModel,
 ) {
     if (dialogState.isApiTokenDialogOpen) {
-        val platform by
-            settingViewModel.platformState
-                .collectAsStateWithLifecycle()
-
+        val platform by settingViewModel.platformState.collectAsStateWithLifecycle()
         APIKeyEditorDialog(
-            allowEmpty =
-                platform?.compatibleType ==
-                    ClientType.CUSTOM,
-            onDismissRequest =
-                settingViewModel::closeApiTokenDialog,
-            onConfirmRequest =
-                settingViewModel::updateApiToken,
+            allowEmpty = platform?.compatibleType == ClientType.CUSTOM,
+            onDismissRequest = settingViewModel::closeApiTokenDialog,
+            onConfirmRequest = settingViewModel::updateApiToken,
         )
     }
 }
@@ -105,10 +98,8 @@ fun ModelDialog(
         ModelEditorDialog(
             initModel = model,
             settingViewModel = settingViewModel,
-            onDismissRequest =
-                settingViewModel::closeApiModelDialog,
-            onConfirmRequest =
-                settingViewModel::updateApiModel,
+            onDismissRequest = settingViewModel::closeApiModelDialog,
+            onConfirmRequest = settingViewModel::updateApiModel,
         )
     }
 }
@@ -122,10 +113,8 @@ fun TemperatureDialog(
     if (dialogState.isTemperatureDialogOpen) {
         TemperatureEditorDialog(
             temperature = temperature,
-            onDismissRequest =
-                settingViewModel::closeTemperatureDialog,
-            onConfirmRequest =
-                settingViewModel::updateTemperature,
+            onDismissRequest = settingViewModel::closeTemperatureDialog,
+            onConfirmRequest = settingViewModel::updateTemperature,
         )
     }
 }
@@ -139,10 +128,8 @@ fun TopPDialog(
     if (dialogState.isTopPDialogOpen) {
         TopPEditorDialog(
             topP = topP,
-            onDismissRequest =
-                settingViewModel::closeTopPDialog,
-            onConfirmRequest =
-                settingViewModel::updateTopP,
+            onDismissRequest = settingViewModel::closeTopPDialog,
+            onConfirmRequest = settingViewModel::updateTopP,
         )
     }
 }
@@ -156,10 +143,8 @@ fun SystemPromptDialog(
     if (dialogState.isSystemPromptDialogOpen) {
         SystemPromptEditorDialog(
             prompt = systemPrompt,
-            onDismissRequest =
-                settingViewModel::closeSystemPromptDialog,
-            onConfirmRequest =
-                settingViewModel::updateSystemPrompt,
+            onDismissRequest = settingViewModel::closeSystemPromptDialog,
+            onConfirmRequest = settingViewModel::updateSystemPrompt,
         )
     }
 }
@@ -170,80 +155,33 @@ private fun PlatformNameEditorDialog(
     onDismissRequest: () -> Unit,
     onConfirmRequest: (String) -> Unit,
 ) {
-    var platformName by
-        remember(initialValue) {
-            mutableStateOf(initialValue)
-        }
+    var platformName by remember(initialValue) { mutableStateOf(initialValue) }
 
     AlertDialog(
-        title = {
-            Text(
-                stringResource(
-                    R.string.platform_name
-                )
-            )
-        },
+        title = { Text(stringResource(R.string.platform_name)) },
         text = {
             OutlinedTextField(
-                modifier =
-                    Modifier.fillMaxWidth(),
-                value =
-                    platformName,
-                onValueChange = {
-                    platformName = it
-                },
-                label = {
-                    Text(
-                        stringResource(
-                            R.string.platform_name
-                        )
-                    )
-                },
-                singleLine =
-                    true,
-                keyboardOptions =
-                    KeyboardOptions(
-                        imeAction =
-                            ImeAction.Done,
-                    ),
-                supportingText = {
-                    Text(
-                        stringResource(
-                            R.string.platform_name_supporting
-                        )
-                    )
-                },
+                modifier = Modifier.fillMaxWidth(),
+                value = platformName,
+                onValueChange = { platformName = it },
+                label = { Text(stringResource(R.string.platform_name)) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                supportingText = { Text(stringResource(R.string.platform_name_supporting)) },
             )
         },
-        onDismissRequest =
-            onDismissRequest,
+        onDismissRequest = onDismissRequest,
         confirmButton = {
             TextButton(
-                enabled =
-                    platformName.isNotBlank(),
-                onClick = {
-                    onConfirmRequest(
-                        platformName.trim()
-                    )
-                },
+                enabled = platformName.isNotBlank(),
+                onClick = { onConfirmRequest(platformName.trim()) },
             ) {
-                Text(
-                    stringResource(
-                        R.string.confirm
-                    )
-                )
+                Text(stringResource(R.string.confirm))
             }
         },
         dismissButton = {
-            TextButton(
-                onClick =
-                    onDismissRequest,
-            ) {
-                Text(
-                    stringResource(
-                        R.string.cancel
-                    )
-                )
+            TextButton(onClick = onDismissRequest) {
+                Text(stringResource(R.string.cancel))
             }
         },
     )
@@ -255,110 +193,44 @@ private fun APIUrlEditorDialog(
     onDismissRequest: () -> Unit,
     onConfirmRequest: (String) -> Unit,
 ) {
-    var apiUrl by
-        remember(initialValue) {
-            mutableStateOf(initialValue)
-        }
-
-    val cleanUrl =
-        apiUrl.trim()
-
-    val isValid =
-        cleanUrl.isNotBlank() &&
-            cleanUrl.isValidUrl()
+    var apiUrl by remember(initialValue) { mutableStateOf(initialValue) }
+    val cleanUrl = apiUrl.trim()
+    val isValid = cleanUrl.isNotBlank() && cleanUrl.isValidUrl()
 
     AlertDialog(
-        title = {
-            Text(
-                stringResource(
-                    R.string.api_url
-                )
-            )
-        },
+        title = { Text(stringResource(R.string.api_url)) },
         text = {
             Column {
-                Text(
-                    stringResource(
-                        R.string.api_url_cautions
-                    )
-                )
-
+                Text(stringResource(R.string.api_url_cautions))
                 OutlinedTextField(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(
-                                vertical = 16.dp
-                            ),
-                    value =
-                        apiUrl,
-                    onValueChange = {
-                        apiUrl = it
-                    },
-                    singleLine =
-                        true,
-                    isError =
-                        cleanUrl.isNotBlank() &&
-                            !cleanUrl.isValidUrl(),
-                    label = {
-                        Text(
-                            stringResource(
-                                R.string.api_url
-                            )
-                        )
-                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp),
+                    value = apiUrl,
+                    onValueChange = { apiUrl = it },
+                    singleLine = true,
+                    isError = cleanUrl.isNotBlank() && !cleanUrl.isValidUrl(),
+                    label = { Text(stringResource(R.string.api_url)) },
                     supportingText = {
-                        if (
-                            cleanUrl.isNotBlank() &&
-                            !cleanUrl.isValidUrl()
-                        ) {
-                            Text(
-                                stringResource(
-                                    R.string.invalid_api_url
-                                )
-                            )
+                        if (cleanUrl.isNotBlank() && !cleanUrl.isValidUrl()) {
+                            Text(stringResource(R.string.invalid_api_url))
                         }
                     },
                 )
             }
         },
-        onDismissRequest =
-            onDismissRequest,
+        onDismissRequest = onDismissRequest,
         confirmButton = {
             TextButton(
-                enabled =
-                    isValid,
-                onClick = {
-                    /*
-                     * PlatformSettingViewModel
-                     * normalizes the URL itself
-                     * with trimEnd('/').
-                     *
-                     * لذلك لا نفرض وجود /
-                     * في نهاية الرابط هنا.
-                     */
-                    onConfirmRequest(
-                        cleanUrl
-                    )
-                },
+                enabled = isValid,
+                onClick = { onConfirmRequest(cleanUrl) },
             ) {
-                Text(
-                    stringResource(
-                        R.string.confirm
-                    )
-                )
+                Text(stringResource(R.string.confirm))
             }
         },
         dismissButton = {
-            TextButton(
-                onClick =
-                    onDismissRequest,
-            ) {
-                Text(
-                    stringResource(
-                        R.string.cancel
-                    )
-                )
+            TextButton(onClick = onDismissRequest) {
+                Text(stringResource(R.string.cancel))
             }
         },
     )
@@ -370,96 +242,41 @@ private fun APIKeyEditorDialog(
     onDismissRequest: () -> Unit,
     onConfirmRequest: (String) -> Unit,
 ) {
-    var token by
-        remember {
-            mutableStateOf("")
-        }
+    var token by remember { mutableStateOf("") }
 
     AlertDialog(
-        title = {
-            Text(
-                stringResource(
-                    R.string.api_key
-                )
-            )
-        },
+        title = { Text(stringResource(R.string.api_key)) },
         text = {
-            Column(
-                verticalArrangement =
-                    Arrangement.spacedBy(
-                        8.dp
-                    ),
-            ) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
-                    modifier =
-                        Modifier.fillMaxWidth(),
-                    value =
-                        token,
-                    onValueChange = {
-                        token = it
-                    },
-                    label = {
-                        Text(
-                            stringResource(
-                                R.string.api_key
-                            )
-                        )
-                    },
-                    singleLine =
-                        true,
-                    keyboardOptions =
-                        KeyboardOptions(
-                            imeAction =
-                                ImeAction.Done,
-                        ),
+                    modifier = Modifier.fillMaxWidth(),
+                    value = token,
+                    onValueChange = { token = it },
+                    label = { Text(stringResource(R.string.api_key)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 )
-
                 if (allowEmpty) {
                     Text(
-                        text =
-                            "يمكن ترك المفتاح فارغًا إذا كان Custom API لا يحتاج مصادقة.",
-                        style =
-                            MaterialTheme
-                                .typography
-                                .bodySmall,
-                        color =
-                            MaterialTheme
-                                .colorScheme
-                                .onSurfaceVariant,
+                        text = stringResource(R.string.custom_api_key_optional),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
         },
-        onDismissRequest =
-            onDismissRequest,
+        onDismissRequest = onDismissRequest,
         confirmButton = {
             TextButton(
-                enabled =
-                    allowEmpty ||
-                        token.isNotBlank(),
-                onClick = {
-                    onConfirmRequest(
-                        token
-                    )
-                },
+                enabled = allowEmpty || token.isNotBlank(),
+                onClick = { onConfirmRequest(token) },
             ) {
-                Text(
-                    stringResource(
-                        R.string.confirm
-                    )
-                )
+                Text(stringResource(R.string.confirm))
             }
         },
         dismissButton = {
-            TextButton(
-                onClick =
-                    onDismissRequest,
-            ) {
-                Text(
-                    stringResource(
-                        R.string.cancel
-                    )
-                )
+            TextButton(onClick = onDismissRequest) {
+                Text(stringResource(R.string.cancel))
             }
         },
     )
@@ -473,133 +290,37 @@ private fun ModelEditorDialog(
     onDismissRequest: () -> Unit,
     onConfirmRequest: (String) -> Unit,
 ) {
-    val platform by
-        settingViewModel
-            .platformState
-            .collectAsStateWithLifecycle()
+    val platform by settingViewModel.platformState.collectAsStateWithLifecycle()
+    val availableModels by settingViewModel.availableModels.collectAsStateWithLifecycle()
+    val isLoadingModels by settingViewModel.isLoadingModels.collectAsStateWithLifecycle()
 
-    val availableModels by
-        settingViewModel
-            .availableModels
-            .collectAsStateWithLifecycle()
+    val isOpenRouter = platform?.compatibleType == ClientType.OPEN_ROUTER
+    val isGoogleAIStudio = platform?.compatibleType == ClientType.GOOGLE_AI_STUDIO
 
-    val isLoadingModels by
-        settingViewModel
-            .isLoadingModels
-            .collectAsStateWithLifecycle()
+    var selectedModel by remember(initModel, platform?.uid) {
+        mutableStateOf(initModel)
+    }
+    var isFreeOnly by remember(platform?.uid) {
+        mutableStateOf(platform?.isFree ?: true)
+    }
+    var expanded by remember(platform?.uid) { mutableStateOf(false) }
+    var modelSearchQuery by remember(platform?.uid, isFreeOnly) { mutableStateOf("") }
 
-    val isOpenRouter =
-        platform?.compatibleType ==
-            ClientType.OPEN_ROUTER
-
-    val isGoogleAIStudio =
-        platform?.compatibleType ==
-            ClientType.GOOGLE_AI_STUDIO
-
-    var selectedModel by
-        remember(
-            initModel,
-            platform?.uid,
-        ) {
-            mutableStateOf(
-                initModel
-            )
-        }
-
-    var isFreeOnly by
-        remember(
-            platform?.uid
-        ) {
-            mutableStateOf(
-                platform?.isFree
-                    ?: true
-            )
-        }
-
-    var expanded by
-        remember(
-            platform?.uid
-        ) {
-            mutableStateOf(
-                false
-            )
-        }
-
-    var modelSearchQuery by
-        remember(
-            platform?.uid,
-            isFreeOnly,
-        ) {
-            mutableStateOf(
-                ""
-            )
-        }
-
-    /*
-     * =========================================================
-     * LOCAL OPENROUTER SEARCH
-     * =========================================================
-     *
-     * لا يوجد Network Request عند كل حرف.
-     * البحث يتم فقط داخل availableModels
-     * التي تم تحميلها مسبقًا.
-     */
-    val filteredModels =
-        remember(
-            availableModels,
-            modelSearchQuery,
-        ) {
-            val query =
-                modelSearchQuery
-                    .trim()
-
-            if (
-                query.isBlank()
-            ) {
-                availableModels
-            } else {
-                availableModels.filter {
-                    modelInfo ->
-
-                    modelInfo.id.contains(
-                        query,
-                        ignoreCase = true,
-                    ) ||
-                        modelInfo.name
-                            ?.contains(
-                                query,
-                                ignoreCase = true,
-                            ) == true
-                }
+    val filteredModels = remember(availableModels, modelSearchQuery) {
+        val query = modelSearchQuery.trim()
+        if (query.isBlank()) {
+            availableModels
+        } else {
+            availableModels.filter { modelInfo ->
+                modelInfo.id.contains(query, ignoreCase = true) ||
+                    modelInfo.name?.contains(query, ignoreCase = true) == true
             }
         }
+    }
 
-    /*
-     * =========================================================
-     * DYNAMIC MODEL LOADING
-     * =========================================================
-     *
-     * OpenRouter فقط.
-     *
-     * Google AI Studio و Custom
-     * لا يجب أن يصلا إلى OpenRouter /models.
-     */
-    LaunchedEffect(
-        isOpenRouter,
-        isFreeOnly,
-        platform?.token,
-    ) {
-        if (
-            isOpenRouter &&
-            !platform
-                ?.token
-                .isNullOrBlank()
-        ) {
-            settingViewModel
-                .loadModels(
-                    isFreeOnly =
-                        isFreeOnly,
-                )
+    LaunchedEffect(isOpenRouter, isFreeOnly, platform?.token) {
+        if (isOpenRouter && !platform?.token.isNullOrBlank()) {
+            settingViewModel.loadModels(isFreeOnly = isFreeOnly)
         }
     }
 
@@ -607,207 +328,96 @@ private fun ModelEditorDialog(
         title = {
             Text(
                 when {
-                    isOpenRouter ->
-                        "اختر نموذج OpenRouter"
-
-                    isGoogleAIStudio ->
-                        "نموذج Google AI Studio"
-
-                    else ->
-                        stringResource(
-                            R.string.api_model
-                        )
+                    isOpenRouter -> stringResource(R.string.select_openrouter_model)
+                    isGoogleAIStudio -> stringResource(R.string.google_ai_studio_model_title)
+                    else -> stringResource(R.string.api_model)
                 }
             )
         },
         text = {
             Column(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(
-                            rememberScrollState()
-                        ),
-                verticalArrangement =
-                    Arrangement.spacedBy(
-                        12.dp
-                    ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                /*
-                 * =================================================
-                 * OPENROUTER
-                 * =================================================
-                 */
                 if (isOpenRouter) {
                     Row(
-                        modifier =
-                            Modifier.fillMaxWidth(),
-                        horizontalArrangement =
-                            Arrangement.spacedBy(
-                                8.dp
-                            ),
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         FilterChip(
-                            modifier =
-                                Modifier.weight(
-                                    1f
-                                ),
-                            selected =
-                                isFreeOnly,
+                            modifier = Modifier.weight(1f),
+                            selected = isFreeOnly,
                             onClick = {
-                                isFreeOnly =
-                                    true
-
-                                expanded =
-                                    false
-
-                                modelSearchQuery =
-                                    ""
+                                isFreeOnly = true
+                                expanded = false
+                                modelSearchQuery = ""
                             },
-                            label = {
-                                Text(
-                                    "مجاني (Free)"
-                                )
-                            },
+                            label = { Text(stringResource(R.string.filter_free)) },
                         )
-
                         FilterChip(
-                            modifier =
-                                Modifier.weight(
-                                    1f
-                                ),
-                            selected =
-                                !isFreeOnly,
+                            modifier = Modifier.weight(1f),
+                            selected = !isFreeOnly,
                             onClick = {
-                                isFreeOnly =
-                                    false
-
-                                expanded =
-                                    false
-
-                                modelSearchQuery =
-                                    ""
+                                isFreeOnly = false
+                                expanded = false
+                                modelSearchQuery = ""
                             },
-                            label = {
-                                Text(
-                                    "مدفوع (Paid)"
-                                )
-                            },
+                            label = { Text(stringResource(R.string.filter_paid)) },
                         )
                     }
 
-                    /*
-                     * Search by:
-                     *
-                     * friendly name
-                     * OR exact model ID.
-                     */
                     OutlinedTextField(
-                        modifier =
-                            Modifier.fillMaxWidth(),
-                        value =
-                            modelSearchQuery,
-                        onValueChange = {
-                            modelSearchQuery =
-                                it
-                        },
-                        label = {
-                            Text(
-                                "بحث في النماذج"
-                            )
-                        },
-                        placeholder = {
-                            Text(
-                                "ابحث بالاسم أو Model ID"
-                            )
-                        },
-                        singleLine =
-                            true,
+                        modifier = Modifier.fillMaxWidth(),
+                        value = modelSearchQuery,
+                        onValueChange = { modelSearchQuery = it },
+                        label = { Text(stringResource(R.string.search_openrouter_models)) },
+                        placeholder = { Text(stringResource(R.string.model_name_or_id)) },
+                        singleLine = true,
                     )
 
                     ExposedDropdownMenuBox(
-                        expanded =
-                            expanded,
+                        expanded = expanded,
                         onExpandedChange = {
-                            if (
-                                !isLoadingModels
-                            ) {
-                                expanded =
-                                    !expanded
-                            }
+                            if (!isLoadingModels) expanded = !expanded
                         },
                     ) {
                         OutlinedTextField(
-                            modifier =
-                                Modifier
-                                    .menuAnchor()
-                                    .fillMaxWidth(),
-                            value =
-                                selectedModel,
+                            modifier = Modifier
+                                .menuAnchor()
+                                .fillMaxWidth(),
+                            value = selectedModel,
                             onValueChange = {},
-                            readOnly =
-                                true,
-                            label = {
-                                Text(
-                                    stringResource(
-                                        R.string.model_name
-                                    )
-                                )
-                            },
-                            placeholder = {
-                                Text(
-                                    "اختر نموذج OpenRouter"
-                                )
-                            },
+                            readOnly = true,
+                            label = { Text(stringResource(R.string.model_name)) },
+                            placeholder = { Text(stringResource(R.string.select_openrouter_model)) },
                             trailingIcon = {
-                                if (
-                                    isLoadingModels
-                                ) {
+                                if (isLoadingModels) {
                                     CircularProgressIndicator(
-                                        modifier =
-                                            Modifier.size(
-                                                20.dp
-                                            ),
-                                        strokeWidth =
-                                            2.dp,
+                                        modifier = Modifier.size(20.dp),
+                                        strokeWidth = 2.dp,
                                     )
                                 } else {
-                                    ExposedDropdownMenuDefaults
-                                        .TrailingIcon(
-                                            expanded =
-                                                expanded,
-                                        )
+                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
                                 }
                             },
                         )
 
                         ExposedDropdownMenu(
-                            expanded =
-                                expanded,
-                            onDismissRequest = {
-                                expanded =
-                                    false
-                            },
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false },
                         ) {
                             when {
-                                /*
-                                 * Loading state.
-                                 */
                                 isLoadingModels -> {
                                     DropdownMenuItem(
                                         text = {
                                             Row(
-                                                modifier =
-                                                    Modifier
-                                                        .fillMaxWidth(),
-                                                horizontalArrangement =
-                                                    Arrangement.Center,
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.Center,
                                             ) {
                                                 CircularProgressIndicator(
-                                                    modifier =
-                                                        Modifier.size(
-                                                            24.dp
-                                                        ),
+                                                    modifier = Modifier.size(24.dp)
                                                 )
                                             }
                                         },
@@ -815,203 +425,81 @@ private fun ModelEditorDialog(
                                     )
                                 }
 
-                                /*
-                                 * Empty result.
-                                 */
-                                filteredModels
-                                    .isEmpty() -> {
+                                filteredModels.isEmpty() -> {
                                     DropdownMenuItem(
                                         text = {
                                             Text(
-                                                if (
-                                                    modelSearchQuery
-                                                        .isBlank()
-                                                ) {
-                                                    "لا توجد نماذج متاحة"
+                                                if (modelSearchQuery.isBlank()) {
+                                                    stringResource(R.string.no_models_available)
                                                 } else {
-                                                    "لا توجد نتائج مطابقة"
+                                                    stringResource(R.string.no_matching_models)
                                                 }
                                             )
                                         },
-                                        onClick = {
-                                            expanded =
-                                                false
-                                        },
+                                        onClick = { expanded = false },
                                     )
                                 }
 
-                                /*
-                                 * OpenRouter model list.
-                                 */
                                 else -> {
-                                    /*
-                                     * لا نرسم مئات الصفوف دفعة واحدة.
-                                     *
-                                     * البحث يستطيع الوصول لأي نموذج
-                                     * في القائمة الأصلية.
-                                     */
                                     filteredModels
-                                        .take(
-                                            MAX_VISIBLE_OPENROUTER_MODELS
-                                        )
-                                        .forEach {
-                                            modelInfo ->
-
-                                            val pricing =
-                                                modelInfo.pricing
-
-                                            val isFree =
-                                                pricing
-                                                    ?.isFree ==
-                                                    true
-
-                                            /*
-                                             * averagePricePer1K
-                                             * هو السعر الذي يتوافق
-                                             * مع النص "/ 1K".
-                                             */
-                                            val priceLabel =
-                                                if (
-                                                    isFree
-                                                ) {
-                                                    "مجاني"
-                                                } else {
-                                                    pricing
-                                                        ?.averagePricePer1K
-                                                        ?.let {
-                                                            price ->
-
-                                                            "$" +
-                                                                String.format(
-                                                                    Locale.US,
-                                                                    "%.6f",
-                                                                    price,
-                                                                ) +
-                                                                " / 1K"
-                                                        }
-                                                        ?: "السعر غير متاح"
-                                                }
+                                        .take(MAX_VISIBLE_OPENROUTER_MODELS)
+                                        .forEach { modelInfo ->
+                                            val pricing = modelInfo.pricing
+                                            val isFree = pricing?.isFree == true
+                                            val priceLabel = if (isFree) {
+                                                stringResource(R.string.free)
+                                            } else {
+                                                pricing?.averagePricePer1K?.let { price ->
+                                                    val formatted = String.format(
+                                                        Locale.US,
+                                                        "%.6f",
+                                                        price,
+                                                    )
+                                                    stringResource(
+                                                        R.string.price_per_1k_tokens,
+                                                        formatted,
+                                                    )
+                                                } ?: stringResource(R.string.price_unavailable)
+                                            }
 
                                             DropdownMenuItem(
                                                 text = {
-                                                    Column(
-                                                        modifier =
-                                                            Modifier
-                                                                .fillMaxWidth(),
-                                                    ) {
+                                                    Column(Modifier.fillMaxWidth()) {
                                                         Row(
-                                                            modifier =
-                                                                Modifier
-                                                                    .fillMaxWidth(),
-                                                            horizontalArrangement =
-                                                                Arrangement
-                                                                    .SpaceBetween,
+                                                            modifier = Modifier.fillMaxWidth(),
+                                                            horizontalArrangement = Arrangement.SpaceBetween,
                                                         ) {
                                                             Text(
-                                                                text =
-                                                                    modelInfo
-                                                                        .name
-                                                                        ?: modelInfo.id,
-                                                                modifier =
-                                                                    Modifier
-                                                                        .weight(
-                                                                            1f
-                                                                        ),
-                                                                style =
-                                                                    MaterialTheme
-                                                                        .typography
-                                                                        .bodyLarge,
+                                                                text = modelInfo.name ?: modelInfo.id,
+                                                                modifier = Modifier.weight(1f),
+                                                                style = MaterialTheme.typography.bodyLarge,
                                                             )
-
-                                                            Spacer(
-                                                                modifier =
-                                                                    Modifier
-                                                                        .width(
-                                                                            8.dp
-                                                                        ),
-                                                            )
-
+                                                            Spacer(Modifier.width(8.dp))
                                                             Text(
-                                                                text =
-                                                                    priceLabel,
-                                                                style =
-                                                                    MaterialTheme
-                                                                        .typography
-                                                                        .bodySmall,
-                                                                color =
-                                                                    MaterialTheme
-                                                                        .colorScheme
-                                                                        .onSurfaceVariant,
+                                                                text = priceLabel,
+                                                                style = MaterialTheme.typography.bodySmall,
+                                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                             )
                                                         }
-
-                                                        /*
-                                                         * Always expose the
-                                                         * exact OpenRouter ID
-                                                         * when a friendly name exists.
-                                                         */
-                                                        if (
-                                                            modelInfo.name !=
-                                                            null
-                                                        ) {
+                                                        if (modelInfo.name != null) {
                                                             Text(
-                                                                text =
-                                                                    modelInfo.id,
-                                                                style =
-                                                                    MaterialTheme
-                                                                        .typography
-                                                                        .bodySmall,
-                                                                color =
-                                                                    MaterialTheme
-                                                                        .colorScheme
-                                                                        .onSurfaceVariant,
+                                                                text = modelInfo.id,
+                                                                style = MaterialTheme.typography.bodySmall,
+                                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                             )
                                                         }
-
-                                                        /*
-                                                         * Important for VibeApp:
-                                                         * app generation needs
-                                                         * function/tool calling.
-                                                         */
-                                                        if (
-                                                            modelInfo
-                                                                .supportsTools
-                                                        ) {
+                                                        if (modelInfo.supportsTools) {
                                                             Text(
-                                                                text =
-                                                                    "Tools ✓",
-                                                                style =
-                                                                    MaterialTheme
-                                                                        .typography
-                                                                        .labelSmall,
-                                                                color =
-                                                                    MaterialTheme
-                                                                        .colorScheme
-                                                                        .primary,
+                                                                text = stringResource(R.string.supports_tools),
+                                                                style = MaterialTheme.typography.labelSmall,
+                                                                color = MaterialTheme.colorScheme.primary,
                                                             )
                                                         }
                                                     }
                                                 },
                                                 onClick = {
-                                                    /*
-                                                     * CRITICAL:
-                                                     *
-                                                     * Save the exact model ID.
-                                                     *
-                                                     * Example:
-                                                     * google/gemini-...
-                                                     *
-                                                     * Never:
-                                                     * openrouter/free
-                                                     *
-                                                     * Never replace it with
-                                                     * a hardcoded fallback.
-                                                     */
-                                                    selectedModel =
-                                                        modelInfo.id
-
-                                                    expanded =
-                                                        false
+                                                    selectedModel = modelInfo.id
+                                                    expanded = false
                                                 },
                                             )
                                         }
@@ -1020,164 +508,78 @@ private fun ModelEditorDialog(
                         }
                     }
 
-                    if (
-                        filteredModels.size >
-                        MAX_VISIBLE_OPENROUTER_MODELS
-                    ) {
+                    if (filteredModels.size > MAX_VISIBLE_OPENROUTER_MODELS) {
                         Text(
-                            text =
-                                "النتائج كثيرة. اكتب جزءًا من اسم النموذج أو Model ID لتضييق البحث.",
-                            style =
-                                MaterialTheme
-                                    .typography
-                                    .bodySmall,
-                            color =
-                                MaterialTheme
-                                    .colorScheme
-                                    .onSurfaceVariant,
+                            text = stringResource(R.string.too_many_models_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
 
                     Text(
-                        text =
-                            "البحث محلي داخل القائمة المحمّلة، لذلك لا يتم إرسال طلب شبكة مع كل حرف.",
-                        style =
-                            MaterialTheme
-                                .typography
-                                .bodySmall,
-                        color =
-                            MaterialTheme
-                                .colorScheme
-                                .onSurfaceVariant,
+                        text = stringResource(R.string.local_model_search_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 } else {
-                    /*
-                     * =================================================
-                     * GOOGLE AI STUDIO / CUSTOM
-                     * =================================================
-                     *
-                     * Model ID is entered manually.
-                     *
-                     * Legacy ClientType branches remain only
-                     * for internal compile/database compatibility.
-                     */
                     OutlinedTextField(
-                        modifier =
-                            Modifier.fillMaxWidth(),
-                        value =
-                            selectedModel,
-                        onValueChange = {
-                            selectedModel =
-                                it
-                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        value = selectedModel,
+                        onValueChange = { selectedModel = it },
                         label = {
                             Text(
-                                if (
-                                    isGoogleAIStudio
-                                ) {
-                                    "Gemini Model ID"
+                                if (isGoogleAIStudio) {
+                                    stringResource(R.string.gemini_model_id)
                                 } else {
-                                    "Model ID"
+                                    stringResource(R.string.model_id)
                                 }
                             )
                         },
                         placeholder = {
                             Text(
-                                when (
-                                    platform
-                                        ?.compatibleType
-                                ) {
-                                    ClientType.GOOGLE_AI_STUDIO ->
-                                        "gemini-2.5-flash"
-
-                                    ClientType.CUSTOM ->
-                                        "provider/model-name"
-
-                                    ClientType.OPENAI ->
-                                        "gpt-4o"
-
-                                    ClientType.ANTHROPIC ->
-                                        "claude-3-5-sonnet"
-
-                                    ClientType.QWEN ->
-                                        "qwen-max"
-
-                                    ClientType.KIMI ->
-                                        "moonshot-v1-8k"
-
-                                    ClientType.MINIMAX ->
-                                        "abab6.5s-chat"
-
-                                    ClientType.DEEPSEEK ->
-                                        "deepseek-chat"
-
+                                when (platform?.compatibleType) {
+                                    ClientType.GOOGLE_AI_STUDIO -> "gemini-2.5-flash"
+                                    ClientType.CUSTOM -> "provider/model-name"
+                                    ClientType.OPENAI -> "gpt-4o"
+                                    ClientType.ANTHROPIC -> "claude-3-5-sonnet"
+                                    ClientType.QWEN -> "qwen-max"
+                                    ClientType.KIMI -> "moonshot-v1-8k"
+                                    ClientType.MINIMAX -> "abab6.5s-chat"
+                                    ClientType.DEEPSEEK -> "deepseek-chat"
                                     ClientType.OPEN_ROUTER,
-                                    null ->
-                                        "Model ID"
+                                    null -> "Model ID"
                                 }
                             )
                         },
                         supportingText = {
                             Text(
-                                when (
-                                    platform
-                                        ?.compatibleType
-                                ) {
+                                when (platform?.compatibleType) {
                                     ClientType.GOOGLE_AI_STUDIO ->
-                                        "أدخل معرف Gemini كما هو مستخدم في Google AI Studio"
-
+                                        stringResource(R.string.google_model_id_supporting)
                                     ClientType.CUSTOM ->
-                                        "أدخل معرف النموذج الذي يدعمه مزود الـ API"
-
+                                        stringResource(R.string.custom_model_id_supporting)
                                     else ->
-                                        "أدخل معرف النموذج كما يطلبه مزود الـ API"
+                                        stringResource(R.string.generic_model_id_supporting)
                                 }
                             )
                         },
-                        singleLine =
-                            true,
+                        singleLine = true,
                     )
                 }
             }
         },
-        onDismissRequest =
-            onDismissRequest,
+        onDismissRequest = onDismissRequest,
         confirmButton = {
             TextButton(
-                enabled =
-                    selectedModel
-                        .trim()
-                        .isNotEmpty(),
-                onClick = {
-                    /*
-                     * PlatformSettingViewModel
-                     * stores this directly inside:
-                     *
-                     * PlatformV2.model
-                     */
-                    onConfirmRequest(
-                        selectedModel
-                            .trim()
-                    )
-                },
+                enabled = selectedModel.trim().isNotEmpty(),
+                onClick = { onConfirmRequest(selectedModel.trim()) },
             ) {
-                Text(
-                    stringResource(
-                        R.string.confirm
-                    )
-                )
+                Text(stringResource(R.string.confirm))
             }
         },
         dismissButton = {
-            TextButton(
-                onClick =
-                    onDismissRequest,
-            ) {
-                Text(
-                    stringResource(
-                        R.string.cancel
-                    )
-                )
+            TextButton(onClick = onDismissRequest) {
+                Text(stringResource(R.string.cancel))
             }
         },
     )
@@ -1189,220 +591,84 @@ private fun TemperatureEditorDialog(
     onDismissRequest: () -> Unit,
     onConfirmRequest: (Float?) -> Unit,
 ) {
-    var textFieldTemperature by
-        remember(
-            temperature
-        ) {
-            mutableStateOf(
-                temperature
-                    ?.let {
-                        "%.1f".format(
-                            it
-                        )
-                    }
-                    ?: ""
-            )
-        }
-
-    var sliderTemperature by
-        remember(
-            temperature
-        ) {
-            mutableFloatStateOf(
-                temperature
-                    ?: 1F
-            )
-        }
-
-    var isUnset by
-        remember(
-            temperature
-        ) {
-            mutableStateOf(
-                temperature ==
-                    null
-            )
-        }
+    var textFieldTemperature by remember(temperature) {
+        mutableStateOf(temperature?.let { "%.1f".format(it) } ?: "")
+    }
+    var sliderTemperature by remember(temperature) {
+        mutableFloatStateOf(temperature ?: 1F)
+    }
+    var isUnset by remember(temperature) {
+        mutableStateOf(temperature == null)
+    }
 
     AlertDialog(
-        title = {
-            Text(
-                stringResource(
-                    R.string.temperature_setting
-                )
-            )
-        },
+        title = { Text(stringResource(R.string.temperature_setting)) },
         text = {
-            Column(
-                modifier =
-                    Modifier
-                        .verticalScroll(
-                            rememberScrollState()
-                        ),
-            ) {
-                Text(
-                    stringResource(
-                        R.string.temperature_setting_description
-                    )
-                )
-
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                Text(stringResource(R.string.temperature_setting_description))
                 OutlinedTextField(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(
-                                horizontal =
-                                    20.dp,
-                                vertical =
-                                    16.dp,
-                            ),
-                    value =
-                        textFieldTemperature,
-                    onValueChange = {
-                        value ->
-
-                        textFieldTemperature =
-                            value
-
-                        if (
-                            value.isBlank()
-                        ) {
-                            isUnset =
-                                true
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 16.dp),
+                    value = textFieldTemperature,
+                    onValueChange = { value ->
+                        textFieldTemperature = value
+                        if (value.isBlank()) {
+                            isUnset = true
                         } else {
-                            value
-                                .toFloatOrNull()
-                                ?.let {
-                                    sliderTemperature =
-                                        it.coerceIn(
-                                            0F,
-                                            2F,
-                                        )
-
-                                    isUnset =
-                                        false
-                                }
+                            value.toFloatOrNull()?.let {
+                                sliderTemperature = it.coerceIn(0F, 2F)
+                                isUnset = false
+                            }
                         }
                     },
-                    keyboardOptions =
-                        KeyboardOptions(
-                            keyboardType =
-                                KeyboardType.Number,
-                        ),
-                    label = {
-                        Text(
-                            stringResource(
-                                R.string.temperature
-                            )
-                        )
-                    },
-                    placeholder = {
-                        Text(
-                            stringResource(
-                                R.string.not_set
-                            )
-                        )
-                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    label = { Text(stringResource(R.string.temperature)) },
+                    placeholder = { Text(stringResource(R.string.not_set)) },
                 )
-
                 Slider(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(
-                                horizontal =
-                                    20.dp,
-                                vertical =
-                                    16.dp,
-                            ),
-                    value =
-                        sliderTemperature,
-                    valueRange =
-                        0F..2F,
-                    steps =
-                        19,
-                    enabled =
-                        !isUnset,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 16.dp),
+                    value = sliderTemperature,
+                    valueRange = 0F..2F,
+                    steps = 19,
+                    enabled = !isUnset,
                     onValueChange = {
-                        val rounded =
-                            (
-                                it * 10
-                            )
-                                .roundToInt()
-                                .div(
-                                    10F
-                                )
-
-                        sliderTemperature =
-                            rounded
-
-                        textFieldTemperature =
-                            "%.1f".format(
-                                rounded
-                            )
-
-                        isUnset =
-                            false
+                        val rounded = (it * 10).roundToInt() / 10F
+                        sliderTemperature = rounded
+                        textFieldTemperature = "%.1f".format(rounded)
+                        isUnset = false
                     },
                 )
-
                 Row(
-                    modifier =
-                        Modifier.fillMaxWidth(),
-                    horizontalArrangement =
-                        Arrangement.End,
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
                 ) {
                     TextButton(
                         onClick = {
-                            textFieldTemperature =
-                                ""
-
-                            isUnset =
-                                true
+                            textFieldTemperature = ""
+                            isUnset = true
                         },
                     ) {
-                        Text(
-                            stringResource(
-                                R.string.reset
-                            )
-                        )
+                        Text(stringResource(R.string.reset))
                     }
                 }
             }
         },
-        onDismissRequest =
-            onDismissRequest,
+        onDismissRequest = onDismissRequest,
         confirmButton = {
             TextButton(
                 onClick = {
-                    onConfirmRequest(
-                        if (
-                            isUnset
-                        ) {
-                            null
-                        } else {
-                            sliderTemperature
-                        }
-                    )
+                    onConfirmRequest(if (isUnset) null else sliderTemperature)
                 },
             ) {
-                Text(
-                    stringResource(
-                        R.string.confirm
-                    )
-                )
+                Text(stringResource(R.string.confirm))
             }
         },
         dismissButton = {
-            TextButton(
-                onClick =
-                    onDismissRequest,
-            ) {
-                Text(
-                    stringResource(
-                        R.string.cancel
-                    )
-                )
+            TextButton(onClick = onDismissRequest) {
+                Text(stringResource(R.string.cancel))
             }
         },
     )
@@ -1414,230 +680,84 @@ private fun TopPEditorDialog(
     onDismissRequest: () -> Unit,
     onConfirmRequest: (Float?) -> Unit,
 ) {
-    var textFieldTopP by
-        remember(
-            topP
-        ) {
-            mutableStateOf(
-                topP
-                    ?.let {
-                        "%.2f".format(
-                            it
-                        )
-                    }
-                    ?: ""
-            )
-        }
-
-    var sliderTopP by
-        remember(
-            topP
-        ) {
-            mutableFloatStateOf(
-                topP
-                    ?: 1F
-            )
-        }
-
-    var isUnset by
-        remember(
-            topP
-        ) {
-            mutableStateOf(
-                topP ==
-                    null
-            )
-        }
+    var textFieldTopP by remember(topP) {
+        mutableStateOf(topP?.let { "%.2f".format(it) } ?: "")
+    }
+    var sliderTopP by remember(topP) {
+        mutableFloatStateOf(topP ?: 1F)
+    }
+    var isUnset by remember(topP) {
+        mutableStateOf(topP == null)
+    }
 
     AlertDialog(
-        title = {
-            Text(
-                stringResource(
-                    R.string.top_p_setting
-                )
-            )
-        },
+        title = { Text(stringResource(R.string.top_p_setting)) },
         text = {
-            Column(
-                modifier =
-                    Modifier
-                        .verticalScroll(
-                            rememberScrollState()
-                        ),
-            ) {
-                Text(
-                    stringResource(
-                        R.string.top_p_setting_description
-                    )
-                )
-
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                Text(stringResource(R.string.top_p_setting_description))
                 OutlinedTextField(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(
-                                horizontal =
-                                    20.dp,
-                                vertical =
-                                    16.dp,
-                            ),
-                    value =
-                        textFieldTopP,
-                    onValueChange = {
-                        value ->
-
-                        textFieldTopP =
-                            value
-
-                        if (
-                            value.isBlank()
-                        ) {
-                            isUnset =
-                                true
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 16.dp),
+                    value = textFieldTopP,
+                    onValueChange = { value ->
+                        textFieldTopP = value
+                        if (value.isBlank()) {
+                            isUnset = true
                         } else {
-                            value
-                                .toFloatOrNull()
-                                ?.let {
-                                    val rounded =
-                                        (
-                                            it.coerceIn(
-                                                0.1F,
-                                                1F,
-                                            ) *
-                                                100
-                                        )
-                                            .roundToInt()
-                                            .div(
-                                                100F
-                                            )
-
-                                    sliderTopP =
-                                        rounded
-
-                                    isUnset =
-                                        false
-                                }
+                            value.toFloatOrNull()?.let {
+                                val rounded =
+                                    (it.coerceIn(0.1F, 1F) * 100).roundToInt() / 100F
+                                sliderTopP = rounded
+                                isUnset = false
+                            }
                         }
                     },
-                    keyboardOptions =
-                        KeyboardOptions(
-                            keyboardType =
-                                KeyboardType.Number,
-                        ),
-                    label = {
-                        Text(
-                            stringResource(
-                                R.string.top_p
-                            )
-                        )
-                    },
-                    placeholder = {
-                        Text(
-                            stringResource(
-                                R.string.not_set
-                            )
-                        )
-                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    label = { Text(stringResource(R.string.top_p)) },
+                    placeholder = { Text(stringResource(R.string.not_set)) },
                 )
-
                 Slider(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(
-                                horizontal =
-                                    20.dp,
-                                vertical =
-                                    16.dp,
-                            ),
-                    value =
-                        sliderTopP,
-                    valueRange =
-                        0.1F..1F,
-                    steps =
-                        89,
-                    enabled =
-                        !isUnset,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 16.dp),
+                    value = sliderTopP,
+                    valueRange = 0.1F..1F,
+                    steps = 89,
+                    enabled = !isUnset,
                     onValueChange = {
-                        val rounded =
-                            (
-                                it * 100
-                            )
-                                .roundToInt()
-                                .div(
-                                    100F
-                                )
-
-                        sliderTopP =
-                            rounded
-
-                        textFieldTopP =
-                            "%.2f".format(
-                                rounded
-                            )
-
-                        isUnset =
-                            false
+                        val rounded = (it * 100).roundToInt() / 100F
+                        sliderTopP = rounded
+                        textFieldTopP = "%.2f".format(rounded)
+                        isUnset = false
                     },
                 )
-
                 Row(
-                    modifier =
-                        Modifier.fillMaxWidth(),
-                    horizontalArrangement =
-                        Arrangement.End,
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
                 ) {
                     TextButton(
                         onClick = {
-                            textFieldTopP =
-                                ""
-
-                            isUnset =
-                                true
+                            textFieldTopP = ""
+                            isUnset = true
                         },
                     ) {
-                        Text(
-                            stringResource(
-                                R.string.reset
-                            )
-                        )
+                        Text(stringResource(R.string.reset))
                     }
                 }
             }
         },
-        onDismissRequest =
-            onDismissRequest,
+        onDismissRequest = onDismissRequest,
         confirmButton = {
             TextButton(
-                onClick = {
-                    onConfirmRequest(
-                        if (
-                            isUnset
-                        ) {
-                            null
-                        } else {
-                            sliderTopP
-                        }
-                    )
-                },
+                onClick = { onConfirmRequest(if (isUnset) null else sliderTopP) },
             ) {
-                Text(
-                    stringResource(
-                        R.string.confirm
-                    )
-                )
+                Text(stringResource(R.string.confirm))
             }
         },
         dismissButton = {
-            TextButton(
-                onClick =
-                    onDismissRequest,
-            ) {
-                Text(
-                    stringResource(
-                        R.string.cancel
-                    )
-                )
+            TextButton(onClick = onDismissRequest) {
+                Text(stringResource(R.string.cancel))
             }
         },
     )
@@ -1649,90 +769,32 @@ private fun SystemPromptEditorDialog(
     onDismissRequest: () -> Unit,
     onConfirmRequest: (String) -> Unit,
 ) {
-    var textFieldPrompt by
-        remember(
-            prompt
-        ) {
-            mutableStateOf(
-                prompt
-            )
-        }
+    var textFieldPrompt by remember(prompt) { mutableStateOf(prompt) }
 
     AlertDialog(
-        title = {
-            Text(
-                stringResource(
-                    R.string.system_prompt_setting
-                )
-            )
-        },
+        title = { Text(stringResource(R.string.system_prompt_setting)) },
         text = {
-            Column(
-                modifier =
-                    Modifier
-                        .verticalScroll(
-                            rememberScrollState()
-                        ),
-            ) {
-                Text(
-                    stringResource(
-                        R.string.system_prompt_description
-                    )
-                )
-
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                Text(stringResource(R.string.system_prompt_description))
                 OutlinedTextField(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(
-                                horizontal =
-                                    20.dp,
-                                vertical =
-                                    16.dp,
-                            ),
-                    value =
-                        textFieldPrompt,
-                    onValueChange = {
-                        textFieldPrompt =
-                            it
-                    },
-                    label = {
-                        Text(
-                            stringResource(
-                                R.string.system_prompt
-                            )
-                        )
-                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 16.dp),
+                    value = textFieldPrompt,
+                    onValueChange = { textFieldPrompt = it },
+                    label = { Text(stringResource(R.string.system_prompt)) },
                 )
             }
         },
-        onDismissRequest =
-            onDismissRequest,
+        onDismissRequest = onDismissRequest,
         confirmButton = {
-            TextButton(
-                onClick = {
-                    onConfirmRequest(
-                        textFieldPrompt
-                    )
-                },
-            ) {
-                Text(
-                    stringResource(
-                        R.string.confirm
-                    )
-                )
+            TextButton(onClick = { onConfirmRequest(textFieldPrompt) }) {
+                Text(stringResource(R.string.confirm))
             }
         },
         dismissButton = {
-            TextButton(
-                onClick =
-                    onDismissRequest,
-            ) {
-                Text(
-                    stringResource(
-                        R.string.cancel
-                    )
-                )
+            TextButton(onClick = onDismissRequest) {
+                Text(stringResource(R.string.cancel))
             }
         },
     )
@@ -1743,14 +805,10 @@ fun DeletePlatformDialog(
     dialogState: PlatformSettingViewModel.DialogState,
     settingViewModel: PlatformSettingViewModel,
 ) {
-    if (
-        dialogState.isDeleteDialogOpen
-    ) {
+    if (dialogState.isDeleteDialogOpen) {
         DeletePlatformConfirmationDialog(
-            onDismissRequest =
-                settingViewModel::closeDeleteDialog,
-            onConfirmRequest =
-                settingViewModel::deletePlatform,
+            onDismissRequest = settingViewModel::closeDeleteDialog,
+            onConfirmRequest = settingViewModel::deletePlatform,
         )
     }
 }
@@ -1761,48 +819,20 @@ private fun DeletePlatformConfirmationDialog(
     onConfirmRequest: () -> Unit,
 ) {
     AlertDialog(
-        title = {
-            Text(
-                stringResource(
-                    R.string.delete_platform
-                )
-            )
-        },
-        text = {
-            Text(
-                stringResource(
-                    R.string.delete_platform_confirmation
-                )
-            )
-        },
-        onDismissRequest =
-            onDismissRequest,
+        title = { Text(stringResource(R.string.delete_platform)) },
+        text = { Text(stringResource(R.string.delete_platform_confirmation)) },
+        onDismissRequest = onDismissRequest,
         confirmButton = {
-            TextButton(
-                onClick =
-                    onConfirmRequest,
-            ) {
-                Text(
-                    stringResource(
-                        R.string.delete_platform
-                    )
-                )
+            TextButton(onClick = onConfirmRequest) {
+                Text(stringResource(R.string.delete_platform))
             }
         },
         dismissButton = {
-            TextButton(
-                onClick =
-                    onDismissRequest,
-            ) {
-                Text(
-                    stringResource(
-                        R.string.cancel
-                    )
-                )
+            TextButton(onClick = onDismissRequest) {
+                Text(stringResource(R.string.cancel))
             }
         },
     )
 }
 
-private const val MAX_VISIBLE_OPENROUTER_MODELS =
-    100
+private const val MAX_VISIBLE_OPENROUTER_MODELS = 100

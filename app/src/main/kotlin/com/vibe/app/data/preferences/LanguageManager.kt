@@ -16,7 +16,7 @@ class LanguageManager @Inject constructor(
 
     private val preferences =
         context.getSharedPreferences(
-            "language_settings",
+            PREFS_NAME,
             Context.MODE_PRIVATE
         )
 
@@ -29,8 +29,19 @@ class LanguageManager @Inject constructor(
         _language
 
     /**
-     * Returns true when the user has explicitly selected
-     * a language before.
+     * Applies the language saved in app preferences.
+     *
+     * Called during application startup so Android resources use the selected
+     * app language before MainActivity is displayed.
+     */
+    fun applyStoredLanguage() {
+        val storedLanguage = getLanguage()
+        _language.value = storedLanguage
+        applyApplicationLocale(storedLanguage)
+    }
+
+    /**
+     * Returns true when the user has explicitly selected a language before.
      */
     fun isLanguageSelected(): Boolean {
         return preferences.getBoolean(
@@ -49,13 +60,8 @@ class LanguageManager @Inject constructor(
     fun setLanguage(
         language: String
     ) {
-
         val normalizedLanguage =
-            when (language.lowercase()) {
-                "ar" -> "ar"
-                "en" -> "en"
-                else -> "en"
-            }
+            normalizeLanguage(language)
 
         preferences.edit()
             .putString(
@@ -71,12 +77,9 @@ class LanguageManager @Inject constructor(
         _language.value =
             normalizedLanguage
 
-        AppCompatDelegate
-            .setApplicationLocales(
-                LocaleListCompat.forLanguageTags(
-                    normalizedLanguage
-                )
-            )
+        applyApplicationLocale(
+            normalizedLanguage
+        )
     }
 
     /**
@@ -89,8 +92,8 @@ class LanguageManager @Inject constructor(
     /**
      * Returns the stored language.
      *
-     * Arabic remains the default language until the user
-     * makes the first explicit selection.
+     * Arabic remains the default language until the user makes the first
+     * explicit selection.
      */
     private fun getLanguage(): String {
         return preferences
@@ -98,20 +101,39 @@ class LanguageManager @Inject constructor(
                 KEY_LANGUAGE,
                 "ar"
             )
-            ?.lowercase()
-            ?.let { storedLanguage ->
-
-                when (storedLanguage) {
-                    "ar" -> "ar"
-                    "en" -> "en"
-                    else -> "ar"
-                }
-            }
+            ?.let(::normalizeLanguage)
             ?: "ar"
     }
 
-    companion object {
+    private fun normalizeLanguage(
+        language: String
+    ): String {
+        return when (
+            language.trim().lowercase()
+        ) {
+            "ar",
+            "arabic",
+            "العربية" -> "ar"
 
+            "en",
+            "english",
+            "الإنجليزية" -> "en"
+
+            else -> "en"
+        }
+    }
+
+    private fun applyApplicationLocale(
+        language: String
+    ) {
+        AppCompatDelegate.setApplicationLocales(
+            LocaleListCompat.forLanguageTags(
+                language
+            )
+        )
+    }
+
+    companion object {
         private const val PREFS_NAME =
             "language_settings"
 

@@ -31,7 +31,7 @@ sealed class SaveStatus {
         SaveStatus()
 
     data class Error(
-        val message: String
+        val message: String,
     ) : SaveStatus()
 }
 
@@ -44,17 +44,17 @@ sealed class ModelsFetchStatus {
         ModelsFetchStatus()
 
     data class Success(
-        val models: List<OpenRouterModel>
+        val models: List<OpenRouterModel>,
     ) : ModelsFetchStatus()
 
     data class Error(
-        val message: String
+        val message: String,
     ) : ModelsFetchStatus()
 }
 
 @HiltViewModel
 class SetupViewModelV2 @Inject constructor(
-    private val settingRepository: SettingRepository
+    private val settingRepository: SettingRepository,
 ) : ViewModel() {
 
     private val _platforms =
@@ -113,7 +113,7 @@ class SetupViewModelV2 @Inject constructor(
         _model.asStateFlow()
 
     /*
-     * Used only by OpenRouter.
+     * OpenRouter only.
      */
     private val _isFreePlan =
         MutableStateFlow(true)
@@ -123,7 +123,7 @@ class SetupViewModelV2 @Inject constructor(
         _isFreePlan.asStateFlow()
 
     /*
-     * Used only by OpenRouter dynamic models.
+     * OpenRouter dynamic model loading only.
      */
     private val _modelsFetchStatus =
         MutableStateFlow<ModelsFetchStatus>(
@@ -171,7 +171,7 @@ class SetupViewModelV2 @Inject constructor(
                 Log.e(
                     TAG,
                     "Failed to load platforms",
-                    e
+                    e,
                 )
             }
         }
@@ -182,17 +182,16 @@ class SetupViewModelV2 @Inject constructor(
      * PROVIDER SELECTION
      * =========================================================
      *
-     * The visible UI currently exposes only:
+     * Visible setup providers:
      *
      * OPEN_ROUTER
      * GOOGLE_AI_STUDIO
      * CUSTOM
      *
-     * Other ClientType values remain supported internally
-     * for compatibility with existing saved data/code.
+     * Other enum values remain for compatibility.
      */
     fun selectClientType(
-        clientType: ClientType
+        clientType: ClientType,
     ) {
 
         _selectedClientType.value =
@@ -235,7 +234,7 @@ class SetupViewModelV2 @Inject constructor(
     }
 
     fun updatePlatformName(
-        name: String
+        name: String,
     ) {
 
         _platformName.value =
@@ -243,7 +242,7 @@ class SetupViewModelV2 @Inject constructor(
     }
 
     fun updateApiUrl(
-        url: String
+        url: String,
     ) {
 
         _apiUrl.value =
@@ -251,7 +250,7 @@ class SetupViewModelV2 @Inject constructor(
     }
 
     fun updateApiKey(
-        key: String
+        key: String,
     ) {
 
         _apiKey.value =
@@ -259,7 +258,7 @@ class SetupViewModelV2 @Inject constructor(
     }
 
     fun updateModel(
-        modelName: String
+        modelName: String,
     ) {
 
         _model.value =
@@ -272,12 +271,12 @@ class SetupViewModelV2 @Inject constructor(
      * =========================================================
      */
     fun updatePlanType(
-        isFree: Boolean
+        isFree: Boolean,
     ) {
 
         /*
-         * Ignore this operation completely
-         * for Google AI Studio and Custom.
+         * Ignore for Google AI Studio
+         * and Custom.
          */
         if (
             _selectedClientType.value !=
@@ -303,12 +302,13 @@ class SetupViewModelV2 @Inject constructor(
      * =========================================================
      * OPENROUTER MODELS
      * =========================================================
-     *
-     * This method MUST NEVER fetch models
-     * for Google AI Studio or Custom API.
      */
     fun fetchModels() {
 
+        /*
+         * Never fetch OpenRouter models for
+         * Google AI Studio or Custom.
+         */
         if (
             _selectedClientType.value !=
             ClientType.OPEN_ROUTER
@@ -352,7 +352,7 @@ class SetupViewModelV2 @Inject constructor(
                                 currentApiKey,
 
                             isFreeOnly =
-                                _isFreePlan.value
+                                _isFreePlan.value,
                         )
 
                 _modelsFetchStatus.value =
@@ -361,19 +361,33 @@ class SetupViewModelV2 @Inject constructor(
                     )
 
                 /*
-                 * Select a valid model automatically
-                 * when the current model is not present
-                 * in the newly fetched list.
+                 * =================================================
+                 * IMPORTANT:
+                 * Prefer a Tools-capable model automatically.
+                 * =================================================
                  *
-                 * This avoids replacing the user's
-                 * selection unnecessarily.
+                 * Keep the user's current selection if it still
+                 * exists in the newly fetched Free/Paid list.
+                 *
+                 * If the current model is no longer available:
+                 *
+                 * 1. Prefer the first model whose
+                 *    supported_parameters contains "tools".
+                 *
+                 * 2. If there is no Tools-capable model in the
+                 *    current list, use the first available model
+                 *    so normal text chat remains usable.
+                 *
+                 * We do NOT silently replace an existing valid
+                 * user selection.
                  */
                 if (
                     fetchedModels.isNotEmpty()
                 ) {
 
                     val currentModel =
-                        _model.value.trim()
+                        _model.value
+                            .trim()
 
                     val currentModelExists =
                         fetchedModels.any {
@@ -385,10 +399,16 @@ class SetupViewModelV2 @Inject constructor(
                         !currentModelExists
                     ) {
 
-                        _model.value =
+                        val preferredModel =
                             fetchedModels
-                                .first()
-                                .id
+                                .firstOrNull {
+                                    it.supportsTools
+                                }
+                                ?: fetchedModels
+                                    .first()
+
+                        _model.value =
+                            preferredModel.id
                     }
                 }
 
@@ -399,7 +419,7 @@ class SetupViewModelV2 @Inject constructor(
                 Log.e(
                     TAG,
                     "Failed to fetch OpenRouter models",
-                    e
+                    e,
                 )
 
                 _modelsFetchStatus.value =
@@ -428,8 +448,8 @@ class SetupViewModelV2 @Inject constructor(
         }
 
         /*
-         * Fetch OpenRouter models after
-         * the API-key step.
+         * Only OpenRouter fetches a dynamic
+         * list of models.
          *
          * Google AI Studio:
          * manual Gemini model ID.
@@ -451,7 +471,7 @@ class SetupViewModelV2 @Inject constructor(
 
             minOf(
                 WIZARD_TOTAL_STEPS - 1,
-                it + 1
+                it + 1,
             )
         }
     }
@@ -462,7 +482,7 @@ class SetupViewModelV2 @Inject constructor(
 
             maxOf(
                 WIZARD_STEP_BASICS,
-                it - 1
+                it - 1,
             )
         }
     }
@@ -494,10 +514,13 @@ class SetupViewModelV2 @Inject constructor(
             ModelsFetchStatus.Idle
 
         /*
-         * Do NOT reset SaveStatus here.
+         * IMPORTANT:
+         *
+         * Do not reset SaveStatus here.
          *
          * SetupPlatformWizardScreen waits for
-         * SaveStatus.Success before navigating.
+         * SaveStatus.Success and then calls
+         * clearSaveStatus().
          */
     }
 
@@ -509,8 +532,7 @@ class SetupViewModelV2 @Inject constructor(
     fun savePlatform() {
 
         /*
-         * Extra protection against duplicate
-         * save requests.
+         * Prevent duplicate save requests.
          */
         if (
             _saveStatus.value ==
@@ -543,8 +565,7 @@ class SetupViewModelV2 @Inject constructor(
             )
 
         /*
-         * Validate required values again
-         * at the ViewModel level.
+         * Validate required fields.
          */
         if (
             cleanName.isBlank()
@@ -583,11 +604,11 @@ class SetupViewModelV2 @Inject constructor(
         }
 
         /*
-         * OpenRouter and Google require API keys.
+         * OpenRouter and Google AI Studio
+         * require an API key.
          *
-         * Custom API key is optional because
-         * local/private OpenAI-compatible endpoints
-         * may not require authentication.
+         * Custom OpenAI-compatible APIs may
+         * work without authentication.
          */
         if (
             clientType !=
@@ -628,8 +649,8 @@ class SetupViewModelV2 @Inject constructor(
                         /*
                          * Stored without "Bearer ".
                          *
-                         * The networking layer adds the
-                         * Authorization Bearer prefix.
+                         * The networking layer adds
+                         * Authorization: Bearer itself.
                          */
                         token =
                             cleanApiKey,
@@ -641,8 +662,8 @@ class SetupViewModelV2 @Inject constructor(
                             cleanModel,
 
                         /*
-                         * Only OpenRouter stores
-                         * Free / Paid state.
+                         * Free/Paid applies only
+                         * to OpenRouter.
                          */
                         isFree =
                             if (
@@ -673,7 +694,7 @@ class SetupViewModelV2 @Inject constructor(
                             false,
 
                         timeout =
-                            30
+                            30,
                     )
 
                 val allPlatforms =
@@ -681,25 +702,26 @@ class SetupViewModelV2 @Inject constructor(
                         .fetchPlatformV2s()
 
                 val othersEnabled =
-                    allPlatforms.filter {
-                        it.enabled
-                    }
+                    allPlatforms
+                        .filter {
+                            it.enabled
+                        }
 
                 /*
-                 * Only one provider can be active
-                 * at a time.
+                 * Only one provider can be active.
                  */
-                othersEnabled.forEach {
-                    existingPlatform ->
+                othersEnabled
+                    .forEach {
+                        existingPlatform ->
 
-                    settingRepository
-                        .updatePlatformV2(
-                            existingPlatform.copy(
-                                enabled =
-                                    false
+                        settingRepository
+                            .updatePlatformV2(
+                                existingPlatform.copy(
+                                    enabled =
+                                        false
+                                )
                             )
-                        )
-                }
+                    }
 
                 settingRepository
                     .addPlatformV2(
@@ -717,23 +739,25 @@ class SetupViewModelV2 @Inject constructor(
                 }
 
                 /*
-                 * Refresh list before reporting
-                 * successful save.
+                 * Refresh immediately before
+                 * reporting Success.
                  */
-                loadPlatforms()
+                _platforms.value =
+                    settingRepository
+                        .fetchPlatformV2s()
 
                 /*
-                 * SetupPlatformWizardScreen observes
-                 * this status and performs onComplete().
+                 * SetupPlatformWizardScreen
+                 * observes this value.
                  */
                 _saveStatus.value =
                     SaveStatus.Success
 
                 /*
-                 * Reset form state.
+                 * Reset form fields.
                  *
-                 * SaveStatus intentionally remains
-                 * Success until clearSaveStatus().
+                 * SaveStatus remains Success until
+                 * clearSaveStatus() is called.
                  */
                 resetWizard()
 
@@ -744,7 +768,7 @@ class SetupViewModelV2 @Inject constructor(
                 Log.e(
                     TAG,
                     "Failed to save platform",
-                    e
+                    e,
                 )
 
                 _saveStatus.value =
@@ -763,7 +787,7 @@ class SetupViewModelV2 @Inject constructor(
     }
 
     fun deletePlatform(
-        platform: PlatformV2
+        platform: PlatformV2,
     ) {
 
         viewModelScope.launch {
@@ -775,7 +799,9 @@ class SetupViewModelV2 @Inject constructor(
                         platform
                     )
 
-                loadPlatforms()
+                _platforms.value =
+                    settingRepository
+                        .fetchPlatformV2s()
 
             } catch (
                 e: Exception
@@ -784,7 +810,7 @@ class SetupViewModelV2 @Inject constructor(
                 Log.e(
                     TAG,
                     "Failed to delete platform",
-                    e
+                    e,
                 )
             }
         }
@@ -796,8 +822,9 @@ class SetupViewModelV2 @Inject constructor(
      * =========================================================
      */
     fun canProceedFromStep(
-        step: Int
+        step: Int,
     ): Boolean =
+
         when (step) {
 
             WIZARD_STEP_BASICS ->
@@ -808,8 +835,7 @@ class SetupViewModelV2 @Inject constructor(
                         .isNotBlank()
 
             /*
-             * Custom API can continue without
-             * an API key.
+             * Custom API key is optional.
              */
             WIZARD_STEP_API_KEY ->
 
@@ -824,6 +850,7 @@ class SetupViewModelV2 @Inject constructor(
                     .isNotBlank()
 
             else ->
+
                 false
         }
 
@@ -838,39 +865,48 @@ class SetupViewModelV2 @Inject constructor(
      * =========================================================
      */
     private fun getDefaultPlatformName(
-        clientType: ClientType
+        clientType: ClientType,
     ): String =
+
         when (clientType) {
 
             ClientType.OPEN_ROUTER ->
+
                 "OpenRouter"
 
             ClientType.GOOGLE_AI_STUDIO ->
+
                 "Google AI Studio"
 
             ClientType.CUSTOM ->
+
                 "Custom API"
 
             /*
-             * Kept only for compatibility with
-             * old ClientType values.
+             * Compatibility with old saved types.
              */
             ClientType.OPENAI ->
+
                 "OpenAI"
 
             ClientType.ANTHROPIC ->
+
                 "Anthropic"
 
             ClientType.QWEN ->
+
                 "Qwen"
 
             ClientType.KIMI ->
+
                 "Kimi"
 
             ClientType.MINIMAX ->
+
                 "MiniMax"
 
             ClientType.DEEPSEEK ->
+
                 "DeepSeek"
         }
 
@@ -880,8 +916,9 @@ class SetupViewModelV2 @Inject constructor(
      * =========================================================
      */
     private fun getDefaultApiUrl(
-        clientType: ClientType
+        clientType: ClientType,
     ): String =
+
         when (clientType) {
 
             ClientType.OPEN_ROUTER ->
@@ -894,16 +931,13 @@ class SetupViewModelV2 @Inject constructor(
                 ModelConstants
                     .GOOGLE_AI_STUDIO_API_URL
 
-            /*
-             * Custom URL must be entered
-             * by the user.
-             */
             ClientType.CUSTOM ->
 
                 ModelConstants
                     .CUSTOM_API_URL
 
             else ->
+
                 ""
         }
 
@@ -913,58 +947,75 @@ class SetupViewModelV2 @Inject constructor(
      * =========================================================
      */
     private fun getDefaultModel(
-        clientType: ClientType
+        clientType: ClientType,
     ): String =
+
         when (clientType) {
 
             /*
-             * OpenRouter replaces this with a
-             * fetched valid model when required.
+             * When the OpenRouter model list
+             * loads, fetchModels() replaces this
+             * if it is not available.
+             *
+             * The replacement now prefers a
+             * Tools-capable model.
              */
             ClientType.OPEN_ROUTER ->
+
                 "google/gemini-2.5-pro"
 
             ClientType.GOOGLE_AI_STUDIO ->
+
                 "gemini-2.5-flash"
 
             /*
-             * User must enter the exact model ID.
+             * Custom requires manual model ID.
              */
             ClientType.CUSTOM ->
+
                 ""
 
             /*
              * Compatibility only.
              */
             ClientType.OPENAI ->
+
                 "gpt-4o"
 
             ClientType.ANTHROPIC ->
+
                 "claude-3-5-sonnet"
 
             ClientType.QWEN ->
+
                 "qwen-max"
 
             ClientType.KIMI ->
+
                 "moonshot-v1-8k"
 
             ClientType.MINIMAX ->
+
                 "abab6.5s-chat"
 
             ClientType.DEEPSEEK ->
+
                 "deepseek-chat"
         }
 
     /*
-     * Remove an optional Bearer prefix before
-     * saving or using the API key.
+     * Remove an optional "Bearer " prefix.
+     *
+     * The networking layer adds the Bearer
+     * prefix when sending the request.
      */
     private fun normalizeApiKey(
-        rawApiKey: String
+        rawApiKey: String,
     ): String? {
 
         val trimmed =
-            rawApiKey.trim()
+            rawApiKey
+                .trim()
 
         if (
             trimmed.isBlank()
@@ -974,10 +1025,14 @@ class SetupViewModelV2 @Inject constructor(
         }
 
         val normalized =
+
             if (
                 trimmed.startsWith(
-                    prefix = "Bearer ",
-                    ignoreCase = true
+                    prefix =
+                        "Bearer ",
+
+                    ignoreCase =
+                        true,
                 )
             ) {
 

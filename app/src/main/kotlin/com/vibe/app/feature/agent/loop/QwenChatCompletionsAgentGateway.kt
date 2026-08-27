@@ -7,6 +7,7 @@ import com.vibe.app.data.dto.qwen.request.QwenFunctionDefinition
 import com.vibe.app.data.dto.qwen.request.QwenTool
 import com.vibe.app.data.dto.qwen.request.QwenToolCall
 import com.vibe.app.data.dto.qwen.request.qwenTextContent
+import com.vibe.app.data.model.ClientType
 import com.vibe.app.data.network.OpenAIAPI
 import com.vibe.app.feature.agent.AgentMessageRole
 import com.vibe.app.feature.agent.AgentModelEvent
@@ -33,11 +34,12 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
     private val diagnosticLogger: ChatDiagnosticLogger,
 ) : AgentModelGateway {
 
-    private val json = Json {
-        ignoreUnknownKeys = true
-        isLenient = true
-        explicitNulls = false
-    }
+    private val json =
+        Json {
+            ignoreUnknownKeys = true
+            isLenient = true
+            explicitNulls = false
+        }
 
     override suspend fun streamTurn(
         request: AgentModelRequest,
@@ -47,94 +49,36 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
             request.platform.token
         )
 
-        /*
-         * Google AI Studio, OpenRouter, Qwen and
-         * Custom providers all use the OpenAI-compatible
-         * Chat Completions gateway here.
-         *
-         * setProvider() is called after setAPIUrl()
-         * so OpenAIAPIImpl can identify the provider
-         * and select the correct endpoint.
-         */
         openAIAPI.setAPIUrl(
             request.platform.apiUrl
                 .toQwenChatCompletionsBaseUrl()
         )
 
         openAIAPI.setProvider(
-            type = request.platform.compatibleType.name,
-            customUrl = request.platform.apiUrl,
+            type =
+                request.platform.compatibleType.name,
+            customUrl =
+                request.platform.apiUrl,
         )
 
-        val trace =
-            ModelExecutionTrace()
+        /*
+         * NONE:
+         * Do not send tools.
+         *
+         * AUTO:
+         * Send tools initially.
+         *
+         * REQUIRED:
+         * Send tools and never fall back to text-only.
+         */
+        var includeTools =
+            request.shouldSendTools()
 
-        val effectiveToolChoice =
-            request.toQwenToolChoice()
-
-        val messages =
-            buildMessages(request)
-
-        trace.markRequestPrepared()
-
-        val requestContext =
-            request.diagnosticContext
-                ?.copy(
-                    platformUid =
-                        request.platform.uid
-                )
-                ?.let { diagnosticContext ->
-
-                    ModelRequestDiagnosticContext(
-                        diagnosticContext =
-                            diagnosticContext,
-
-                        providerType =
-                            request.platform
-                                .compatibleType
-                                .toDiagnosticProviderType(),
-
-                        apiFamily =
-                            "chat_completions",
-
-                        model =
-                            request.platform.model,
-
-                        stream =
-                            true,
-
-                        reasoningEnabled =
-                            request.platform.reasoning,
-
-                        estimatedContextTokens =
-                            request
-                                .estimateContextTokensForDiagnostics(),
-
-                        messageCount =
-                            messages.size,
-
-                        toolCount =
-                            request.tools
-                                .size
-                                .takeIf {
-                                    it > 0
-                                },
-
-                        toolChoiceMode =
-                            effectiveToolChoice,
-
-                        systemPromptPresent =
-                            !request.instructions
-                                .isNullOrBlank(),
-
-                        systemPromptChars =
-                            request.instructions
-                                ?.length
-                                ?.takeIf {
-                                    it > 0
-                                },
-                    )
-                }
+        /*
+         * OpenRouter AUTO fallback is allowed once only.
+         */
+        var toolFallbackAttempted =
+            false
 
         data class ToolCallAccumulator(
             var id: String = "",
@@ -164,235 +108,390 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
         var repeatCount =
             0
 
-        var shouldStopFlow =
-            false
+        /*
+         * These are replaced for each attempt.
+         *
+         * This matters because a text-only retry must have
+         * its own clean diagnostics trace.
+         */
+        var trace =
+            ModelExecutionTrace()
+
+        var requestContext:
+            ModelRequestDiagnosticContext? =
+            null
 
         /*
-         * Never use an OpenRouter fallback model.
+         * Maximum effective attempts:
          *
-         * The selected model is sent directly to
-         * the selected provider.
-         *
-         * This is especially important for Google AI Studio:
-         * the selected Gemini model is sent directly to
-         * Google's OpenAI-compatible endpoint.
+         * 1) Normal request
+         * 2) Optional OpenRouter AUTO retry without tools
          */
-        openAIAPI
-            .streamQwenChatCompletion(
-                QwenChatCompletionRequest(
+        while (true) {
 
-                    model =
-                        request.platform.model,
+            toolCallAccumulators.clear()
 
+            finishReason =
+                null
+
+            streamError =
+                null
+
+            reasoningBuilder.clear()
+
+            lastAssistantText =
+                ""
+
+            repeatCount =
+                0
+
+            trace =
+                ModelExecutionTrace()
+
+            trace.markRequestPrepared()
+
+            val messages =
+                buildMessages(
+                    request =
+                        request,
+                    includeTools =
+                        includeTools,
+                )
+
+            val effectiveToolChoice =
+                request.toQwenToolChoice(
+                    includeTools =
+                        includeTools
+                )
+
+            requestContext =
+                buildDiagnosticContext(
+                    request =
+                        request,
                     messages =
                         messages,
-
-                    tools =
-                        request.tools
-                            .takeIf {
-                                it.isNotEmpty()
-                            }
-                            ?.map { tool ->
-
-                                QwenTool(
-                                    type =
-                                        "function",
-
-                                    function =
-                                        QwenFunctionDefinition(
-                                            name =
-                                                tool.name,
-
-                                            description =
-                                                tool.description,
-
-                                            parameters =
-                                                tool.inputSchema,
-                                        ),
-                                )
-                            },
-
-                    toolChoice =
+                    includeTools =
+                        includeTools,
+                    effectiveToolChoice =
                         effectiveToolChoice,
+                )
 
-                    stream =
-                        true,
-                ),
+            val qwenTools =
+                buildQwenTools(
+                    request =
+                        request,
+                    includeTools =
+                        includeTools,
+                )
 
-                diagnosticContext =
-                    requestContext,
+            /*
+             * Tracks whether this attempt already produced
+             * anything useful.
+             *
+             * We only retry without tools if the provider
+             * rejected tools before generating output.
+             */
+            var attemptProducedContent =
+                false
 
-                trace =
-                    trace,
-            )
-            .collect { chunk ->
+            var attemptSawToolCall =
+                false
 
-                if (shouldStopFlow) {
-                    return@collect
-                }
+            var shouldStopAttempt =
+                false
 
-                /*
-                 * Provider/API error.
-                 */
-                if (chunk.error != null) {
+            var retryWithoutTools =
+                false
 
-                    streamError =
-                        chunk.error.message
+            openAIAPI
+                .streamQwenChatCompletion(
+                    request =
+                        QwenChatCompletionRequest(
 
-                    trace.markFailed(
-                        chunk.error.type
-                            ?: "provider_error",
+                            /*
+                             * Always keep the exact model
+                             * selected by the user.
+                             */
+                            model =
+                                request.platform.model,
 
-                        chunk.error.message,
-                    )
+                            messages =
+                                messages,
 
-                    shouldStopFlow =
-                        true
+                            tools =
+                                qwenTools,
 
-                    return@collect
-                }
+                            toolChoice =
+                                effectiveToolChoice,
 
-                val choice =
-                    chunk.choices
-                        ?.firstOrNull()
-                        ?: return@collect
+                            stream =
+                                true,
+                        ),
 
-                finishReason =
-                    choice.finishReason
-                        ?: finishReason
+                    diagnosticContext =
+                        requestContext,
 
-                val delta =
-                    choice.delta
+                    trace =
+                        trace,
+                )
+                .collect { chunk ->
 
-                val message =
-                    choice.message
-
-                val content =
-                    delta?.content
-                        ?: message?.content
-
-                content
-                    ?.takeIf {
-                        it.isNotEmpty()
+                    if (
+                        shouldStopAttempt
+                    ) {
+                        return@collect
                     }
-                    ?.let { text ->
 
-                        if (
-                            text ==
-                            lastAssistantText
-                        ) {
+                    val providerError =
+                        chunk.error
 
-                            repeatCount++
+                    if (
+                        providerError != null
+                    ) {
 
-                        } else {
-
-                            lastAssistantText =
-                                text
-
-                            repeatCount =
-                                0
-                        }
+                        val errorMessage =
+                            providerError.message
 
                         /*
-                         * Protect against providers that
-                         * repeatedly stream the same content.
+                         * Important:
+                         *
+                         * OpenRouter can reject the request
+                         * before model execution when the chosen
+                         * model has no endpoint supporting tools.
+                         *
+                         * For AUTO mode only, retry exactly once
+                         * without tools.
+                         *
+                         * REQUIRED mode intentionally does not
+                         * fall back because tools are mandatory.
                          */
+                        val canRetryWithoutTools =
+                            request.platform.compatibleType ==
+                                ClientType.OPEN_ROUTER &&
+                                includeTools &&
+                                !toolFallbackAttempted &&
+                                request.policy.toolChoiceMode ==
+                                AgentToolChoiceMode.AUTO &&
+                                !attemptProducedContent &&
+                                !attemptSawToolCall &&
+                                errorMessage
+                                    .isUnsupportedToolError()
+
                         if (
-                            repeatCount >= 3
+                            canRetryWithoutTools
                         ) {
 
-                            streamError =
-                                "Model repeated the same response multiple times"
-
-                            shouldStopFlow =
+                            retryWithoutTools =
                                 true
 
-                            return@let
+                            shouldStopAttempt =
+                                true
+
+                            return@collect
                         }
 
-                        trace.markOutput(
-                            text
+                        streamError =
+                            errorMessage
+
+                        trace.markFailed(
+                            providerError.type
+                                ?: "provider_error",
+
+                            errorMessage,
                         )
 
-                        emit(
-                            AgentModelEvent.OutputDelta(
+                        shouldStopAttempt =
+                            true
+
+                        return@collect
+                    }
+
+                    val choice =
+                        chunk.choices
+                            ?.firstOrNull()
+                            ?: return@collect
+
+                    finishReason =
+                        choice.finishReason
+                            ?: finishReason
+
+                    val delta =
+                        choice.delta
+
+                    val message =
+                        choice.message
+
+                    val content =
+                        delta?.content
+                            ?: message?.content
+
+                    content
+                        ?.takeIf {
+                            it.isNotEmpty()
+                        }
+                        ?.let { text ->
+
+                            attemptProducedContent =
+                                true
+
+                            if (
+                                text ==
+                                lastAssistantText
+                            ) {
+
+                                repeatCount++
+
+                            } else {
+
+                                lastAssistantText =
+                                    text
+
+                                repeatCount =
+                                    0
+                            }
+
+                            /*
+                             * Protect against providers that
+                             * repeatedly stream identical chunks.
+                             */
+                            if (
+                                repeatCount >= 3
+                            ) {
+
+                                val error =
+                                    "Model repeated the same response multiple times"
+
+                                streamError =
+                                    error
+
+                                trace.markFailed(
+                                    "repeated_response",
+                                    error,
+                                )
+
+                                shouldStopAttempt =
+                                    true
+
+                                return@let
+                            }
+
+                            trace.markOutput(
                                 text
                             )
-                        )
-                    }
 
-                if (shouldStopFlow) {
-                    return@collect
-                }
-
-                delta
-                    ?.reasoningContent
-                    ?.takeIf {
-                        it.isNotEmpty()
-                    }
-                    ?.let { reasoning ->
-
-                        reasoningBuilder
-                            .append(
-                                reasoning
+                            emit(
+                                AgentModelEvent.OutputDelta(
+                                    text
+                                )
                             )
+                        }
 
-                        emit(
-                            AgentModelEvent.ThinkingDelta(
-                                reasoning
-                            )
-                        )
+                    if (
+                        shouldStopAttempt
+                    ) {
+                        return@collect
                     }
 
-                val toolCalls =
-                    delta?.toolCalls
-                        ?: message?.toolCalls
+                    delta
+                        ?.reasoningContent
+                        ?.takeIf {
+                            it.isNotEmpty()
+                        }
+                        ?.let { reasoning ->
 
-                toolCalls
-                    ?.forEach { toolCall ->
+                            attemptProducedContent =
+                                true
 
-                        val toolIndex =
-                            toolCall.index
+                            reasoningBuilder
+                                .append(
+                                    reasoning
+                                )
 
-                        val accumulator =
-                            toolCallAccumulators
-                                .getOrPut(
-                                    toolIndex
-                                ) {
-                                    ToolCallAccumulator()
+                            emit(
+                                AgentModelEvent.ThinkingDelta(
+                                    reasoning
+                                )
+                            )
+                        }
+
+                    val toolCalls =
+                        delta?.toolCalls
+                            ?: message?.toolCalls
+
+                    toolCalls
+                        ?.forEach { toolCall ->
+
+                            attemptSawToolCall =
+                                true
+
+                            val toolIndex =
+                                toolCall.index
+
+                            val accumulator =
+                                toolCallAccumulators
+                                    .getOrPut(
+                                        toolIndex
+                                    ) {
+                                        ToolCallAccumulator()
+                                    }
+
+                            toolCall.id
+                                ?.takeIf {
+                                    it.isNotBlank()
+                                }
+                                ?.let {
+                                    accumulator.id =
+                                        it
                                 }
 
-                        toolCall.id
-                            ?.takeIf {
-                                it.isNotBlank()
-                            }
-                            ?.let {
-                                accumulator.id =
-                                    it
-                            }
+                            toolCall.function
+                                ?.name
+                                ?.takeIf {
+                                    it.isNotBlank()
+                                }
+                                ?.let {
+                                    accumulator.name =
+                                        it
+                                }
 
-                        toolCall.function
-                            ?.name
-                            ?.takeIf {
-                                it.isNotBlank()
-                            }
-                            ?.let {
-                                accumulator.name =
-                                    it
-                            }
+                            toolCall.function
+                                ?.arguments
+                                ?.let {
+                                    accumulator.arguments
+                                        .append(
+                                            it
+                                        )
+                                }
+                        }
+                }
 
-                        toolCall.function
-                            ?.arguments
-                            ?.let {
-                                accumulator.arguments
-                                    .append(it)
-                            }
-                    }
+            /*
+             * OpenRouter rejected tools for this model.
+             *
+             * Retry the SAME model once without tools.
+             */
+            if (
+                retryWithoutTools
+            ) {
+
+                toolFallbackAttempted =
+                    true
+
+                includeTools =
+                    false
+
+                continue
             }
 
+            /*
+             * Either request succeeded or failed normally.
+             * Do not perform another attempt.
+             */
+            break
+        }
+
         /*
-         * If the provider returned an error,
-         * emit exactly one Failed event.
+         * Final provider failure.
          */
         streamError
             ?.let { error ->
@@ -424,8 +523,7 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
             }
 
         /*
-         * Convert streamed tool calls into
-         * AgentToolCall objects.
+         * Convert streamed tool calls into AgentToolCall.
          */
         toolCallAccumulators
             .entries
@@ -507,7 +605,9 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
 
         reasoningContent
             ?.let {
-                trace.markThinking(it)
+                trace.markThinking(
+                    it
+                )
             }
 
         trace.finishReason =
@@ -542,19 +642,131 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
         )
     }
 
+    private fun buildDiagnosticContext(
+        request: AgentModelRequest,
+        messages: List<QwenChatMessage>,
+        includeTools: Boolean,
+        effectiveToolChoice: String?,
+    ): ModelRequestDiagnosticContext? {
+
+        return request.diagnosticContext
+            ?.copy(
+                platformUid =
+                    request.platform.uid
+            )
+            ?.let { diagnosticContext ->
+
+                ModelRequestDiagnosticContext(
+                    diagnosticContext =
+                        diagnosticContext,
+
+                    providerType =
+                        request.platform
+                            .compatibleType
+                            .toDiagnosticProviderType(),
+
+                    apiFamily =
+                        "chat_completions",
+
+                    model =
+                        request.platform.model,
+
+                    stream =
+                        true,
+
+                    reasoningEnabled =
+                        request.platform.reasoning,
+
+                    estimatedContextTokens =
+                        request
+                            .estimateContextTokensForDiagnostics(),
+
+                    messageCount =
+                        messages.size,
+
+                    toolCount =
+                        if (
+                            includeTools
+                        ) {
+
+                            request.tools
+                                .size
+                                .takeIf {
+                                    it > 0
+                                }
+
+                        } else {
+
+                            null
+                        },
+
+                    toolChoiceMode =
+                        effectiveToolChoice,
+
+                    systemPromptPresent =
+                        !request.instructions
+                            .isNullOrBlank(),
+
+                    systemPromptChars =
+                        request.instructions
+                            ?.length
+                            ?.takeIf {
+                                it > 0
+                            },
+                )
+            }
+    }
+
+    private fun buildQwenTools(
+        request: AgentModelRequest,
+        includeTools: Boolean,
+    ): List<QwenTool>? {
+
+        if (
+            !includeTools ||
+            request.tools.isEmpty()
+        ) {
+            return null
+        }
+
+        return request.tools
+            .map { tool ->
+
+                QwenTool(
+                    type =
+                        "function",
+
+                    function =
+                        QwenFunctionDefinition(
+                            name =
+                                tool.name,
+
+                            description =
+                                tool.description,
+
+                            parameters =
+                                tool.inputSchema,
+                        ),
+                )
+            }
+    }
+
     private fun buildMessages(
         request: AgentModelRequest,
+        includeTools: Boolean,
     ): List<QwenChatMessage> {
 
         val messages =
             mutableListOf<QwenChatMessage>()
 
         val toolRequired =
-            request.policy.toolChoiceMode ==
+            includeTools &&
+                request.policy.toolChoiceMode ==
                 AgentToolChoiceMode.REQUIRED
 
         val hasTools =
-            request.tools.isNotEmpty()
+            includeTools &&
+                request.tools.isNotEmpty()
 
         val systemContent =
             buildString {
@@ -564,7 +776,9 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                         it.isNotBlank()
                     }
                     ?.let {
-                        append(it)
+                        append(
+                            it
+                        )
                     }
 
                 if (
@@ -601,7 +815,6 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
 
             messages +=
                 QwenChatMessage(
-
                     role =
                         "system",
 
@@ -613,13 +826,9 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
         }
 
         /*
-         * OpenAI-compatible Chat Completions
-         * endpoints are stateless.
+         * Chat Completions is stateless.
          *
-         * Therefore the complete conversation
-         * must be sent with every request.
-         *
-         * This also applies to Google AI Studio.
+         * Send the complete conversation every request.
          */
         request.fullConversation
             .forEach { item ->
@@ -632,7 +841,6 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
 
                         messages +=
                             QwenChatMessage(
-
                                 role =
                                     "user",
 
@@ -643,66 +851,104 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                                     ),
                             )
 
-                    AgentMessageRole.ASSISTANT ->
+                    AgentMessageRole.ASSISTANT -> {
 
-                        messages +=
-                            QwenChatMessage(
+                        /*
+                         * During text-only fallback we remove
+                         * historical tool_calls because a model
+                         * without tool support may reject them.
+                         */
+                        val historicalToolCalls =
+                            if (
+                                includeTools
+                            ) {
 
-                                role =
-                                    "assistant",
+                                item.toolCalls
+                                    ?.map { toolCall ->
 
-                                content =
-                                    qwenTextContent(
-                                        item.text
-                                    ),
+                                        QwenToolCall(
+                                            id =
+                                                toolCall.id,
 
-                                toolCalls =
-                                    item.toolCalls
-                                        ?.map { toolCall ->
+                                            function =
+                                                QwenFunctionCall(
+                                                    name =
+                                                        toolCall.name,
 
-                                            QwenToolCall(
+                                                    arguments =
+                                                        toolCall
+                                                            .arguments
+                                                            .toString(),
+                                                ),
+                                        )
+                                    }
+                                    ?.takeIf {
+                                        it.isNotEmpty()
+                                    }
 
-                                                id =
-                                                    toolCall.id,
+                            } else {
 
-                                                function =
-                                                    QwenFunctionCall(
+                                null
+                            }
 
-                                                        name =
-                                                            toolCall.name,
+                        /*
+                         * If this assistant message contained
+                         * only a tool call and no text, omit it
+                         * from a text-only fallback.
+                         */
+                        val hasAssistantText =
+                            !item.text
+                                .isNullOrBlank()
 
-                                                        arguments =
-                                                            toolCall
-                                                                .arguments
-                                                                .toString(),
-                                                    ),
-                                            )
-                                        }
-                                        ?.takeIf {
-                                            it.isNotEmpty()
-                                        },
-                            )
+                        if (
+                            includeTools ||
+                            hasAssistantText
+                        ) {
 
-                    AgentMessageRole.TOOL ->
+                            messages +=
+                                QwenChatMessage(
+                                    role =
+                                        "assistant",
 
-                        messages +=
-                            QwenChatMessage(
+                                    content =
+                                        qwenTextContent(
+                                            item.text
+                                        ),
 
-                                role =
-                                    "tool",
+                                    toolCalls =
+                                        historicalToolCalls,
+                                )
+                        }
+                    }
 
-                                content =
-                                    qwenTextContent(
+                    AgentMessageRole.TOOL -> {
 
-                                        item.payload
-                                            ?.toString()
-                                            ?: item.text
-                                                .orEmpty()
-                                    ),
+                        /*
+                         * Tool-role messages must not be sent to
+                         * a model that rejected tool support.
+                         */
+                        if (
+                            includeTools
+                        ) {
 
-                                toolCallId =
-                                    item.toolCallId,
-                            )
+                            messages +=
+                                QwenChatMessage(
+                                    role =
+                                        "tool",
+
+                                    content =
+                                        qwenTextContent(
+                                            item.payload
+                                                ?.toString()
+                                                ?: item.text
+                                                    .orEmpty()
+                                        ),
+
+                                    toolCallId =
+                                        item.toolCallId,
+                                )
+                        }
+                    }
 
                     AgentMessageRole.SYSTEM ->
                         Unit
@@ -738,9 +984,39 @@ Always use tools to read and write files.
     }
 }
 
-internal fun AgentModelRequest.toQwenToolChoice(): String? {
+/*
+ * Should tools actually be sent to the provider?
+ */
+private fun AgentModelRequest.shouldSendTools(): Boolean {
 
     if (
+        tools.isEmpty()
+    ) {
+        return false
+    }
+
+    return policy.toolChoiceMode !=
+        AgentToolChoiceMode.NONE
+}
+
+/*
+ * Kept with the original no-argument signature
+ * in case existing tests/code use it.
+ */
+internal fun AgentModelRequest.toQwenToolChoice(): String? {
+
+    return toQwenToolChoice(
+        includeTools =
+            true
+    )
+}
+
+internal fun AgentModelRequest.toQwenToolChoice(
+    includeTools: Boolean,
+): String? {
+
+    if (
+        !includeTools ||
         tools.isEmpty()
     ) {
         return null
@@ -753,10 +1029,53 @@ internal fun AgentModelRequest.toQwenToolChoice(): String? {
         AgentToolChoiceMode.NONE ->
             "none"
 
+        /*
+         * Some compatible providers do not accept
+         * "required" consistently.
+         *
+         * REQUIRED is enforced by the system instruction.
+         */
         AgentToolChoiceMode.AUTO,
         AgentToolChoiceMode.REQUIRED ->
             "auto"
     }
+}
+
+/*
+ * Detect only actual tool-support compatibility failures.
+ *
+ * Do not retry authentication, quota, network or generic
+ * model errors as text-only requests.
+ */
+private fun String.isUnsupportedToolError(): Boolean {
+
+    val normalized =
+        lowercase()
+
+    return normalized.contains(
+        "no endpoints found that support tool use"
+    ) ||
+        normalized.contains(
+            "no endpoint found that supports tool use"
+        ) ||
+        normalized.contains(
+            "does not support tool use"
+        ) ||
+        normalized.contains(
+            "doesn't support tool use"
+        ) ||
+        normalized.contains(
+            "tool use is not supported"
+        ) ||
+        normalized.contains(
+            "tool calling is not supported"
+        ) ||
+        normalized.contains(
+            "tools are not supported"
+        ) ||
+        normalized.contains(
+            "function calling is not supported"
+        )
 }
 
 /*
@@ -767,7 +1086,7 @@ internal fun AgentModelRequest.toQwenToolChoice(): String? {
  *
  * https://generativelanguage.googleapis.com/v1beta/openai
  *
- * Therefore it must NOT receive an additional /v1 segment.
+ * Therefore it must NOT receive another /v1.
  */
 private fun String.toQwenChatCompletionsBaseUrl(): String {
 
@@ -791,7 +1110,6 @@ private fun String.toQwenChatCompletionsBaseUrl(): String {
             trimmed
 
         else ->
-
             trimmed
     }
 }

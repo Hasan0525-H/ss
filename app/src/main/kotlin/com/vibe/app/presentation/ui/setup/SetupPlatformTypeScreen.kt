@@ -40,7 +40,6 @@ data class PlatformTypeInfo(
 )
 
 private val platformTypes = listOf(
-
     PlatformTypeInfo(
         clientType = ClientType.OPEN_ROUTER,
         titleResId = R.string.openrouter,
@@ -67,7 +66,6 @@ fun SetupPlatformTypeScreen(
     onPlatformTypeSelected: () -> Unit,
     onBackAction: () -> Unit
 ) {
-
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
@@ -92,7 +90,12 @@ fun SetupPlatformTypeScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
 
-                items(platformTypes) { platformTypeInfo ->
+                items(
+                    items = platformTypes,
+                    key = {
+                        it.clientType.name
+                    }
+                ) { platformTypeInfo ->
 
                     PlatformTypeCard(
                         platformTypeInfo = platformTypeInfo,
@@ -122,7 +125,6 @@ fun SetupPlatformTypeScreen(
 private fun PlatformTypeHeader(
     modifier: Modifier = Modifier
 ) {
-
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -157,7 +159,6 @@ private fun PlatformTypeCard(
     platformTypeInfo: PlatformTypeInfo,
     onClick: () -> Unit
 ) {
-
     Card(
         modifier = modifier
             .fillMaxWidth()

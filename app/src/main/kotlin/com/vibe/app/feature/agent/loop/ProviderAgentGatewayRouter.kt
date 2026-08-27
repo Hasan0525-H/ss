@@ -10,34 +10,23 @@ import kotlinx.coroutines.flow.Flow
 
 @Singleton
 class ProviderAgentGatewayRouter @Inject constructor(
-    private val openAiGateway: OpenAiResponsesAgentGateway,
-    private val anthropicGateway: AnthropicMessagesAgentGateway,
     private val qwenGateway: QwenChatCompletionsAgentGateway,
-    private val kimiGateway: KimiChatCompletionsAgentGateway,
-    private val deepSeekGateway: DeepSeekChatCompletionsAgentGateway,
 ) : AgentModelGateway {
 
     override suspend fun streamTurn(
         request: AgentModelRequest
     ): Flow<AgentModelEvent> {
 
-        return when (request.platform.compatibleType) {
+        return when (
+            request.platform.compatibleType
+        ) {
 
-            ClientType.OPENAI ->
-                openAiGateway.streamTurn(request)
-
-            ClientType.ANTHROPIC ->
-                anthropicGateway.streamTurn(request)
-
-            ClientType.QWEN ->
-                qwenGateway.streamTurn(request)
-
-            ClientType.KIMI ->
-                kimiGateway.streamTurn(request)
-
-            ClientType.DEEPSEEK ->
-                deepSeekGateway.streamTurn(request)
-
+            /*
+             * Current supported providers.
+             *
+             * All three use the OpenAI-compatible
+             * Chat Completions implementation.
+             */
             ClientType.OPEN_ROUTER ->
                 qwenGateway.streamTurn(request)
 
@@ -47,7 +36,21 @@ class ProviderAgentGatewayRouter @Inject constructor(
             ClientType.CUSTOM ->
                 qwenGateway.streamTurn(request)
 
-            ClientType.MINIMAX ->
+            /*
+             * Legacy ClientType values remain in the enum
+             * for Room/database compatibility.
+             *
+             * They are no longer exposed in setup UI.
+             * Routing them through the compatible gateway
+             * also prevents unused legacy gateways from
+             * forcing Hilt dependencies such as AnthropicAPI.
+             */
+            ClientType.OPENAI,
+            ClientType.ANTHROPIC,
+            ClientType.QWEN,
+            ClientType.KIMI,
+            ClientType.MINIMAX,
+            ClientType.DEEPSEEK ->
                 qwenGateway.streamTurn(request)
         }
     }

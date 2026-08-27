@@ -852,7 +852,7 @@ fun DeletePlatformDialog(
 
                 Text(
                     stringResource(
-                        R.string.delete
+                        R.string.delete_platform
                     )
                 )
             }

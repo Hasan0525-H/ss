@@ -11,8 +11,10 @@ import kotlinx.coroutines.flow.Flow
 @Singleton
 class ProviderAgentGatewayRouter @Inject constructor(
     private val openAiGateway: OpenAiResponsesAgentGateway,
+    private val anthropicGateway: AnthropicMessagesAgentGateway,
     private val qwenGateway: QwenChatCompletionsAgentGateway,
     private val kimiGateway: KimiChatCompletionsAgentGateway,
+    private val deepSeekGateway: DeepSeekChatCompletionsAgentGateway,
 ) : AgentModelGateway {
 
     override suspend fun streamTurn(
@@ -21,14 +23,20 @@ class ProviderAgentGatewayRouter @Inject constructor(
 
         return when (request.platform.compatibleType) {
 
+            ClientType.OPENAI ->
+                openAiGateway.streamTurn(request)
+
+            ClientType.ANTHROPIC ->
+                anthropicGateway.streamTurn(request)
+
             ClientType.QWEN ->
                 qwenGateway.streamTurn(request)
 
             ClientType.KIMI ->
                 kimiGateway.streamTurn(request)
 
-            ClientType.OPENAI ->
-                openAiGateway.streamTurn(request)
+            ClientType.DEEPSEEK ->
+                deepSeekGateway.streamTurn(request)
 
             ClientType.OPEN_ROUTER ->
                 qwenGateway.streamTurn(request)
@@ -39,10 +47,8 @@ class ProviderAgentGatewayRouter @Inject constructor(
             ClientType.CUSTOM ->
                 qwenGateway.streamTurn(request)
 
-            ClientType.ANTHROPIC,
-            ClientType.MINIMAX,
-            ClientType.DEEPSEEK ->
-                openAiGateway.streamTurn(request)
+            ClientType.MINIMAX ->
+                qwenGateway.streamTurn(request)
         }
     }
 }

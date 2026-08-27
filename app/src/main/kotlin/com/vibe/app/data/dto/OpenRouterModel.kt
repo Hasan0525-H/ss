@@ -20,8 +20,8 @@ data class OpenRouterModel(
      * Example:
      * google/gemini-2.5-pro
      *
-     * This value must be stored and sent
-     * exactly as returned by OpenRouter.
+     * Store and send this value exactly
+     * as OpenRouter returns it.
      */
     @SerialName("id")
     val id: String,
@@ -41,7 +41,88 @@ data class OpenRouterModel(
     @SerialName("pricing")
     val pricing: OpenRouterPricing? =
         null,
-)
+
+    /*
+     * OpenRouter model capability metadata.
+     *
+     * Examples:
+     *
+     * tools
+     * tool_choice
+     * temperature
+     * top_p
+     * reasoning
+     * structured_outputs
+     *
+     * We use this to know whether a model can
+     * participate in VibeApp agent/app-building
+     * workflows that require function calling.
+     */
+    @SerialName("supported_parameters")
+    val supportedParameters: List<String> =
+        emptyList(),
+) {
+
+    /*
+     * =========================================================
+     * Capability helpers
+     * =========================================================
+     */
+
+    /*
+     * OpenRouter officially identifies models that support
+     * function/tool calling through the "tools" parameter.
+     */
+    val supportsTools: Boolean
+        get() =
+            supportedParameters.any { parameter ->
+                parameter.equals(
+                    other = "tools",
+                    ignoreCase = true,
+                )
+            }
+
+    /*
+     * Some models also expose explicit tool_choice support.
+     *
+     * VibeApp currently uses "auto", but keeping this property
+     * makes the capability explicit for later routing/UI logic.
+     */
+    val supportsToolChoice: Boolean
+        get() =
+            supportedParameters.any { parameter ->
+                parameter.equals(
+                    other = "tool_choice",
+                    ignoreCase = true,
+                )
+            }
+
+    val supportsReasoning: Boolean
+        get() =
+            supportedParameters.any { parameter ->
+                parameter.equals(
+                    other = "reasoning",
+                    ignoreCase = true,
+                ) ||
+                    parameter.equals(
+                        other = "include_reasoning",
+                        ignoreCase = true,
+                    )
+            }
+
+    val supportsStructuredOutputs: Boolean
+        get() =
+            supportedParameters.any { parameter ->
+                parameter.equals(
+                    other = "structured_outputs",
+                    ignoreCase = true,
+                ) ||
+                    parameter.equals(
+                        other = "response_format",
+                        ignoreCase = true,
+                    )
+            }
+}
 
 @Serializable
 data class OpenRouterPricing(
@@ -75,8 +156,7 @@ data class OpenRouterPricing(
         null,
 
     /*
-     * Other pricing fields returned by
-     * OpenRouter.
+     * Other pricing fields returned by OpenRouter.
      */
     @SerialName("image")
     val image: String? =
@@ -129,7 +209,7 @@ data class OpenRouterPricing(
      * =========================================================
      *
      * Kept as "averagePrice" for compatibility
-     * with the existing VibeApp code.
+     * with existing VibeApp code.
      *
      * Unit:
      * USD per token.
@@ -153,10 +233,6 @@ data class OpenRouterPricing(
 
     /*
      * Correct display value for 1K tokens.
-     *
-     * Use this in UI when showing:
-     *
-     * "$... / 1K tokens"
      */
     val averagePricePer1K: Double?
         get() =
@@ -166,9 +242,8 @@ data class OpenRouterPricing(
                 )
 
     /*
-     * Useful because OpenRouter's website
-     * commonly displays prices per million
-     * tokens.
+     * OpenRouter commonly displays prices
+     * per million tokens.
      */
     val averagePricePerMillion: Double?
         get() =
@@ -210,16 +285,13 @@ data class OpenRouterPricing(
      * Free model detection
      * =========================================================
      *
-     * A model is considered free for normal
-     * text chat only when:
+     * A model is considered free only when:
      *
      * - prompt price is explicitly 0
      * - completion price is explicitly 0
-     * - fixed request price is either absent
-     *   or explicitly 0
+     * - request price is absent or 0
      *
-     * Missing prompt/completion pricing must
-     * NOT be interpreted as free.
+     * Missing pricing is not treated as free.
      */
     val isFree: Boolean
         get() {

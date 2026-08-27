@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
 
 @Singleton
@@ -45,6 +46,12 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
         request: AgentModelRequest,
     ): Flow<AgentModelEvent> = flow {
 
+        /*
+         * =========================================================
+         * PROVIDER CONFIGURATION
+         * =========================================================
+         */
+
         openAIAPI.setToken(
             request.platform.token
         )
@@ -57,26 +64,28 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
         openAIAPI.setProvider(
             type =
                 request.platform.compatibleType.name,
+
             customUrl =
                 request.platform.apiUrl,
         )
 
         /*
          * NONE:
-         * Do not send tools.
+         * No tools.
          *
          * AUTO:
-         * Send tools initially.
+         * Send tools, but OpenRouter may fall back
+         * once to text-only when the model does not
+         * support tools.
          *
          * REQUIRED:
-         * Send tools and never fall back to text-only.
+         * Tools are mandatory.
+         * No text-only fallback is allowed because
+         * the Agent cannot create/build an app without tools.
          */
         var includeTools =
             request.shouldSendTools()
 
-        /*
-         * OpenRouter AUTO fallback is allowed once only.
-         */
         var toolFallbackAttempted =
             false
 
@@ -88,10 +97,7 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
         )
 
         val toolCallAccumulators =
-            mutableMapOf<
-                Int,
-                ToolCallAccumulator
-            >()
+            mutableMapOf<Int, ToolCallAccumulator>()
 
         var finishReason: String? =
             null
@@ -102,18 +108,6 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
         val reasoningBuilder =
             StringBuilder()
 
-        var lastAssistantText =
-            ""
-
-        var repeatCount =
-            0
-
-        /*
-         * These are replaced for each attempt.
-         *
-         * This matters because a text-only retry must have
-         * its own clean diagnostics trace.
-         */
         var trace =
             ModelExecutionTrace()
 
@@ -122,10 +116,15 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
             null
 
         /*
-         * Maximum effective attempts:
+         * =========================================================
+         * REQUEST LOOP
+         * =========================================================
          *
-         * 1) Normal request
-         * 2) Optional OpenRouter AUTO retry without tools
+         * Normally this executes once.
+         *
+         * OpenRouter AUTO mode can execute a second
+         * time without tools if the selected model
+         * explicitly rejects tool calling.
          */
         while (true) {
 
@@ -139,21 +138,20 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
 
             reasoningBuilder.clear()
 
-            lastAssistantText =
-                ""
-
-            repeatCount =
-                0
-
             trace =
                 ModelExecutionTrace()
 
             trace.markRequestPrepared()
 
+            /*
+             * Build the full stateless Chat Completions
+             * message history.
+             */
             val messages =
                 buildMessages(
                     request =
                         request,
+
                     includeTools =
                         includeTools,
                 )
@@ -168,49 +166,53 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                 buildDiagnosticContext(
                     request =
                         request,
+
                     messages =
                         messages,
+
                     includeTools =
                         includeTools,
+
                     effectiveToolChoice =
                         effectiveToolChoice,
                 )
 
+            /*
+             * IMPORTANT FIX
+             *
+             * buildQwenTools() now transforms each
+             * Agent tool's schema using the same
+             * normalization used by the original
+             * VibeApp project.
+             */
             val qwenTools =
                 buildQwenTools(
                     request =
                         request,
+
                     includeTools =
                         includeTools,
                 )
 
-            /*
-             * Tracks whether this attempt already produced
-             * anything useful.
-             *
-             * We only retry without tools if the provider
-             * rejected tools before generating output.
-             */
             var attemptProducedContent =
                 false
 
             var attemptSawToolCall =
                 false
 
-            var shouldStopAttempt =
+            var retryWithoutTools =
                 false
 
-            var retryWithoutTools =
+            var stopCurrentAttempt =
                 false
 
             openAIAPI
                 .streamQwenChatCompletion(
                     request =
                         QwenChatCompletionRequest(
-
                             /*
-                             * Always keep the exact model
-                             * selected by the user.
+                             * Always preserve exactly the
+                             * model selected by the user.
                              */
                             model =
                                 request.platform.model,
@@ -237,11 +239,16 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                 .collect { chunk ->
 
                     if (
-                        shouldStopAttempt
+                        stopCurrentAttempt
                     ) {
                         return@collect
                     }
 
+                    /*
+                     * =================================================
+                     * PROVIDER ERROR
+                     * =================================================
+                     */
                     val providerError =
                         chunk.error
 
@@ -253,17 +260,14 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                             providerError.message
 
                         /*
-                         * Important:
+                         * OpenRouter:
                          *
-                         * OpenRouter can reject the request
-                         * before model execution when the chosen
-                         * model has no endpoint supporting tools.
+                         * If normal chat uses AUTO tools but
+                         * the model has no tool-capable endpoint,
+                         * retry exactly once without tools.
                          *
-                         * For AUTO mode only, retry exactly once
-                         * without tools.
-                         *
-                         * REQUIRED mode intentionally does not
-                         * fall back because tools are mandatory.
+                         * We DO NOT do this for REQUIRED because
+                         * app creation requires tool execution.
                          */
                         val canRetryWithoutTools =
                             request.platform.compatibleType ==
@@ -271,7 +275,7 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                                 includeTools &&
                                 !toolFallbackAttempted &&
                                 request.policy.toolChoiceMode ==
-                                AgentToolChoiceMode.AUTO &&
+                                    AgentToolChoiceMode.AUTO &&
                                 !attemptProducedContent &&
                                 !attemptSawToolCall &&
                                 errorMessage
@@ -284,7 +288,7 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                             retryWithoutTools =
                                 true
 
-                            shouldStopAttempt =
+                            stopCurrentAttempt =
                                 true
 
                             return@collect
@@ -300,7 +304,7 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                             errorMessage,
                         )
 
-                        shouldStopAttempt =
+                        stopCurrentAttempt =
                             true
 
                         return@collect
@@ -315,12 +319,23 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                         choice.finishReason
                             ?: finishReason
 
+                    /*
+                     * Some providers send streamed delta.
+                     *
+                     * Some compatible implementations may
+                     * put data into message.
+                     */
                     val delta =
                         choice.delta
 
                     val message =
                         choice.message
 
+                    /*
+                     * =================================================
+                     * TEXT
+                     * =================================================
+                     */
                     val content =
                         delta?.content
                             ?: message?.content
@@ -334,47 +349,6 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                             attemptProducedContent =
                                 true
 
-                            if (
-                                text ==
-                                lastAssistantText
-                            ) {
-
-                                repeatCount++
-
-                            } else {
-
-                                lastAssistantText =
-                                    text
-
-                                repeatCount =
-                                    0
-                            }
-
-                            /*
-                             * Protect against providers that
-                             * repeatedly stream identical chunks.
-                             */
-                            if (
-                                repeatCount >= 3
-                            ) {
-
-                                val error =
-                                    "Model repeated the same response multiple times"
-
-                                streamError =
-                                    error
-
-                                trace.markFailed(
-                                    "repeated_response",
-                                    error,
-                                )
-
-                                shouldStopAttempt =
-                                    true
-
-                                return@let
-                            }
-
                             trace.markOutput(
                                 text
                             )
@@ -386,12 +360,11 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                             )
                         }
 
-                    if (
-                        shouldStopAttempt
-                    ) {
-                        return@collect
-                    }
-
+                    /*
+                     * =================================================
+                     * REASONING
+                     * =================================================
+                     */
                     delta
                         ?.reasoningContent
                         ?.takeIf {
@@ -414,6 +387,17 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                             )
                         }
 
+                    /*
+                     * =================================================
+                     * STREAMED TOOL CALLS
+                     * =================================================
+                     *
+                     * Arguments can arrive across several
+                     * SSE chunks.
+                     *
+                     * Collect them by tool-call index and
+                     * execute only after the stream finishes.
+                     */
                     val toolCalls =
                         delta?.toolCalls
                             ?: message?.toolCalls
@@ -424,13 +408,10 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                             attemptSawToolCall =
                                 true
 
-                            val toolIndex =
-                                toolCall.index
-
                             val accumulator =
                                 toolCallAccumulators
                                     .getOrPut(
-                                        toolIndex
+                                        toolCall.index
                                     ) {
                                         ToolCallAccumulator()
                                     }
@@ -439,9 +420,10 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                                 ?.takeIf {
                                     it.isNotBlank()
                                 }
-                                ?.let {
+                                ?.let { id ->
+
                                     accumulator.id =
-                                        it
+                                        id
                                 }
 
                             toolCall.function
@@ -449,26 +431,28 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                                 ?.takeIf {
                                     it.isNotBlank()
                                 }
-                                ?.let {
+                                ?.let { name ->
+
                                     accumulator.name =
-                                        it
+                                        name
                                 }
 
                             toolCall.function
                                 ?.arguments
-                                ?.let {
+                                ?.let { arguments ->
+
                                     accumulator.arguments
                                         .append(
-                                            it
+                                            arguments
                                         )
                                 }
                         }
                 }
 
             /*
-             * OpenRouter rejected tools for this model.
-             *
-             * Retry the SAME model once without tools.
+             * =========================================================
+             * OPTIONAL OPENROUTER FALLBACK
+             * =========================================================
              */
             if (
                 retryWithoutTools
@@ -483,15 +467,13 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                 continue
             }
 
-            /*
-             * Either request succeeded or failed normally.
-             * Do not perform another attempt.
-             */
             break
         }
 
         /*
-         * Final provider failure.
+         * =========================================================
+         * FINAL PROVIDER FAILURE
+         * =========================================================
          */
         streamError
             ?.let { error ->
@@ -501,15 +483,23 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
 
                         diagnosticLogger
                             .logModelResponse(
-                                context,
-                                trace,
-                                success = false,
+                                context =
+                                    context,
+
+                                trace =
+                                    trace,
+
+                                success =
+                                    false,
                             )
 
                         diagnosticLogger
                             .logLatencyBreakdown(
-                                context,
-                                trace,
+                                context =
+                                    context,
+
+                                trace =
+                                    trace,
                             )
                     }
 
@@ -523,7 +513,9 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
             }
 
         /*
-         * Convert streamed tool calls into AgentToolCall.
+         * =========================================================
+         * EMIT COMPLETE TOOL CALLS
+         * =========================================================
          */
         toolCallAccumulators
             .entries
@@ -532,6 +524,10 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
             }
             .forEach { (_, accumulator) ->
 
+                /*
+                 * A tool call without a function name
+                 * cannot be executed.
+                 */
                 if (
                     accumulator.name
                         .isBlank()
@@ -561,6 +557,11 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
 
                         }.getOrElse {
 
+                            /*
+                             * Preserve malformed raw output
+                             * for diagnostics instead of
+                             * crashing the whole Agent loop.
+                             */
                             buildJsonObject {
 
                                 put(
@@ -577,9 +578,7 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
 
                 emit(
                     AgentModelEvent.ToolCallReady(
-
                         AgentToolCall(
-
                             id =
                                 accumulator.id
                                     .ifBlank {
@@ -596,6 +595,11 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                 )
             }
 
+        /*
+         * =========================================================
+         * COMPLETE MODEL TURN
+         * =========================================================
+         */
         val reasoningContent =
             reasoningBuilder
                 .toString()
@@ -622,15 +626,23 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
 
                 diagnosticLogger
                     .logModelResponse(
-                        context,
-                        trace,
-                        success = true,
+                        context =
+                            context,
+
+                        trace =
+                            trace,
+
+                        success =
+                            true,
                     )
 
                 diagnosticLogger
                     .logLatencyBreakdown(
-                        context,
-                        trace,
+                        context =
+                            context,
+
+                        trace =
+                            trace,
                     )
             }
 
@@ -642,6 +654,11 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
         )
     }
 
+    /*
+     * =============================================================
+     * DIAGNOSTICS
+     * =============================================================
+     */
     private fun buildDiagnosticContext(
         request: AgentModelRequest,
         messages: List<QwenChatMessage>,
@@ -717,6 +734,11 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
             }
     }
 
+    /*
+     * =============================================================
+     * TOOL DEFINITIONS
+     * =============================================================
+     */
     private fun buildQwenTools(
         request: AgentModelRequest,
         includeTools: Boolean,
@@ -726,6 +748,7 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
             !includeTools ||
             request.tools.isEmpty()
         ) {
+
             return null
         }
 
@@ -744,13 +767,35 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                             description =
                                 tool.description,
 
+                            /*
+                             * =================================================
+                             * CRITICAL FIX
+                             * =================================================
+                             *
+                             * Do NOT send tool.inputSchema directly.
+                             *
+                             * The original VibeApp normalizes it into
+                             * an OpenAI-compatible strict object schema.
+                             *
+                             * This is important for:
+                             *
+                             * - OpenRouter
+                             * - Google AI Studio OpenAI compatibility
+                             * - Custom OpenAI-compatible APIs
+                             */
                             parameters =
-                                tool.inputSchema,
+                                tool.inputSchema
+                                    .toQwenChatToolSchema(),
                         ),
                 )
             }
     }
 
+    /*
+     * =============================================================
+     * CONVERSATION MESSAGES
+     * =============================================================
+     */
     private fun buildMessages(
         request: AgentModelRequest,
         includeTools: Boolean,
@@ -762,12 +807,17 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
         val toolRequired =
             includeTools &&
                 request.policy.toolChoiceMode ==
-                AgentToolChoiceMode.REQUIRED
+                    AgentToolChoiceMode.REQUIRED
 
         val hasTools =
             includeTools &&
                 request.tools.isNotEmpty()
 
+        /*
+         * =========================================================
+         * SYSTEM MESSAGE
+         * =========================================================
+         */
         val systemContent =
             buildString {
 
@@ -826,9 +876,19 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
         }
 
         /*
+         * =========================================================
+         * FULL CONVERSATION
+         * =========================================================
+         *
          * Chat Completions is stateless.
          *
-         * Send the complete conversation every request.
+         * Every new model turn receives the complete
+         * accumulated conversation including:
+         *
+         * user
+         * assistant
+         * assistant tool_calls
+         * tool results
          */
         request.fullConversation
             .forEach { item ->
@@ -837,7 +897,10 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                     item.role
                 ) {
 
-                    AgentMessageRole.USER ->
+                    /*
+                     * USER
+                     */
+                    AgentMessageRole.USER -> {
 
                         messages +=
                             QwenChatMessage(
@@ -850,14 +913,13 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                                             .orEmpty()
                                     ),
                             )
+                    }
 
+                    /*
+                     * ASSISTANT
+                     */
                     AgentMessageRole.ASSISTANT -> {
 
-                        /*
-                         * During text-only fallback we remove
-                         * historical tool_calls because a model
-                         * without tool support may reject them.
-                         */
                         val historicalToolCalls =
                             if (
                                 includeTools
@@ -892,9 +954,10 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                             }
 
                         /*
-                         * If this assistant message contained
-                         * only a tool call and no text, omit it
-                         * from a text-only fallback.
+                         * When doing the OpenRouter
+                         * text-only fallback, omit old
+                         * assistant messages that contained
+                         * only tool calls and no text.
                          */
                         val hasAssistantText =
                             !item.text
@@ -921,11 +984,17 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                         }
                     }
 
+                    /*
+                     * TOOL RESULT
+                     */
                     AgentMessageRole.TOOL -> {
 
                         /*
-                         * Tool-role messages must not be sent to
-                         * a model that rejected tool support.
+                         * Tool-role messages must be paired
+                         * with assistant tool_calls.
+                         *
+                         * Therefore omit them during a
+                         * text-only fallback.
                          */
                         if (
                             includeTools
@@ -950,8 +1019,14 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                         }
                     }
 
-                    AgentMessageRole.SYSTEM ->
+                    /*
+                     * SYSTEM conversation items are ignored
+                     * here because request.instructions is
+                     * already used to build the system prompt.
+                     */
+                    AgentMessageRole.SYSTEM -> {
                         Unit
+                    }
                 }
             }
 
@@ -960,6 +1035,16 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
 
     companion object {
 
+        /*
+         * The coordinator sets REQUIRED on the first
+         * iteration when tools exist.
+         *
+         * Since not every OpenAI-compatible provider
+         * supports literal tool_choice = "required"
+         * consistently, the actual API value remains
+         * "auto" and the requirement is reinforced
+         * through this system instruction.
+         */
         private const val TOOL_REQUIRED_INSTRUCTION =
             """
 ## MANDATORY TOOL USE
@@ -985,13 +1070,16 @@ Always use tools to read and write files.
 }
 
 /*
- * Should tools actually be sent to the provider?
+ * =============================================================
+ * SHOULD SEND TOOLS
+ * =============================================================
  */
 private fun AgentModelRequest.shouldSendTools(): Boolean {
 
     if (
         tools.isEmpty()
     ) {
+
         return false
     }
 
@@ -1000,8 +1088,12 @@ private fun AgentModelRequest.shouldSendTools(): Boolean {
 }
 
 /*
- * Kept with the original no-argument signature
- * in case existing tests/code use it.
+ * =============================================================
+ * TOOL CHOICE
+ * =============================================================
+ *
+ * Keep the original no-argument function because
+ * other existing code/tests may reference it.
  */
 internal fun AgentModelRequest.toQwenToolChoice(): String? {
 
@@ -1019,6 +1111,7 @@ internal fun AgentModelRequest.toQwenToolChoice(
         !includeTools ||
         tools.isEmpty()
     ) {
+
         return null
     }
 
@@ -1026,26 +1119,113 @@ internal fun AgentModelRequest.toQwenToolChoice(
         policy.toolChoiceMode
     ) {
 
-        AgentToolChoiceMode.NONE ->
+        AgentToolChoiceMode.NONE -> {
             "none"
+        }
 
         /*
-         * Some compatible providers do not accept
-         * "required" consistently.
+         * Use "auto" for compatibility.
          *
-         * REQUIRED is enforced by the system instruction.
+         * REQUIRED is additionally enforced by the
+         * system instruction above.
          */
         AgentToolChoiceMode.AUTO,
-        AgentToolChoiceMode.REQUIRED ->
+        AgentToolChoiceMode.REQUIRED -> {
             "auto"
+        }
     }
 }
 
 /*
- * Detect only actual tool-support compatibility failures.
+ * =============================================================
+ * TOOL SCHEMA NORMALIZATION
+ * =============================================================
  *
- * Do not retry authentication, quota, network or generic
- * model errors as text-only requests.
+ * This is the important part restored from
+ * the original Skykai521/VibeApp implementation.
+ *
+ * Generic AgentTool schemas can contain metadata or
+ * top-level fields that compatible Chat Completions
+ * providers do not treat identically.
+ *
+ * Normalize them into:
+ *
+ * {
+ *   "type": "object",
+ *   "properties": { ... },
+ *   "required": [ ... ],
+ *   "additionalProperties": false
+ * }
+ */
+private fun kotlinx.serialization.json.JsonElement
+    .toQwenChatToolSchema():
+    kotlinx.serialization.json.JsonElement {
+
+    val schemaObject =
+        if (
+            this is
+                kotlinx.serialization.json.JsonObject
+        ) {
+
+            this
+
+        } else {
+
+            buildJsonObject {}
+        }
+
+    val properties =
+        schemaObject[
+            "properties"
+        ]
+            ?.jsonObject
+            ?: buildJsonObject {}
+
+    val required =
+        schemaObject[
+            "required"
+        ]
+
+    return buildJsonObject {
+
+        put(
+            "type",
+            JsonPrimitive(
+                "object"
+            )
+        )
+
+        put(
+            "properties",
+            properties
+        )
+
+        if (
+            required != null
+        ) {
+
+            put(
+                "required",
+                required
+            )
+        }
+
+        /*
+         * Matches the original VibeApp implementation.
+         */
+        put(
+            "additionalProperties",
+            JsonPrimitive(
+                false
+            )
+        )
+    }
+}
+
+/*
+ * =============================================================
+ * OPENROUTER TOOL-SUPPORT ERROR
+ * =============================================================
  */
 private fun String.isUnsupportedToolError(): Boolean {
 
@@ -1079,37 +1259,58 @@ private fun String.isUnsupportedToolError(): Boolean {
 }
 
 /*
- * Converts provider URLs to the base URL expected by
- * the OpenAI-compatible gateway.
+ * =============================================================
+ * BASE URL NORMALIZATION
+ * =============================================================
  *
- * Google AI Studio already uses:
+ * Google:
  *
  * https://generativelanguage.googleapis.com/v1beta/openai
  *
- * Therefore it must NOT receive another /v1.
+ * must stay unchanged here.
+ *
+ * OpenAIAPIImpl later adds:
+ *
+ * /chat/completions
+ *
+ * OpenRouter:
+ *
+ * https://openrouter.ai/api
+ *
+ * is also kept as its base and OpenAIAPIImpl builds:
+ *
+ * /v1/chat/completions
  */
 private fun String.toQwenChatCompletionsBaseUrl(): String {
 
     val trimmed =
-        trimEnd('/')
+        trim()
+            .trimEnd('/')
 
     return when {
 
+        /*
+         * Legacy Qwen compatible URL migration.
+         */
         "/api/v2/apps/protocols/compatible-mode" in
-            trimmed ->
+            trimmed -> {
 
             trimmed.replace(
                 "/api/v2/apps/protocols/compatible-mode",
                 "/compatible-mode/v1"
             )
+        }
 
         trimmed.endsWith(
             "/compatible-mode/v1"
-        ) ->
+        ) -> {
 
             trimmed
+        }
 
-        else ->
+        else -> {
+
             trimmed
+        }
     }
 }

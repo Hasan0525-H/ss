@@ -28,7 +28,6 @@ sealed class SaveStatus {
 
 sealed class ModelsFetchStatus {
     data object Idle : ModelsFetchStatus()
-
     data object Loading : ModelsFetchStatus()
 
     data class Success(
@@ -151,7 +150,12 @@ class SetupViewModelV2 @Inject constructor(
                 clientType
             )
 
-        _isFreePlan.value = true
+        /*
+         * Free/Paid is meaningful only for
+         * OpenRouter.
+         */
+        _isFreePlan.value =
+            clientType == ClientType.OPEN_ROUTER
 
         _modelsFetchStatus.value =
             ModelsFetchStatus.Idle
@@ -190,11 +194,11 @@ class SetupViewModelV2 @Inject constructor(
         _isFreePlan.value = isFree
 
         /*
-         * Free/Paid filtering belongs only to
-         * OpenRouter.
+         * OpenRouter only has dynamic
+         * free/paid model filtering.
          *
-         * Google AI Studio has its own Gemini API
-         * and must never call OpenRouter here.
+         * Google AI Studio is completely
+         * independent from OpenRouter.
          */
         if (
             _selectedClientType.value ==
@@ -214,23 +218,14 @@ class SetupViewModelV2 @Inject constructor(
             return
         }
 
-        val clientType =
-            _selectedClientType.value
-                ?: return
-
         /*
-         * This method intentionally supports
-         * OpenRouter only.
-         *
-         * Google AI Studio is independent from
-         * OpenRouter and uses the manually selected
-         * Gemini model.
+         * Only OpenRouter can use this
+         * model-fetching operation.
          */
         if (
-            clientType !=
+            _selectedClientType.value !=
             ClientType.OPEN_ROUTER
         ) {
-
             _modelsFetchStatus.value =
                 ModelsFetchStatus.Idle
 
@@ -259,10 +254,13 @@ class SetupViewModelV2 @Inject constructor(
                         fetchedModels
                     )
 
+                /*
+                 * Automatically select the first
+                 * OpenRouter model when available.
+                 */
                 if (
                     fetchedModels.isNotEmpty()
                 ) {
-
                     _model.value =
                         fetchedModels
                             .first()
@@ -299,11 +297,10 @@ class SetupViewModelV2 @Inject constructor(
         }
 
         /*
-         * Only OpenRouter fetches its models
-         * dynamically from the OpenRouter API.
+         * OpenRouter fetches models after
+         * the API key step.
          *
-         * Google AI Studio does not use this
-         * OpenRouter endpoint.
+         * Google AI Studio does not.
          */
         if (
             _wizardStep.value ==
@@ -375,7 +372,8 @@ class SetupViewModelV2 @Inject constructor(
                         compatibleType =
                             clientType,
 
-                        enabled = true,
+                        enabled =
+                            true,
 
                         apiUrl =
                             _apiUrl.value
@@ -392,6 +390,12 @@ class SetupViewModelV2 @Inject constructor(
                             _model.value
                                 .trim(),
 
+                        /*
+                         * Only OpenRouter stores
+                         * free/paid state.
+                         *
+                         * Google AI Studio gets null.
+                         */
                         isFree =
                             if (
                                 clientType ==
@@ -431,8 +435,8 @@ class SetupViewModelV2 @Inject constructor(
                     }
 
                 /*
-                 * Only one platform is active at
-                 * a time, regardless of provider.
+                 * Only one platform is active
+                 * at a time.
                  */
                 othersEnabled.forEach {
                     existingPlatform ->

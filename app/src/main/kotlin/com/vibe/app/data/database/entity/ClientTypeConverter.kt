@@ -17,45 +17,40 @@ class ClientTypeConverter {
     fun toClientType(
         value: String?
     ): ClientType {
-        return try {
-            when (value?.uppercase()) {
+        return when (value?.trim()?.uppercase()) {
 
-                "OPENAI" ->
-                    ClientType.OPENAI
+            "OPENAI" ->
+                ClientType.OPENAI
 
-                "ANTHROPIC" ->
-                    ClientType.ANTHROPIC
+            "ANTHROPIC" ->
+                ClientType.ANTHROPIC
 
-                "QWEN" ->
-                    ClientType.QWEN
+            "QWEN" ->
+                ClientType.QWEN
 
-                "KIMI" ->
-                    ClientType.KIMI
+            "KIMI" ->
+                ClientType.KIMI
 
-                "MINIMAX" ->
-                    ClientType.MINIMAX
+            "MINIMAX" ->
+                ClientType.MINIMAX
 
-                "DEEPSEEK" ->
-                    ClientType.DEEPSEEK
+            "DEEPSEEK" ->
+                ClientType.DEEPSEEK
 
-                "GOOGLE_AI_STUDIO",
-                "GEMINI" ->
-                    ClientType.GOOGLE_AI_STUDIO
+            "GOOGLE_AI_STUDIO",
+            "GOOGLE",
+            "GEMINI" ->
+                ClientType.GOOGLE_AI_STUDIO
 
-                "OPEN_ROUTER",
-                "OPENROUTER" ->
-                    ClientType.OPEN_ROUTER
+            "OPEN_ROUTER",
+            "OPENROUTER" ->
+                ClientType.OPEN_ROUTER
 
-                "CUSTOM" ->
-                    ClientType.CUSTOM
+            "CUSTOM" ->
+                ClientType.CUSTOM
 
-                else ->
-                    ClientType.OPEN_ROUTER
-            }
-        } catch (
-            e: Exception
-        ) {
-            ClientType.OPEN_ROUTER
+            else ->
+                ClientType.OPEN_ROUTER
         }
     }
 }

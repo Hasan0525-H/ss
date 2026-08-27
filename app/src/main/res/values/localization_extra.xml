@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="chat_models">Chat models</string>
+    <string name="chat_models_description">Specify the model for each platform.</string>
+    <string name="model_for_platform">Model for %1$s</string>
+    <string name="model_name_example">Enter a model ID (for example, gpt-4o)</string>
+    <string name="update_models">Update models</string>
+    <string name="project_name">Project name</string>
+    <string name="project_name_too_long">Project name is too long (%1$d/50)</string>
+    <string name="update">Update</string>
+    <string name="edit_question">Edit question</string>
+    <string name="user_message">User message</string>
+    <string name="project_memo_empty">No memo available.</string>
+    <string name="snapshot_turn_label">Turn %1$s: %2$s</string>
+    <string name="snapshot_manual_label">Manual: %1$s</string>
+    <string name="snapshot_files_affected">%1$s • %2$d files affected</string>
+    <string name="no_built_apk">No built APK found. Run a build first.</string>
+    <string name="project_workspace_not_found">Project workspace not found.</string>
+    <string name="share_source_code">Share source code</string>
+    <string name="failed_export_source_code">Failed to export source code.</string>
+    <string name="apk_file_not_found">APK file not found.</string>
+    <string name="share_apk">Share APK</string>
+    <string name="failed_share_apk">Failed to share APK.</string>
+    <string name="share_chat_export">Share chat export</string>
+    <string name="failed_export_chat">Failed to export chat.</string>
+    <string name="failed_to_select_image">Failed to select image.</string>
+    <string name="notification_channel_ongoing_name">Ongoing tasks</string>
+    <string name="notification_channel_ongoing_description">Shows ongoing agent tasks.</string>
+    <string name="notification_channel_result_name">Task results</string>
+    <string name="notification_channel_result_description">Shows results of completed or failed tasks.</string>
+    <string name="notification_agent_working">Agent is working</string>
+    <string name="notification_task_running_single">1 task running…</string>
+    <string name="notification_tasks_running">%1$d tasks running…</string>
+    <string name="notification_cancel_all">Cancel all</string>
+    <string name="notification_default_project">Project</string>
+    <string name="notification_task_completed">Task completed</string>
+    <string name="notification_task_failed">Task failed</string>
+    <string name="notification_task_completed_text">%1$s completed successfully.</string>
+    <string name="notification_task_failed_text">%1$s failed to complete.</string>
+</resources>

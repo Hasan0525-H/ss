@@ -23,7 +23,7 @@ import kotlinx.coroutines.launch
 class PlatformSettingViewModel @Inject constructor(
     private val settingRepository: SettingRepository,
     private val openRouterModelsAPI: OpenRouterModelsAPI,
-    savedStateHandle: SavedStateHandle
+    savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
     private val platformUid: String =
@@ -69,17 +69,22 @@ class PlatformSettingViewModel @Inject constructor(
     val isLoadingModels: StateFlow<Boolean> =
         _isLoadingModels.asStateFlow()
 
-    private var currentIsFreeFilter = true
+    private var currentIsFreeFilter =
+        true
 
     init {
         loadPlatform()
     }
 
     private fun loadPlatform() {
+
         viewModelScope.launch {
+
             try {
+
                 val platforms =
-                    settingRepository.fetchPlatformV2s()
+                    settingRepository
+                        .fetchPlatformV2s()
 
                 val platform =
                     platforms.firstOrNull {
@@ -90,57 +95,66 @@ class PlatformSettingViewModel @Inject constructor(
                     platform
 
                 /*
-                 * Google AI Studio is completely independent
-                 * from OpenRouter.
+                 * Dynamic model loading belongs only
+                 * to OpenRouter.
                  *
-                 * Therefore Google must NEVER trigger
-                 * OpenRouter model loading.
+                 * Google AI Studio, Qwen, Kimi,
+                 * DeepSeek, MiniMax and Custom APIs
+                 * must never load models from
+                 * OpenRouter here.
                  */
                 if (
-                    platform != null &&
-                    platform.compatibleType ==
+                    platform?.compatibleType ==
                     ClientType.OPEN_ROUTER &&
                     !platform.token.isNullOrBlank()
                 ) {
+
                     loadModels(
                         isFreeOnly =
                             currentIsFreeFilter
                     )
+
                 } else {
+
                     _availableModels.value =
                         emptyList()
                 }
 
             } catch (_: Exception) {
+
                 _platformState.value =
                     null
 
                 _availableModels.value =
                     emptyList()
+
+                _isLoadingModels.value =
+                    false
             }
         }
     }
 
     /*
-     * Load models from OpenRouter only.
+     * Load OpenRouter models.
+     *
+     * This operation is intentionally restricted
+     * to ClientType.OPEN_ROUTER.
      */
     fun loadModels(
-        isFreeOnly: Boolean
+        isFreeOnly: Boolean,
     ) {
 
         currentIsFreeFilter =
             isFreeOnly
 
-        /*
-         * Safety check:
-         *
-         * This method is strictly for OpenRouter.
-         * Google AI Studio must never reach this API.
-         */
+        val platform =
+            _platformState.value
+
         if (
-            _platformState.value?.compatibleType !=
+            platform?.compatibleType !=
             ClientType.OPEN_ROUTER
         ) {
+
             _availableModels.value =
                 emptyList()
 
@@ -151,8 +165,9 @@ class PlatformSettingViewModel @Inject constructor(
         }
 
         if (
-            _platformState.value?.token.isNullOrBlank()
+            platform.token.isNullOrBlank()
         ) {
+
             _availableModels.value =
                 emptyList()
 
@@ -192,21 +207,18 @@ class PlatformSettingViewModel @Inject constructor(
     }
 
     /*
-     * Fetch models using the current platform API key.
+     * Fetch model list from OpenRouter.
      *
-     * This method is intentionally restricted to
-     * ClientType.OPEN_ROUTER.
+     * This must never be used by Google AI Studio
+     * or any other provider.
      */
     suspend fun fetchOpenRouterModels(
-        isFreeOnly: Boolean
+        isFreeOnly: Boolean,
     ): List<OpenRouterModel> {
 
-        val platform =
+        var platform =
             _platformState.value
 
-        /*
-         * Never use this endpoint for Google AI Studio.
-         */
         if (
             platform?.compatibleType !=
             ClientType.OPEN_ROUTER
@@ -214,27 +226,23 @@ class PlatformSettingViewModel @Inject constructor(
             return emptyList()
         }
 
-        var apiKey =
-            platform.token
-
         /*
-         * If the state has not been updated yet,
-         * fetch the platform directly from the repository.
+         * Reload from database if the local state
+         * does not currently contain an API key.
          */
-        if (apiKey.isNullOrBlank()) {
+        if (
+            platform.token.isNullOrBlank()
+        ) {
 
             val platforms =
-                settingRepository.fetchPlatformV2s()
+                settingRepository
+                    .fetchPlatformV2s()
 
             val storedPlatform =
                 platforms.firstOrNull {
                     it.uid == platformUid
                 }
 
-            /*
-             * Double-check the provider after
-             * loading from the database.
-             */
             if (
                 storedPlatform?.compatibleType !=
                 ClientType.OPEN_ROUTER
@@ -242,27 +250,32 @@ class PlatformSettingViewModel @Inject constructor(
                 return emptyList()
             }
 
-            apiKey =
-                storedPlatform.token
+            platform =
+                storedPlatform
         }
 
-        if (apiKey.isNullOrBlank()) {
-            return emptyList()
-        }
+        val apiKey =
+            platform.token
+                ?.trim()
+                ?.takeIf {
+                    it.isNotEmpty()
+                }
+                ?: return emptyList()
 
         return openRouterModelsAPI
             .fetchOpenRouterModels(
                 apiKey =
                     apiKey,
+
                 isFreeOnly =
-                    isFreeOnly
+                    isFreeOnly,
             )
     }
 
     /*
-     * Enable / disable the platform.
+     * Enable / disable provider.
      *
-     * Only one platform can be enabled at a time.
+     * Only one provider can be active at a time.
      */
     fun toggleEnabled() {
 
@@ -270,13 +283,13 @@ class PlatformSettingViewModel @Inject constructor(
             _platformState.value
                 ?: return
 
-        val enable =
+        val shouldEnable =
             !platform.enabled
 
         /*
-         * Disable current platform.
+         * Disable current provider.
          */
-        if (!enable) {
+        if (!shouldEnable) {
 
             updatePlatform(
                 platform.copy(
@@ -302,20 +315,20 @@ class PlatformSettingViewModel @Inject constructor(
                     }
 
                 /*
-                 * Disable all other platforms.
+                 * Disable any previously active
+                 * provider.
                  */
-                otherEnabledPlatforms.forEach {
-                    settingRepository
-                        .updatePlatformV2(
-                            it.copy(
-                                enabled = false
-                            )
-                        )
-                }
+                otherEnabledPlatforms
+                    .forEach { otherPlatform ->
 
-                /*
-                 * Enable the selected platform.
-                 */
+                        settingRepository
+                            .updatePlatformV2(
+                                otherPlatform.copy(
+                                    enabled = false
+                                )
+                            )
+                    }
+
                 val updatedPlatform =
                     platform.copy(
                         enabled = true
@@ -326,26 +339,23 @@ class PlatformSettingViewModel @Inject constructor(
                         updatedPlatform
                     )
 
-                _platformState.update {
+                _platformState.value =
                     updatedPlatform
-                }
 
-                /*
-                 * Notify the UI if another platform
-                 * was disabled.
-                 */
                 if (
-                    otherEnabledPlatforms.isNotEmpty()
+                    otherEnabledPlatforms
+                        .isNotEmpty()
                 ) {
 
                     _switchedPlatformEvent.emit(
-                        platform.name
+                        updatedPlatform.name
                     )
                 }
 
             } catch (_: Exception) {
                 /*
-                 * Keep the current state if the update fails.
+                 * Keep existing state if database
+                 * update fails.
                  */
             }
         }
@@ -356,22 +366,23 @@ class PlatformSettingViewModel @Inject constructor(
      */
     fun toggleReasoning() {
 
-        _platformState.value?.let { platform ->
+        val platform =
+            _platformState.value
+                ?: return
 
-            updatePlatform(
-                platform.copy(
-                    reasoning =
-                        !platform.reasoning
-                )
+        updatePlatform(
+            platform.copy(
+                reasoning =
+                    !platform.reasoning
             )
-        }
+        )
     }
 
     /*
-     * Update complete platform object.
+     * Persist a complete PlatformV2 object.
      */
     fun updatePlatform(
-        platform: PlatformV2
+        platform: PlatformV2,
     ) {
 
         viewModelScope.launch {
@@ -383,217 +394,386 @@ class PlatformSettingViewModel @Inject constructor(
                         platform
                     )
 
-                _platformState.update {
+                _platformState.value =
                     platform
-                }
 
             } catch (_: Exception) {
                 /*
-                 * Keep the current UI state
-                 * if persistence fails.
+                 * Do not replace the current UI
+                 * state if persistence fails.
                  */
             }
         }
     }
 
     /*
-     * API Key
+     * Update API key.
+     *
+     * Important:
+     * OpenRouter model loading happens only AFTER
+     * the new token has been persisted and the
+     * current platform state has been updated.
+     *
+     * This prevents loadModels() from using the
+     * previous API key.
      */
     fun updateApiToken(
-        token: String
+        token: String,
     ) {
 
-        _platformState.value?.let { platform ->
+        val platform =
+            _platformState.value
+                ?: return
 
-            val newToken =
-                token
-                    .trim()
-                    .takeIf {
-                        it.isNotEmpty()
-                    }
+        val newToken =
+            token
+                .trim()
+                .removePrefix("Bearer ")
+                .removePrefix("bearer ")
+                .trim()
+                .takeIf {
+                    it.isNotEmpty()
+                }
 
-            updatePlatform(
-                platform.copy(
-                    token = newToken
-                )
+        val updatedPlatform =
+            platform.copy(
+                token = newToken
             )
 
-            closeApiTokenDialog()
+        viewModelScope.launch {
 
-            /*
-             * Only OpenRouter needs to fetch a
-             * model list after changing the API key.
-             *
-             * Google AI Studio uses its configured
-             * Gemini model and does not call OpenRouter.
-             */
-            if (
-                platform.compatibleType ==
-                ClientType.OPEN_ROUTER &&
-                !newToken.isNullOrBlank()
-            ) {
+            try {
 
-                loadModels(
-                    currentIsFreeFilter
-                )
+                settingRepository
+                    .updatePlatformV2(
+                        updatedPlatform
+                    )
 
-            } else {
+                _platformState.value =
+                    updatedPlatform
 
-                _availableModels.value =
-                    emptyList()
+                closeApiTokenDialog()
+
+                /*
+                 * Only OpenRouter loads its
+                 * model catalog dynamically.
+                 */
+                if (
+                    updatedPlatform.compatibleType ==
+                    ClientType.OPEN_ROUTER &&
+                    !newToken.isNullOrBlank()
+                ) {
+
+                    loadModels(
+                        isFreeOnly =
+                            currentIsFreeFilter
+                    )
+
+                } else {
+
+                    _availableModels.value =
+                        emptyList()
+
+                    _isLoadingModels.value =
+                        false
+                }
+
+            } catch (_: Exception) {
+                /*
+                 * Keep previous state when saving
+                 * the API key fails.
+                 */
             }
         }
     }
 
     /*
-     * API Model
+     * Update selected model.
+     *
+     * request.platform.model later receives this
+     * value directly, therefore we must never
+     * replace it with an OpenRouter fallback.
      */
     fun updateApiModel(
-        model: String
+        model: String,
     ) {
 
-        _platformState.value?.let { platform ->
+        val platform =
+            _platformState.value
+                ?: return
 
-            updatePlatform(
-                platform.copy(
-                    model =
-                        model.trim()
-                )
+        val cleanedModel =
+            model.trim()
+
+        if (
+            cleanedModel.isEmpty()
+        ) {
+            return
+        }
+
+        val updatedPlatform =
+            platform.copy(
+                model = cleanedModel
             )
 
-            closeApiModelDialog()
+        viewModelScope.launch {
+
+            try {
+
+                settingRepository
+                    .updatePlatformV2(
+                        updatedPlatform
+                    )
+
+                _platformState.value =
+                    updatedPlatform
+
+                closeApiModelDialog()
+
+            } catch (_: Exception) {
+                /*
+                 * Keep existing model if save fails.
+                 */
+            }
         }
     }
 
     /*
-     * API URL
+     * Update provider API URL.
      */
     fun updateApiUrl(
-        url: String
+        url: String,
     ) {
 
-        _platformState.value?.let { platform ->
+        val platform =
+            _platformState.value
+                ?: return
 
-            updatePlatform(
-                platform.copy(
-                    apiUrl =
-                        url.trim()
-                )
+        val cleanedUrl =
+            url
+                .trim()
+                .trimEnd('/')
+
+        if (
+            cleanedUrl.isEmpty()
+        ) {
+            return
+        }
+
+        val updatedPlatform =
+            platform.copy(
+                apiUrl = cleanedUrl
             )
 
-            closeApiUrlDialog()
+        viewModelScope.launch {
+
+            try {
+
+                settingRepository
+                    .updatePlatformV2(
+                        updatedPlatform
+                    )
+
+                _platformState.value =
+                    updatedPlatform
+
+                closeApiUrlDialog()
+
+            } catch (_: Exception) {
+                /*
+                 * Keep previous URL if save fails.
+                 */
+            }
         }
     }
 
     /*
-     * Platform name
+     * Update platform display name.
      */
     fun updatePlatformName(
-        name: String
+        name: String,
     ) {
 
-        _platformState.value?.let { platform ->
+        val platform =
+            _platformState.value
+                ?: return
 
-            val cleanedName =
-                name.trim()
+        val cleanedName =
+            name.trim()
 
-            if (
-                cleanedName.isEmpty()
-            ) {
-                return
-            }
+        if (
+            cleanedName.isEmpty()
+        ) {
+            return
+        }
 
-            updatePlatform(
-                platform.copy(
-                    name =
-                        cleanedName
-                )
+        val updatedPlatform =
+            platform.copy(
+                name = cleanedName
             )
 
-            closePlatformNameDialog()
+        viewModelScope.launch {
+
+            try {
+
+                settingRepository
+                    .updatePlatformV2(
+                        updatedPlatform
+                    )
+
+                _platformState.value =
+                    updatedPlatform
+
+                closePlatformNameDialog()
+
+            } catch (_: Exception) {
+                /*
+                 * Keep previous platform name if
+                 * persistence fails.
+                 */
+            }
         }
     }
 
     /*
-     * Temperature
+     * Temperature.
      *
-     * Allowed range:
+     * Valid range:
      * 0.0 .. 2.0
      */
     fun updateTemperature(
-        temperature: Float?
+        temperature: Float?,
     ) {
 
-        _platformState.value?.let { platform ->
+        val platform =
+            _platformState.value
+                ?: return
 
-            val normalizedTemperature =
-                temperature?.coerceIn(
+        val normalizedTemperature =
+            temperature
+                ?.coerceIn(
                     0f,
                     2f
                 )
 
-            updatePlatform(
-                platform.copy(
-                    temperature =
-                        normalizedTemperature
-                )
+        val updatedPlatform =
+            platform.copy(
+                temperature =
+                    normalizedTemperature
             )
 
-            closeTemperatureDialog()
+        viewModelScope.launch {
+
+            try {
+
+                settingRepository
+                    .updatePlatformV2(
+                        updatedPlatform
+                    )
+
+                _platformState.value =
+                    updatedPlatform
+
+                closeTemperatureDialog()
+
+            } catch (_: Exception) {
+                /*
+                 * Keep previous value.
+                 */
+            }
         }
     }
 
     /*
-     * Top P
+     * Top P.
      *
-     * Allowed range:
+     * Valid range:
      * 0.1 .. 1.0
      */
     fun updateTopP(
-        topP: Float?
+        topP: Float?,
     ) {
 
-        _platformState.value?.let { platform ->
+        val platform =
+            _platformState.value
+                ?: return
 
-            val normalizedTopP =
-                topP?.coerceIn(
+        val normalizedTopP =
+            topP
+                ?.coerceIn(
                     0.1f,
                     1f
                 )
 
-            updatePlatform(
-                platform.copy(
-                    topP =
-                        normalizedTopP
-                )
+        val updatedPlatform =
+            platform.copy(
+                topP =
+                    normalizedTopP
             )
 
-            closeTopPDialog()
+        viewModelScope.launch {
+
+            try {
+
+                settingRepository
+                    .updatePlatformV2(
+                        updatedPlatform
+                    )
+
+                _platformState.value =
+                    updatedPlatform
+
+                closeTopPDialog()
+
+            } catch (_: Exception) {
+                /*
+                 * Keep previous value.
+                 */
+            }
         }
     }
 
     /*
-     * System prompt
+     * System prompt.
      */
     fun updateSystemPrompt(
-        prompt: String
+        prompt: String,
     ) {
 
-        _platformState.value?.let { platform ->
+        val platform =
+            _platformState.value
+                ?: return
 
-            updatePlatform(
-                platform.copy(
-                    systemPrompt =
-                        prompt.trim()
-                )
+        val updatedPlatform =
+            platform.copy(
+                systemPrompt =
+                    prompt.trim()
             )
 
-            closeSystemPromptDialog()
+        viewModelScope.launch {
+
+            try {
+
+                settingRepository
+                    .updatePlatformV2(
+                        updatedPlatform
+                    )
+
+                _platformState.value =
+                    updatedPlatform
+
+                closeSystemPromptDialog()
+
+            } catch (_: Exception) {
+                /*
+                 * Keep previous value.
+                 */
+            }
         }
     }
 
     /*
-     * Platform name dialog
+     * Platform name dialog.
      */
     fun openPlatformNameDialog() {
 
@@ -616,7 +796,7 @@ class PlatformSettingViewModel @Inject constructor(
     }
 
     /*
-     * API URL dialog
+     * API URL dialog.
      */
     fun openApiUrlDialog() {
 
@@ -639,7 +819,7 @@ class PlatformSettingViewModel @Inject constructor(
     }
 
     /*
-     * API Key dialog
+     * API key dialog.
      */
     fun openApiTokenDialog() {
 
@@ -662,7 +842,7 @@ class PlatformSettingViewModel @Inject constructor(
     }
 
     /*
-     * Model dialog
+     * Model dialog.
      */
     fun openApiModelDialog() {
 
@@ -685,7 +865,7 @@ class PlatformSettingViewModel @Inject constructor(
     }
 
     /*
-     * Temperature dialog
+     * Temperature dialog.
      */
     fun openTemperatureDialog() {
 
@@ -708,7 +888,7 @@ class PlatformSettingViewModel @Inject constructor(
     }
 
     /*
-     * Top P dialog
+     * Top P dialog.
      */
     fun openTopPDialog() {
 
@@ -731,7 +911,7 @@ class PlatformSettingViewModel @Inject constructor(
     }
 
     /*
-     * System prompt dialog
+     * System prompt dialog.
      */
     fun openSystemPromptDialog() {
 
@@ -754,7 +934,7 @@ class PlatformSettingViewModel @Inject constructor(
     }
 
     /*
-     * Delete dialog
+     * Delete dialog.
      */
     fun openDeleteDialog() {
 
@@ -777,7 +957,7 @@ class PlatformSettingViewModel @Inject constructor(
     }
 
     /*
-     * Delete platform
+     * Delete platform.
      */
     fun deletePlatform() {
 
@@ -796,20 +976,20 @@ class PlatformSettingViewModel @Inject constructor(
 
                 closeDeleteDialog()
 
-                _isDeleted.update {
+                _isDeleted.value =
                     true
-                }
 
             } catch (_: Exception) {
                 /*
-                 * Do not navigate away
-                 * if deletion fails.
+                 * Do not navigate away if delete
+                 * operation fails.
                  */
             }
         }
     }
 
     data class DialogState(
+
         val isPlatformNameDialogOpen:
             Boolean = false,
 
@@ -832,6 +1012,6 @@ class PlatformSettingViewModel @Inject constructor(
             Boolean = false,
 
         val isDeleteDialogOpen:
-            Boolean = false
+            Boolean = false,
     )
 }

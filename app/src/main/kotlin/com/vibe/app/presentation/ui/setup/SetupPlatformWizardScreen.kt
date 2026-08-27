@@ -2,6 +2,7 @@ package com.vibe.app.presentation.ui.setup
 
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -14,14 +15,19 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
@@ -69,11 +76,7 @@ fun SetupPlatformWizardScreen(
 
     LaunchedEffect(Unit) {
         setupViewModel.switchedPlatformEvent.collect { name ->
-            Toast.makeText(
-                context,
-                switchedHint.format(name),
-                Toast.LENGTH_SHORT,
-            ).show()
+            Toast.makeText(context, switchedHint.format(name), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -83,7 +86,6 @@ fun SetupPlatformWizardScreen(
                 setupViewModel.clearSaveStatus()
                 onComplete()
             }
-
             is SaveStatus.Error -> {
                 Toast.makeText(
                     context,
@@ -92,7 +94,6 @@ fun SetupPlatformWizardScreen(
                 ).show()
                 setupViewModel.clearSaveStatus()
             }
-
             else -> Unit
         }
     }
@@ -108,15 +109,9 @@ fun SetupPlatformWizardScreen(
     ) {
         derivedStateOf {
             when (wizardStep) {
-                WIZARD_STEP_BASICS ->
-                    platformName.isNotBlank() && apiUrl.isNotBlank()
-
-                WIZARD_STEP_API_KEY ->
-                    selectedClientType == ClientType.CUSTOM || apiKey.isNotBlank()
-
-                WIZARD_STEP_MODEL ->
-                    model.isNotBlank()
-
+                WIZARD_STEP_BASICS -> platformName.isNotBlank() && apiUrl.isNotBlank()
+                WIZARD_STEP_API_KEY -> selectedClientType == ClientType.CUSTOM || apiKey.isNotBlank()
+                WIZARD_STEP_MODEL -> model.isNotBlank()
                 else -> false
             }
         }
@@ -135,9 +130,8 @@ fun SetupPlatformWizardScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        topBar = {
-            SetupAppBar(backAction = ::goBack)
-        },
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = { SetupAppBar(backAction = ::goBack) },
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -145,7 +139,7 @@ fun SetupPlatformWizardScreen(
                 .fillMaxSize()
                 .imePadding(),
         ) {
-            WizardProgressIndicator(
+            WizardHeader(
                 currentStep = wizardStep,
                 totalSteps = WIZARD_TOTAL_STEPS,
             )
@@ -159,14 +153,12 @@ fun SetupPlatformWizardScreen(
                     onApiUrlChange = setupViewModel::updateApiUrl,
                     modifier = Modifier.weight(1f),
                 )
-
                 WIZARD_STEP_API_KEY -> ApiKeyStep(
                     clientType = selectedClientType,
                     apiKey = apiKey,
                     onApiKeyChange = setupViewModel::updateApiKey,
                     modifier = Modifier.weight(1f),
                 )
-
                 WIZARD_STEP_MODEL -> ModelStep(
                     clientType = selectedClientType,
                     model = model,
@@ -197,30 +189,106 @@ fun SetupPlatformWizardScreen(
 }
 
 @Composable
-private fun WizardProgressIndicator(
+private fun WizardHeader(
     currentStep: Int,
     totalSteps: Int,
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 16.dp),
+            .padding(horizontal = 20.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text(
-            text = stringResource(
-                R.string.step_x_of_y,
-                currentStep + 1,
-                totalSteps,
-            ),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                text = when (currentStep) {
+                    WIZARD_STEP_BASICS -> stringResource(R.string.step_basics)
+                    WIZARD_STEP_API_KEY -> stringResource(R.string.step_api_key)
+                    else -> stringResource(R.string.step_model)
+                },
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = stringResource(R.string.step_x_of_y, currentStep + 1, totalSteps),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
         LinearProgressIndicator(
             progress = { (currentStep + 1).toFloat() / totalSteps },
             modifier = Modifier.fillMaxWidth(),
         )
     }
+}
+
+@Composable
+private fun WizardCard(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+    ) {
+        content()
+    }
+}
+
+@Composable
+private fun WizardTitle(
+    title: String,
+    description: String,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            text = description,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun WizardTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    placeholder: String,
+    supporting: String,
+    password: Boolean = false,
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        placeholder = { Text(placeholder) },
+        supportingText = { Text(supporting) },
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = true,
+        shape = RoundedCornerShape(16.dp),
+        visualTransformation = if (password) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = MaterialTheme.colorScheme.surface,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
+            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+        ),
+    )
 }
 
 @Composable
@@ -235,45 +303,39 @@ private fun BasicsStep(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Text(
-            text = stringResource(R.string.step_basics),
-            style = MaterialTheme.typography.headlineSmall,
-        )
-        Text(
-            text = stringResource(R.string.platform_basics_description),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        OutlinedTextField(
-            value = platformName,
-            onValueChange = onPlatformNameChange,
-            label = { Text(stringResource(R.string.platform_name)) },
-            placeholder = { Text(stringResource(R.string.platform_name_hint)) },
-            supportingText = { Text(stringResource(R.string.platform_name_supporting)) },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-        )
-        OutlinedTextField(
-            value = apiUrl,
-            onValueChange = onApiUrlChange,
-            label = { Text(stringResource(R.string.api_url)) },
-            placeholder = { Text(stringResource(R.string.api_url_hint)) },
-            supportingText = {
-                Text(
-                    if (clientType == ClientType.GOOGLE_AI_STUDIO) {
+        WizardCard {
+            Column(
+                modifier = Modifier.padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp),
+            ) {
+                WizardTitle(
+                    title = stringResource(R.string.step_basics),
+                    description = stringResource(R.string.platform_basics_description),
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                WizardTextField(
+                    value = platformName,
+                    onValueChange = onPlatformNameChange,
+                    label = stringResource(R.string.platform_name),
+                    placeholder = stringResource(R.string.platform_name_hint),
+                    supporting = stringResource(R.string.platform_name_supporting),
+                )
+                WizardTextField(
+                    value = apiUrl,
+                    onValueChange = onApiUrlChange,
+                    label = stringResource(R.string.api_url),
+                    placeholder = stringResource(R.string.api_url_hint),
+                    supporting = if (clientType == ClientType.GOOGLE_AI_STUDIO) {
                         stringResource(R.string.google_ai_studio_api_url_supporting)
                     } else {
                         stringResource(R.string.api_url_cautions)
-                    }
+                    },
                 )
-            },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-        )
+            }
+        }
     }
 }
 
@@ -289,80 +351,53 @@ private fun ApiKeyStep(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .verticalScroll(rememberScrollState()),
     ) {
-        Text(
-            text = stringResource(R.string.step_api_key),
-            style = MaterialTheme.typography.headlineSmall,
-        )
-        Text(
-            text = when (clientType) {
-                ClientType.GOOGLE_AI_STUDIO ->
-                    stringResource(R.string.google_ai_studio_api_key_description)
-
-                ClientType.CUSTOM ->
-                    stringResource(R.string.custom_api_key_optional_description)
-
-                else ->
-                    stringResource(R.string.api_key_description)
-            },
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        OutlinedTextField(
-            value = apiKey,
-            onValueChange = onApiKeyChange,
-            label = {
-                Text(
-                    when (clientType) {
-                        ClientType.GOOGLE_AI_STUDIO ->
-                            stringResource(R.string.google_ai_studio_api_key)
-
-                        ClientType.CUSTOM ->
-                            stringResource(R.string.custom_api_key_optional_label)
-
-                        else ->
-                            stringResource(R.string.api_key)
-                    }
+        WizardCard {
+            Column(
+                modifier = Modifier.padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp),
+            ) {
+                WizardTitle(
+                    title = stringResource(R.string.step_api_key),
+                    description = when (clientType) {
+                        ClientType.GOOGLE_AI_STUDIO -> stringResource(R.string.google_ai_studio_api_key_description)
+                        ClientType.CUSTOM -> stringResource(R.string.custom_api_key_optional_description)
+                        else -> stringResource(R.string.api_key_description)
+                    },
                 )
-            },
-            placeholder = { Text(stringResource(R.string.api_key_hint)) },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            visualTransformation = PasswordVisualTransformation(),
-            supportingText = {
-                Text(
-                    when (clientType) {
-                        ClientType.GOOGLE_AI_STUDIO ->
-                            stringResource(R.string.google_ai_studio_api_key_supporting)
-
-                        ClientType.CUSTOM ->
-                            stringResource(R.string.custom_api_key_optional_supporting)
-
-                        else ->
-                            stringResource(R.string.api_key_supporting)
-                    }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                WizardTextField(
+                    value = apiKey,
+                    onValueChange = onApiKeyChange,
+                    label = when (clientType) {
+                        ClientType.GOOGLE_AI_STUDIO -> stringResource(R.string.google_ai_studio_api_key)
+                        ClientType.CUSTOM -> stringResource(R.string.custom_api_key_optional_label)
+                        else -> stringResource(R.string.api_key)
+                    },
+                    placeholder = stringResource(R.string.api_key_hint),
+                    supporting = when (clientType) {
+                        ClientType.GOOGLE_AI_STUDIO -> stringResource(R.string.google_ai_studio_api_key_supporting)
+                        ClientType.CUSTOM -> stringResource(R.string.custom_api_key_optional_supporting)
+                        else -> stringResource(R.string.api_key_supporting)
+                    },
+                    password = true,
                 )
-            },
-        )
 
-        val helpUrl = clientType?.let(::getApiHelpUrl)
-        if (helpUrl != null) {
-            HorizontalDivider()
-            Text(
-                text = stringResource(R.string.need_help),
-                style = MaterialTheme.typography.labelLarge,
-            )
-            Text(
-                text = helpUrl,
-                style = MaterialTheme.typography.bodySmall.copy(
-                    textDecoration = TextDecoration.Underline
-                ),
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.clickable { uriHandler.openUri(helpUrl) },
-            )
+                clientType?.let(::getApiHelpUrl)?.let { helpUrl ->
+                    Text(
+                        text = stringResource(R.string.need_help),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = helpUrl,
+                        style = MaterialTheme.typography.bodyMedium.copy(textDecoration = TextDecoration.Underline),
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.clickable { uriHandler.openUri(helpUrl) },
+                    )
+                }
+            }
         }
     }
 }
@@ -377,63 +412,56 @@ private fun ModelStep(
     modelsFetchStatus: ModelsFetchStatus,
     modifier: Modifier = Modifier,
 ) {
-    val isCatalogProvider =
-        clientType == ClientType.OPEN_ROUTER ||
-            clientType == ClientType.GOOGLE_AI_STUDIO
-
-    val models = (modelsFetchStatus as? ModelsFetchStatus.Success)
-        ?.models
-        .orEmpty()
+    val isCatalogProvider = clientType == ClientType.OPEN_ROUTER || clientType == ClientType.GOOGLE_AI_STUDIO
+    val models = (modelsFetchStatus as? ModelsFetchStatus.Success)?.models.orEmpty()
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .verticalScroll(rememberScrollState()),
     ) {
-        Text(
-            text = stringResource(R.string.step_model),
-            style = MaterialTheme.typography.headlineSmall,
-        )
-        Text(
-            text = if (clientType == ClientType.GOOGLE_AI_STUDIO) {
-                stringResource(R.string.google_ai_studio_model_description)
-            } else {
-                stringResource(R.string.model_description)
-            },
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-
-        if (isCatalogProvider && clientType != null) {
-            ModelCatalogSelector(
-                providerType = clientType,
-                selectedModel = model,
-                isFreePlan = isFreePlan,
-                models = models,
-                isLoading = modelsFetchStatus is ModelsFetchStatus.Loading,
-                onPlanTypeChange = onPlanTypeChange,
-                onModelSelected = { onModelChange(it.id) },
-            )
-
-            if (modelsFetchStatus is ModelsFetchStatus.Error) {
-                Text(
-                    text = modelsFetchStatus.message,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
+        WizardCard {
+            Column(
+                modifier = Modifier.padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp),
+            ) {
+                WizardTitle(
+                    title = stringResource(R.string.step_model),
+                    description = if (clientType == ClientType.GOOGLE_AI_STUDIO) {
+                        stringResource(R.string.google_ai_studio_model_description)
+                    } else {
+                        stringResource(R.string.model_description)
+                    },
                 )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                if (isCatalogProvider && clientType != null) {
+                    ModelCatalogSelector(
+                        providerType = clientType,
+                        selectedModel = model,
+                        isFreePlan = isFreePlan,
+                        models = models,
+                        isLoading = modelsFetchStatus is ModelsFetchStatus.Loading,
+                        onPlanTypeChange = onPlanTypeChange,
+                        onModelSelected = { onModelChange(it.id) },
+                    )
+                    if (modelsFetchStatus is ModelsFetchStatus.Error) {
+                        Text(
+                            text = modelsFetchStatus.message,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                } else {
+                    WizardTextField(
+                        value = model,
+                        onValueChange = onModelChange,
+                        label = stringResource(R.string.model),
+                        placeholder = stringResource(R.string.model_name),
+                        supporting = stringResource(R.string.model_supporting),
+                    )
+                }
             }
-        } else {
-            OutlinedTextField(
-                value = model,
-                onValueChange = onModelChange,
-                label = { Text(stringResource(R.string.model)) },
-                placeholder = { Text(stringResource(R.string.model_name)) },
-                supportingText = { Text(stringResource(R.string.model_supporting)) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-            )
         }
     }
 }
@@ -450,13 +478,14 @@ private fun WizardNavigationButtons(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(20.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         OutlinedButton(
             onClick = onBack,
             modifier = Modifier.weight(1f),
             enabled = !isSaving,
+            shape = RoundedCornerShape(15.dp),
         ) {
             Text(
                 if (currentStep == WIZARD_STEP_BASICS) {
@@ -471,11 +500,16 @@ private fun WizardNavigationButtons(
             onClick = onNext,
             modifier = Modifier.weight(1f),
             enabled = canProceed && !isSaving,
+            shape = RoundedCornerShape(15.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+            ),
         ) {
             if (isLastStep && isSaving) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(20.dp),
                     strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.onPrimary,
                 )
             } else {
                 Text(
@@ -490,10 +524,9 @@ private fun WizardNavigationButtons(
     }
 }
 
-private fun getApiHelpUrl(clientType: ClientType): String? =
-    when (clientType) {
-        ClientType.GOOGLE_AI_STUDIO -> "https://aistudio.google.com/apikey"
-        ClientType.OPEN_ROUTER -> "https://openrouter.ai/keys"
-        ClientType.CUSTOM -> null
-        else -> null
-    }
+private fun getApiHelpUrl(clientType: ClientType): String? = when (clientType) {
+    ClientType.GOOGLE_AI_STUDIO -> "https://aistudio.google.com/apikey"
+    ClientType.OPEN_ROUTER -> "https://openrouter.ai/keys"
+    ClientType.CUSTOM -> null
+    else -> null
+}

@@ -8,22 +8,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Key
-import androidx.compose.material.icons.outlined.Label
-import androidx.compose.material.icons.outlined.Link
-import androidx.compose.material.icons.outlined.Memory
-import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -93,8 +85,9 @@ fun PlatformSettingScreen(
         stringResource(R.string.switched_platform_hint)
 
     /*
-     * تحميل الموديلات عند وجود API Key
-     * وعند تغيير نوع الخطة Free / Paid.
+     * Load OpenRouter models whenever:
+     * - the API token changes
+     * - the Free/Paid filter changes
      */
     LaunchedEffect(
         isFreeFilter,
@@ -106,7 +99,8 @@ fun PlatformSettingScreen(
     }
 
     /*
-     * إشعار عند تبديل المنصة.
+     * Show a message when another enabled platform
+     * is automatically disabled.
      */
     LaunchedEffect(Unit) {
         settingViewModel.switchedPlatformEvent.collect { name ->
@@ -119,7 +113,7 @@ fun PlatformSettingScreen(
     }
 
     /*
-     * الرجوع تلقائيًا بعد حذف المنصة.
+     * Return to the previous screen after deletion.
      */
     LaunchedEffect(isDeleted) {
         if (isDeleted) {
@@ -136,11 +130,13 @@ fun PlatformSettingScreen(
                 PlatformTopAppBar(
                     title = platformData.name,
                     onNavigationClick = onNavigationClick,
-                    onDeleteClick =
-                        settingViewModel::openDeleteDialog,
+                    onDeleteClick = {
+                        settingViewModel.openDeleteDialog()
+                    },
                     scrollBehavior = scrollBehavior
                 )
             }
+
         ) { paddingValues ->
 
             Column(
@@ -172,19 +168,10 @@ fun PlatformSettingScreen(
                     ),
                     description = platformData.name,
                     enabled = platformData.enabled,
-                    onItemClick =
-                        settingViewModel::openPlatformNameDialog,
-                    showTrailingIcon = false,
-                    showLeadingIcon = true,
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Outlined.Label,
-                            contentDescription =
-                                stringResource(
-                                    R.string.platform_name_icon
-                                )
-                        )
-                    }
+                    onItemClick = {
+                        settingViewModel.openPlatformNameDialog()
+                    },
+                    showTrailingIcon = false
                 )
 
                 /*
@@ -197,19 +184,10 @@ fun PlatformSettingScreen(
                     ),
                     description = platformData.apiUrl,
                     enabled = platformData.enabled,
-                    onItemClick =
-                        settingViewModel::openApiUrlDialog,
-                    showTrailingIcon = false,
-                    showLeadingIcon = true,
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Outlined.Link,
-                            contentDescription =
-                                stringResource(
-                                    R.string.url_icon
-                                )
-                        )
-                    }
+                    onItemClick = {
+                        settingViewModel.openApiUrlDialog()
+                    },
+                    showTrailingIcon = false
                 )
 
                 /*
@@ -223,28 +201,19 @@ fun PlatformSettingScreen(
                     description =
                         if (platformData.token.isNullOrBlank()) {
                             stringResource(
-                                R.string.not_set
+                                R.string.token_not_set
                             )
                         } else {
                             stringResource(
                                 R.string.token_set,
-                                "*"
+                                platformData.token!!.take(4)
                             )
                         },
                     enabled = platformData.enabled,
-                    onItemClick =
-                        settingViewModel::openApiTokenDialog,
-                    showTrailingIcon = false,
-                    showLeadingIcon = true,
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Outlined.Key,
-                            contentDescription =
-                                stringResource(
-                                    R.string.key_icon
-                                )
-                        )
-                    }
+                    onItemClick = {
+                        settingViewModel.openApiTokenDialog()
+                    },
+                    showTrailingIcon = false
                 )
 
                 /*
@@ -261,17 +230,16 @@ fun PlatformSettingScreen(
 
                     Text(
                         text = stringResource(
-                            R.string.model
+                            R.string.api_model
                         ),
-                        style =
-                            MaterialTheme.typography.titleMedium,
-                        modifier =
-                            Modifier.padding(bottom = 8.dp)
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(
+                            bottom = 8.dp
+                        )
                     )
 
                     Row(
-                        modifier =
-                            Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement =
                             Arrangement.spacedBy(8.dp)
                     ) {
@@ -325,7 +293,7 @@ fun PlatformSettingScreen(
                             label = {
                                 Text(
                                     stringResource(
-                                        R.string.model
+                                        R.string.api_model
                                     )
                                 )
                             },
@@ -338,26 +306,14 @@ fun PlatformSettingScreen(
                                 )
                             },
 
-                            leadingIcon = {
-                                Icon(
-                                    imageVector =
-                                        Icons.Outlined.Memory,
-                                    contentDescription =
-                                        stringResource(
-                                            R.string.model_icon
-                                        )
-                                )
-                            },
-
                             trailingIcon = {
 
                                 if (isLoadingModels) {
 
                                     CircularProgressIndicator(
-                                        modifier =
-                                            Modifier.size(
-                                                20.dp
-                                            ),
+                                        modifier = Modifier.size(
+                                            20.dp
+                                        ),
                                         strokeWidth = 2.dp
                                     )
 
@@ -400,8 +356,7 @@ fun PlatformSettingScreen(
                                         )
                                     },
                                     onClick = {
-                                        isDropdownExpanded =
-                                            false
+                                        isDropdownExpanded = false
                                     }
                                 )
 
@@ -411,17 +366,21 @@ fun PlatformSettingScreen(
 
                                     val priceText =
                                         if (
-                                            modelInfo.pricing
-                                                ?.isFree == true
+                                            modelInfo.pricing?.isFree == true
                                         ) {
                                             "مجاني"
                                         } else {
-                                            "\$${String.format(
-                                                "%.6f",
+                                            val price =
                                                 modelInfo.pricing
                                                     ?.averagePrice
                                                     ?: 0.0
-                                            )} / 1K tokens"
+
+                                            "$" +
+                                                String.format(
+                                                    "%.6f",
+                                                    price
+                                                ) +
+                                                " / 1K tokens"
                                         }
 
                                     DropdownMenuItem(
@@ -476,8 +435,9 @@ fun PlatformSettingScreen(
 
                 /*
                  * Reasoning models:
-                 * Temperature و Top P يتم تعطيلهما
-                 * عندما يكون reasoning مفعّلًا لـ OpenAI.
+                 *
+                 * Temperature and Top P are disabled
+                 * when reasoning is enabled for OpenAI.
                  */
                 val isReasoningDisabled =
                     platformData.compatibleType ==
@@ -494,9 +454,11 @@ fun PlatformSettingScreen(
                  */
                 SettingItem(
                     modifier = Modifier.height(64.dp),
+
                     title = stringResource(
                         R.string.temperature
                     ),
+
                     description =
                         platformData.temperature
                             ?.toString()
@@ -506,22 +468,12 @@ fun PlatformSettingScreen(
                         platformData.enabled &&
                             !isReasoningDisabled,
 
-                    onItemClick =
-                        settingViewModel::openTemperatureDialog,
+                    onItemClick = {
+                        settingViewModel
+                            .openTemperatureDialog()
+                    },
 
-                    showTrailingIcon = false,
-                    showLeadingIcon = true,
-
-                    leadingIcon = {
-                        Icon(
-                            imageVector =
-                                Icons.Outlined.Tune,
-                            contentDescription =
-                                stringResource(
-                                    R.string.temperature_icon
-                                )
-                        )
-                    }
+                    showTrailingIcon = false
                 )
 
                 /*
@@ -529,9 +481,11 @@ fun PlatformSettingScreen(
                  */
                 SettingItem(
                     modifier = Modifier.height(64.dp),
+
                     title = stringResource(
                         R.string.top_p
                     ),
+
                     description =
                         platformData.topP
                             ?.toString()
@@ -541,26 +495,16 @@ fun PlatformSettingScreen(
                         platformData.enabled &&
                             !isReasoningDisabled,
 
-                    onItemClick =
-                        settingViewModel::openTopPDialog,
+                    onItemClick = {
+                        settingViewModel
+                            .openTopPDialog()
+                    },
 
-                    showTrailingIcon = false,
-                    showLeadingIcon = true,
-
-                    leadingIcon = {
-                        Icon(
-                            imageVector =
-                                Icons.Outlined.Tune,
-                            contentDescription =
-                                stringResource(
-                                    R.string.top_p_icon
-                                )
-                        )
-                    }
+                    showTrailingIcon = false
                 )
 
                 /*
-                 * Dialogs
+                 * Platform Name Dialog
                  */
                 PlatformNameDialog(
                     dialogState = dialogState,
@@ -568,35 +512,53 @@ fun PlatformSettingScreen(
                     settingViewModel = settingViewModel
                 )
 
+                /*
+                 * API URL Dialog
+                 */
                 APIUrlDialog(
                     dialogState = dialogState,
                     initialValue = platformData.apiUrl,
                     settingViewModel = settingViewModel
                 )
 
+                /*
+                 * API Key Dialog
+                 */
                 APIKeyDialog(
                     dialogState = dialogState,
                     settingViewModel = settingViewModel
                 )
 
+                /*
+                 * Model Dialog
+                 */
                 ModelDialog(
                     dialogState = dialogState,
                     model = platformData.model,
                     settingViewModel = settingViewModel
                 )
 
+                /*
+                 * Temperature Dialog
+                 */
                 TemperatureDialog(
                     dialogState = dialogState,
                     temperature = platformData.temperature,
                     settingViewModel = settingViewModel
                 )
 
+                /*
+                 * Top P Dialog
+                 */
                 TopPDialog(
                     dialogState = dialogState,
                     topP = platformData.topP,
                     settingViewModel = settingViewModel
                 )
 
+                /*
+                 * Delete Dialog
+                 */
                 DeletePlatformDialog(
                     dialogState = dialogState,
                     settingViewModel = settingViewModel

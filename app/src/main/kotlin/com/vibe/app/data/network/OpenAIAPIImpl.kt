@@ -40,23 +40,55 @@ class OpenAIAPIImpl @Inject constructor(
 ) : OpenAIAPI {
 
     private var token: String? = null
-    private var apiUrl: String = "https://openrouter.ai/api/"
-    private var providerType: String = "OPEN_ROUTER"
+
+    private var apiUrl: String =
+        OPENROUTER_API_URL
+
+    private var providerType: String =
+        "OPEN_ROUTER"
 
     override fun setToken(token: String?) {
         this.token = token
     }
 
     override fun setAPIUrl(url: String) {
-        this.apiUrl = url
+        this.apiUrl = url.trim().trimEnd('/')
     }
 
-    override fun setProvider(type: String, customUrl: String?) {
-        providerType = type.uppercase()
+    override fun setProvider(
+        type: String,
+        customUrl: String?
+    ) {
+        providerType = type
+            .trim()
+            .uppercase()
+
         apiUrl = when (providerType) {
-            "OPEN_ROUTER", "OPENROUTER" -> "https://openrouter.ai/api/"
-            "CUSTOM" -> customUrl?.trim()?.trimEnd('/') ?: ""
-            else -> customUrl?.trim()?.trimEnd('/') ?: "https://openrouter.ai/api/"
+
+            "OPEN_ROUTER",
+            "OPENROUTER" -> {
+                OPENROUTER_API_URL
+            }
+
+            "GOOGLE_AI_STUDIO",
+            "GOOGLE",
+            "GEMINI" -> {
+                GOOGLE_AI_STUDIO_API_URL
+            }
+
+            "CUSTOM" -> {
+                customUrl
+                    ?.trim()
+                    ?.trimEnd('/')
+                    ?: ""
+            }
+
+            else -> {
+                customUrl
+                    ?.trim()
+                    ?.trimEnd('/')
+                    ?: OPENROUTER_API_URL
+            }
         }
     }
 
@@ -64,96 +96,217 @@ class OpenAIAPIImpl @Inject constructor(
         apiKey: String,
         isFreeOnly: Boolean
     ): List<OpenRouterModel> {
-        val endpoint = "https://openrouter.ai/api/v1/models"
-        return try {
-            val response: String = networkClient().get(endpoint) {
-                header("Authorization", "Bearer $apiKey")
-                applyProviderHeaders(this)
-            }.body()
 
-            val parsedResponse = NetworkClient.json.decodeFromString<OpenRouterModelsResponse>(response)
-            
+        val endpoint =
+            "$OPENROUTER_API_URL/v1/models"
+
+        return try {
+
+            val response: String =
+                networkClient()
+                    .get(endpoint) {
+
+                        header(
+                            "Authorization",
+                            "Bearer $apiKey"
+                        )
+
+                        applyProviderHeaders(this)
+                    }
+                    .body()
+
+            val parsedResponse =
+                NetworkClient.json.decodeFromString<OpenRouterModelsResponse>(
+                    response
+                )
+
             if (isFreeOnly) {
-                parsedResponse.data.filter { it.pricing?.isFree == true }
-            } else {
+
                 parsedResponse.data
-                    .filter { it.pricing?.isFree == false }
-                    .sortedBy { it.pricing?.averagePrice ?: Double.MAX_VALUE }
+                    .filter {
+                        it.pricing?.isFree == true
+                    }
+
+            } else {
+
+                parsedResponse.data
+                    .filter {
+                        it.pricing?.isFree == false
+                    }
+                    .sortedBy {
+                        it.pricing?.averagePrice
+                            ?: Double.MAX_VALUE
+                    }
             }
+
         } catch (e: Exception) {
+
             emptyList()
         }
     }
 
-    private fun buildEndpoint(path: String): String {
+    private fun buildEndpoint(
+        path: String
+    ): String {
+
+        val cleanPath =
+            if (path.startsWith("/")) {
+                path
+            } else {
+                "/$path"
+            }
+
         return if (apiUrl.endsWith("/")) {
-            "${apiUrl.removeSuffix("/")}$path"
+            "${apiUrl.removeSuffix("/")}$cleanPath"
         } else {
-            "$apiUrl$path"
+            "$apiUrl$cleanPath"
         }
     }
 
-    private fun applyProviderHeaders(request: io.ktor.client.request.HttpRequestBuilder) {
-        if (providerType == "OPEN_ROUTER" || providerType == "OPENROUTER") {
-            request.header("HTTP-Referer", "https://vibe.app")
-            request.header("X-Title", "Vibe App")
+    private fun applyProviderHeaders(
+        request:
+        io.ktor.client.request.HttpRequestBuilder
+    ) {
+
+        when (providerType) {
+
+            "OPEN_ROUTER",
+            "OPENROUTER" -> {
+
+                request.header(
+                    "HTTP-Referer",
+                    "https://vibe.app"
+                )
+
+                request.header(
+                    "X-Title",
+                    "Vibe App"
+                )
+            }
+
+            "GOOGLE_AI_STUDIO",
+            "GOOGLE",
+            "GEMINI" -> {
+
+                /*
+                 * Google recommends identifying the
+                 * client when using the Gemini API.
+                 */
+                request.header(
+                    "x-goog-api-client",
+                    "vibe-app/1.0"
+                )
+            }
         }
     }
 
     override fun streamQwenChatCompletion(
         request: QwenChatCompletionRequest,
-        diagnosticContext: ModelRequestDiagnosticContext?,
+        diagnosticContext:
+            ModelRequestDiagnosticContext?,
         trace: ModelExecutionTrace?,
     ): Flow<ChatCompletionChunk> = flow {
-        val endpoint = buildEndpoint("/v1/chat/completions")
-        val requestBody = NetworkClient.openAIJson.encodeToJsonElement(request).toString()
+
+        val endpoint =
+            buildEndpoint(
+                "/v1/chat/completions"
+            )
+
+        val requestBody =
+            NetworkClient.openAIJson
+                .encodeToJsonElement(request)
+                .toString()
 
         try {
+
             networkClient()
                 .preparePost(endpoint) {
-                    contentType(ContentType.Application.Json)
+
+                    contentType(
+                        ContentType.Application.Json
+                    )
+
                     setBody(requestBody)
-                    accept(ContentType.Text.EventStream)
-                    token?.let { bearerAuth(it) }
+
+                    accept(
+                        ContentType.Text.EventStream
+                    )
+
+                    token?.let {
+                        bearerAuth(it)
+                    }
+
                     applyProviderHeaders(this)
                 }
                 .execute { response ->
+
                     if (!response.status.isSuccess()) {
+
                         emit(
                             ChatCompletionChunk(
                                 error = ErrorDetail(
-                                    message = response.body<String>(),
-                                    type = "http_error",
-                                    code = response.status.value.toString()
+                                    message =
+                                        response.body<String>(),
+                                    type =
+                                        "http_error",
+                                    code =
+                                        response.status.value
+                                            .toString()
                                 )
                             )
                         )
+
                         return@execute
                     }
 
-                    val channel = response.bodyAsChannel()
-                    val eventLines = mutableListOf<String>()
+                    val channel =
+                        response.bodyAsChannel()
 
-                    while (!channel.isClosedForRead) {
-                        val line = channel.readUTF8Line() ?: break
+                    val eventLines =
+                        mutableListOf<String>()
+
+                    while (
+                        !channel.isClosedForRead
+                    ) {
+
+                        val line =
+                            channel.readUTF8Line()
+                                ?: break
+
                         if (line.isBlank()) {
-                            handleChatCompletionSseEvent(endpoint, eventLines)
+
+                            handleChatCompletionSseEvent(
+                                endpoint,
+                                eventLines
+                            )
+
                             eventLines.clear()
+
                         } else {
+
                             eventLines += line
                         }
                     }
 
                     if (eventLines.isNotEmpty()) {
-                        handleChatCompletionSseEvent(endpoint, eventLines)
+
+                        handleChatCompletionSseEvent(
+                            endpoint,
+                            eventLines
+                        )
                     }
                 }
+
         } catch (e: Exception) {
+
             emit(
                 ChatCompletionChunk(
                     error = ErrorDetail(
-                        message = e.message ?: "Unknown network error",
-                        type = "network_error"
+                        message =
+                            e.message
+                                ?: "Unknown network error",
+                        type =
+                            "network_error"
                     )
                 )
             )
@@ -162,97 +315,188 @@ class OpenAIAPIImpl @Inject constructor(
 
     override suspend fun completeQwenChatCompletion(
         request: QwenChatCompletionRequest,
-        diagnosticContext: ModelRequestDiagnosticContext?,
+        diagnosticContext:
+            ModelRequestDiagnosticContext?,
         trace: ModelExecutionTrace?,
     ): QwenChatCompletionResponse {
-        val endpoint = buildEndpoint("/v1/chat/completions")
-        val requestBody = NetworkClient.openAIJson.encodeToJsonElement(request).toString()
+
+        val endpoint =
+            buildEndpoint(
+                "/v1/chat/completions"
+            )
+
+        val requestBody =
+            NetworkClient.openAIJson
+                .encodeToJsonElement(request)
+                .toString()
 
         return try {
+
             networkClient()
                 .preparePost(endpoint) {
-                    contentType(ContentType.Application.Json)
-                    accept(ContentType.Application.Json)
+
+                    contentType(
+                        ContentType.Application.Json
+                    )
+
+                    accept(
+                        ContentType.Application.Json
+                    )
+
                     setBody(requestBody)
-                    token?.let { bearerAuth(it) }
+
+                    token?.let {
+                        bearerAuth(it)
+                    }
+
                     applyProviderHeaders(this)
                 }
                 .execute { response ->
-                    val body = response.body<String>()
+
+                    val body =
+                        response.body<String>()
+
                     if (!response.status.isSuccess()) {
+
                         return@execute QwenChatCompletionResponse(
-                            error = com.vibe.app.data.dto.qwen.response.QwenErrorDetail(
-                                message = body,
-                                code = response.status.value.toString()
-                            )
+                            error =
+                                com.vibe.app.data.dto.qwen.response.QwenErrorDetail(
+                                    message = body,
+                                    code =
+                                        response.status.value
+                                            .toString()
+                                )
                         )
                     }
-                    NetworkClient.openAIJson.decodeFromString<QwenChatCompletionResponse>(body)
+
+                    NetworkClient.openAIJson
+                        .decodeFromString<QwenChatCompletionResponse>(
+                            body
+                        )
                 }
+
         } catch (e: Exception) {
+
             QwenChatCompletionResponse(
-                error = com.vibe.app.data.dto.qwen.response.QwenErrorDetail(
-                    message = e.message ?: "Unknown error",
-                    code = "network_error"
-                )
+                error =
+                    com.vibe.app.data.dto.qwen.response.QwenErrorDetail(
+                        message =
+                            e.message
+                                ?: "Unknown error",
+                        code =
+                            "network_error"
+                    )
             )
         }
     }
 
     override fun streamChatCompletion(
         request: ChatCompletionRequest,
-        diagnosticContext: ModelRequestDiagnosticContext?,
+        diagnosticContext:
+            ModelRequestDiagnosticContext?,
         trace: ModelExecutionTrace?,
     ): Flow<ChatCompletionChunk> = flow {
-        val endpoint = buildEndpoint("/v1/chat/completions")
-        val requestBody = NetworkClient.openAIJson.encodeToJsonElement(request).toString()
+
+        val endpoint =
+            buildEndpoint(
+                "/v1/chat/completions"
+            )
+
+        val requestBody =
+            NetworkClient.openAIJson
+                .encodeToJsonElement(request)
+                .toString()
 
         try {
+
             networkClient()
                 .preparePost(endpoint) {
-                    contentType(ContentType.Application.Json)
+
+                    contentType(
+                        ContentType.Application.Json
+                    )
+
                     setBody(requestBody)
-                    accept(ContentType.Text.EventStream)
-                    token?.let { bearerAuth(it) }
+
+                    accept(
+                        ContentType.Text.EventStream
+                    )
+
+                    token?.let {
+                        bearerAuth(it)
+                    }
+
                     applyProviderHeaders(this)
                 }
                 .execute { response ->
+
                     if (!response.status.isSuccess()) {
+
                         emit(
                             ChatCompletionChunk(
                                 error = ErrorDetail(
-                                    message = response.body<String>(),
-                                    type = "http_error",
-                                    code = response.status.value.toString()
+                                    message =
+                                        response.body<String>(),
+                                    type =
+                                        "http_error",
+                                    code =
+                                        response.status.value
+                                            .toString()
                                 )
                             )
                         )
+
                         return@execute
                     }
 
-                    val channel = response.bodyAsChannel()
-                    val eventLines = mutableListOf<String>()
+                    val channel =
+                        response.bodyAsChannel()
 
-                    while (!channel.isClosedForRead) {
-                        val line = channel.readUTF8Line() ?: break
+                    val eventLines =
+                        mutableListOf<String>()
+
+                    while (
+                        !channel.isClosedForRead
+                    ) {
+
+                        val line =
+                            channel.readUTF8Line()
+                                ?: break
+
                         if (line.isBlank()) {
-                            handleChatCompletionSseEvent(endpoint, eventLines)
+
+                            handleChatCompletionSseEvent(
+                                endpoint,
+                                eventLines
+                            )
+
                             eventLines.clear()
+
                         } else {
+
                             eventLines += line
                         }
                     }
 
                     if (eventLines.isNotEmpty()) {
-                        handleChatCompletionSseEvent(endpoint, eventLines)
+
+                        handleChatCompletionSseEvent(
+                            endpoint,
+                            eventLines
+                        )
                     }
                 }
+
         } catch (e: Exception) {
+
             emit(
                 ChatCompletionChunk(
                     error = ErrorDetail(
-                        message = e.message ?: "Unknown error",
-                        type = "network_error"
+                        message =
+                            e.message
+                                ?: "Unknown network error",
+                        type =
+                            "network_error"
                     )
                 )
             )
@@ -261,45 +505,100 @@ class OpenAIAPIImpl @Inject constructor(
 
     override fun streamResponses(
         request: ResponsesRequest,
-        diagnosticContext: ModelRequestDiagnosticContext?,
+        diagnosticContext:
+            ModelRequestDiagnosticContext?,
         trace: ModelExecutionTrace?,
     ): Flow<ResponsesStreamEvent> = flow {
-        val endpoint = buildEndpoint("/v1/responses")
-        val requestBody = NetworkClient.openAIJson.encodeToJsonElement(request).toString()
+
+        val endpoint =
+            buildEndpoint(
+                "/v1/responses"
+            )
+
+        val requestBody =
+            NetworkClient.openAIJson
+                .encodeToJsonElement(request)
+                .toString()
 
         try {
+
             networkClient()
                 .preparePost(endpoint) {
-                    contentType(ContentType.Application.Json)
+
+                    contentType(
+                        ContentType.Application.Json
+                    )
+
                     setBody(requestBody)
-                    accept(ContentType.Text.EventStream)
-                    token?.let { bearerAuth(it) }
+
+                    accept(
+                        ContentType.Text.EventStream
+                    )
+
+                    token?.let {
+                        bearerAuth(it)
+                    }
+
                     applyProviderHeaders(this)
                 }
                 .execute { response ->
-                    val channel = response.bodyAsChannel()
-                    while (!channel.isClosedForRead) {
-                        val line = channel.readUTF8Line() ?: break
+
+                    val channel =
+                        response.bodyAsChannel()
+
+                    while (
+                        !channel.isClosedForRead
+                    ) {
+
+                        val line =
+                            channel.readUTF8Line()
+                                ?: break
+
                         if (line.isBlank()) {
                             continue
                         }
+
                         if (line.startsWith("data:")) {
-                            val data = line.removePrefix("data:").trim()
-                            if (data.isNotBlank() && data != "[DONE]") {
+
+                            val data =
+                                line
+                                    .removePrefix("data:")
+                                    .trim()
+
+                            if (
+                                data.isNotBlank() &&
+                                data != "[DONE]"
+                            ) {
+
                                 try {
-                                    val event = NetworkClient.openAIJson.decodeFromString<ResponsesStreamEvent>(data)
+
+                                    val event =
+                                        NetworkClient
+                                            .openAIJson
+                                            .decodeFromString<ResponsesStreamEvent>(
+                                                data
+                                            )
+
                                     emit(event)
+
                                 } catch (_: Exception) {
+                                    // Ignore unsupported
+                                    // response event.
                                 }
                             }
                         }
                     }
                 }
+
         } catch (e: Exception) {
+
             emit(
                 ResponseErrorEvent(
-                    message = e.message ?: "Unknown error",
-                    code = "network_error"
+                    message =
+                        e.message
+                            ?: "Unknown error",
+                    code =
+                        "network_error"
                 )
             )
         }
@@ -307,43 +606,110 @@ class OpenAIAPIImpl @Inject constructor(
 
     private suspend fun FlowCollector<ChatCompletionChunk>.handleChatCompletionSseEvent(
         endpoint: String,
-        eventLines: List<String>,
+        eventLines: List<String>
     ) {
-        val data = eventLines
-            .filter { it.startsWith("data:") }
-            .joinToString("\n") { it.removePrefix("data:").trim() }
 
-        if (data.isBlank() || data == "[DONE]") {
+        val data =
+            eventLines
+                .filter {
+                    it.startsWith("data:")
+                }
+                .joinToString("\n") {
+                    it.removePrefix("data:")
+                        .trim()
+                }
+
+        if (
+            data.isBlank() ||
+            data == "[DONE]"
+        ) {
             return
         }
 
         try {
-            val chunk = NetworkClient.openAIJson.decodeFromString<ChatCompletionChunk>(data)
+
+            val chunk =
+                NetworkClient.openAIJson
+                    .decodeFromString<ChatCompletionChunk>(
+                        data
+                    )
+
             emit(chunk)
+
         } catch (e: Exception) {
+
             try {
-                if (data.contains("tool_calls")) {
-                    val fixedData = data.replace("\"tool_calls\"", "\"delta")
-                    val fallbackChunk = NetworkClient.openAIJson.decodeFromString<ChatCompletionChunk>(fixedData)
+
+                if (
+                    data.contains(
+                        "tool_calls"
+                    )
+                ) {
+
+                    val fixedData =
+                        data.replace(
+                            "\"tool_calls\"",
+                            "\"delta"
+                        )
+
+                    val fallbackChunk =
+                        NetworkClient.openAIJson
+                            .decodeFromString<ChatCompletionChunk>(
+                                fixedData
+                            )
+
                     emit(fallbackChunk)
+
                 } else {
+
                     emit(
                         ChatCompletionChunk(
                             error = ErrorDetail(
-                                message = e.message ?: "Failed parsing SSE event",
-                                type = "parse_error",
-                                code = "invalid_stream_chunk"
+                                message =
+                                    e.message
+                                        ?: "Failed parsing SSE event",
+                                type =
+                                    "parse_error",
+                                code =
+                                    "invalid_stream_chunk"
                             )
                         )
                     )
                 }
+
             } catch (innerEx: Exception) {
+
                 try {
-                    val fallbackChunk = NetworkClient.openAIJson.decodeFromString<ChatCompletionChunk>("{\"choices\":[]}")
+
+                    val fallbackChunk =
+                        NetworkClient.openAIJson
+                            .decodeFromString<ChatCompletionChunk>(
+                                "{\"choices\":[]}"
+                            )
+
                     emit(fallbackChunk)
+
                 } catch (_: Exception) {
+                    // Ignore malformed fallback.
                 }
             }
         }
+    }
+
+    companion object {
+
+        private const val OPENROUTER_API_URL =
+            "https://openrouter.ai/api"
+
+        /*
+         * Google AI Studio / Gemini
+         *
+         * This is Google's official OpenAI-compatible
+         * endpoint. Chat Completions and streaming are
+         * supported through this endpoint.
+         */
+        private const val GOOGLE_AI_STUDIO_API_URL =
+            "https://generativelanguage.googleapis.com/v1beta/openai"
+
     }
 }

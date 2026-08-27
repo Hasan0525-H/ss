@@ -54,6 +54,7 @@ class OpenAIAPIImpl @Inject constructor(
             token
                 ?.trim()
                 ?.removePrefix("Bearer ")
+                ?.removePrefix("bearer ")
                 ?.trim()
                 ?.takeIf {
                     it.isNotEmpty()
@@ -132,7 +133,15 @@ class OpenAIAPIImpl @Inject constructor(
                             }
                         )
 
-                        applyProviderHeaders(this)
+                        header(
+                            "HTTP-Referer",
+                            "https://vibe.app"
+                        )
+
+                        header(
+                            "X-Title",
+                            "Vibe App"
+                        )
                     }
                     .body()
 
@@ -165,32 +174,13 @@ class OpenAIAPIImpl @Inject constructor(
             }
 
         } catch (
-            e: Exception
+            _: Exception
         ) {
 
             emptyList()
         }
     }
 
-    /*
-     * Google AI Studio's OpenAI-compatible API is:
-     *
-     * https://generativelanguage.googleapis.com/v1beta/openai
-     *
-     * Unlike OpenRouter, it does NOT use:
-     *
-     * /v1/chat/completions
-     *
-     * after the base URL.
-     *
-     * The correct Google endpoint is:
-     *
-     * /chat/completions
-     *
-     * OpenRouter continues to use:
-     *
-     * /v1/chat/completions
-     */
     private fun buildChatCompletionsEndpoint(): String {
 
         return when (providerType) {
@@ -199,7 +189,12 @@ class OpenAIAPIImpl @Inject constructor(
             "GOOGLE",
             "GEMINI" -> {
 
-                "${apiUrl.trimEnd('/')}/chat/completions"
+                /*
+                 * Google AI Studio OpenAI-compatible endpoint:
+                 *
+                 * https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
+                 */
+                "${GOOGLE_AI_STUDIO_API_URL}/chat/completions"
             }
 
             else -> {
@@ -229,16 +224,8 @@ class OpenAIAPIImpl @Inject constructor(
                 "/$path"
             }
 
-        return if (
-            apiUrl.endsWith("/")
-        ) {
-
-            "${apiUrl.removeSuffix("/")}$cleanPath"
-
-        } else {
-
-            "$apiUrl$cleanPath"
-        }
+        return apiUrl.trimEnd('/') +
+            cleanPath
     }
 
     private fun applyProviderHeaders(
@@ -299,12 +286,12 @@ class OpenAIAPIImpl @Inject constructor(
                         ContentType.Application.Json
                     )
 
-                    setBody(
-                        requestBody
-                    )
-
                     accept(
                         ContentType.Text.EventStream
+                    )
+
+                    setBody(
+                        requestBody
                     )
 
                     token?.let {
@@ -312,7 +299,6 @@ class OpenAIAPIImpl @Inject constructor(
                     }
 
                     applyProviderHeaders(this)
-
                 }
                 .execute { response ->
 
@@ -362,7 +348,6 @@ class OpenAIAPIImpl @Inject constructor(
                         ) {
 
                             handleChatCompletionSseEvent(
-                                endpoint,
                                 eventLines
                             )
 
@@ -379,7 +364,6 @@ class OpenAIAPIImpl @Inject constructor(
                     ) {
 
                         handleChatCompletionSseEvent(
-                            endpoint,
                             eventLines
                         )
                     }
@@ -443,7 +427,6 @@ class OpenAIAPIImpl @Inject constructor(
                     }
 
                     applyProviderHeaders(this)
-
                 }
                 .execute { response ->
 
@@ -518,12 +501,12 @@ class OpenAIAPIImpl @Inject constructor(
                         ContentType.Application.Json
                     )
 
-                    setBody(
-                        requestBody
-                    )
-
                     accept(
                         ContentType.Text.EventStream
+                    )
+
+                    setBody(
+                        requestBody
                     )
 
                     token?.let {
@@ -531,7 +514,6 @@ class OpenAIAPIImpl @Inject constructor(
                     }
 
                     applyProviderHeaders(this)
-
                 }
                 .execute { response ->
 
@@ -581,7 +563,6 @@ class OpenAIAPIImpl @Inject constructor(
                         ) {
 
                             handleChatCompletionSseEvent(
-                                endpoint,
                                 eventLines
                             )
 
@@ -598,7 +579,6 @@ class OpenAIAPIImpl @Inject constructor(
                     ) {
 
                         handleChatCompletionSseEvent(
-                            endpoint,
                             eventLines
                         )
                     }
@@ -649,12 +629,12 @@ class OpenAIAPIImpl @Inject constructor(
                         ContentType.Application.Json
                     )
 
-                    setBody(
-                        requestBody
-                    )
-
                     accept(
                         ContentType.Text.EventStream
+                    )
+
+                    setBody(
+                        requestBody
                     )
 
                     token?.let {
@@ -732,11 +712,10 @@ class OpenAIAPIImpl @Inject constructor(
 
                                     emit(event)
 
-                                } catch (_: Exception) {
-                                    /*
-                                     * Ignore unsupported
-                                     * response events.
-                                     */
+                                } catch (
+                                    _: Exception
+                                ) {
+                                    // Ignore unsupported SSE events.
                                 }
                             }
                         }
@@ -762,7 +741,6 @@ class OpenAIAPIImpl @Inject constructor(
 
     private suspend fun FlowCollector<ChatCompletionChunk>
         .handleChatCompletionSseEvent(
-            endpoint: String,
             eventLines: List<String>
         ) {
 
@@ -797,93 +775,22 @@ class OpenAIAPIImpl @Inject constructor(
             e: Exception
         ) {
 
-            try {
+            emit(
+                ChatCompletionChunk(
+                    error =
+                        ErrorDetail(
+                            message =
+                                e.message
+                                    ?: "Failed parsing SSE event",
 
-                if (
-                    data.contains(
-                        "tool_calls"
-                    )
-                ) {
+                            type =
+                                "parse_error",
 
-                    val fixedData =
-                        data.replace(
-                            "\"tool_calls\"",
-                            "\"delta\":{\"tool_calls\""
+                            code =
+                                "invalid_stream_chunk"
                         )
-
-                    try {
-
-                        val fallbackChunk =
-                            NetworkClient.openAIJson
-                                .decodeFromString<ChatCompletionChunk>(
-                                    fixedData
-                                )
-
-                        emit(
-                            fallbackChunk
-                        )
-
-                    } catch (_: Exception) {
-
-                        emit(
-                            ChatCompletionChunk(
-                                error =
-                                    ErrorDetail(
-                                        message =
-                                            e.message
-                                                ?: "Failed parsing tool call event",
-
-                                        type =
-                                            "parse_error",
-
-                                        code =
-                                            "invalid_tool_stream_chunk"
-                                    )
-                            )
-                        )
-                    }
-
-                } else {
-
-                    emit(
-                        ChatCompletionChunk(
-                            error =
-                                ErrorDetail(
-                                    message =
-                                        e.message
-                                            ?: "Failed parsing SSE event",
-
-                                    type =
-                                        "parse_error",
-
-                                    code =
-                                        "invalid_stream_chunk"
-                                )
-                        )
-                    )
-                }
-
-            } catch (
-                innerEx: Exception
-            ) {
-
-                emit(
-                    ChatCompletionChunk(
-                        error =
-                            ErrorDetail(
-                                message =
-                                    innerEx.message
-                                        ?: "Failed parsing stream event",
-
-                                type =
-                                    "parse_error",
-
-                                code =
-                                    "invalid_stream_chunk"
-                            )
-                    )
                 )
-            }
+            )
         }
     }
 
@@ -892,18 +799,6 @@ class OpenAIAPIImpl @Inject constructor(
         private const val OPENROUTER_API_URL =
             "https://openrouter.ai/api"
 
-        /*
-         * Google AI Studio official OpenAI-compatible
-         * Gemini endpoint.
-         *
-         * IMPORTANT:
-         *
-         * Google endpoint:
-         * /v1beta/openai/chat/completions
-         *
-         * OpenRouter endpoint:
-         * /api/v1/chat/completions
-         */
         private const val GOOGLE_AI_STUDIO_API_URL =
             "https://generativelanguage.googleapis.com/v1beta/openai"
     }

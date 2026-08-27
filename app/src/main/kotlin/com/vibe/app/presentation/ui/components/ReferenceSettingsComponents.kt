@@ -91,6 +91,26 @@ fun ReferenceSettingRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
+        Surface(
+            modifier = Modifier.size(38.dp),
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = if (enabled) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
+                    },
+                    modifier = Modifier.size(21.dp),
+                )
+            }
+        }
+
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
@@ -119,26 +139,6 @@ fun ReferenceSettingRow(
                 )
             }
         }
-
-        Surface(
-            modifier = Modifier.size(38.dp),
-            shape = RoundedCornerShape(12.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = if (enabled) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
-                    },
-                    modifier = Modifier.size(21.dp),
-                )
-            }
-        }
     }
 }
 
@@ -159,17 +159,17 @@ fun ReferenceInfoBanner(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                text = text,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.weight(1f),
-            )
             Icon(
                 imageVector = Icons.Outlined.AutoAwesome,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(24.dp),
+            )
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.weight(1f),
             )
         }
     }
@@ -198,6 +198,13 @@ fun ReferenceSliderCard(
                 verticalAlignment = Alignment.Top,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp),
+                )
+
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = title,
@@ -212,13 +219,6 @@ fun ReferenceSliderCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp),
-                )
             }
 
             Row(

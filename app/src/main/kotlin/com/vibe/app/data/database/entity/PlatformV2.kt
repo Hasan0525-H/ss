@@ -1,46 +1,72 @@
 package com.vibe.app.data.database.entity
 
-import androidx.room.TypeConverter
+import androidx.room.ColumnInfo
+import androidx.room.Entity
+import androidx.room.PrimaryKey
 import com.vibe.app.data.model.ClientType
+import java.util.UUID
 
-class ClientTypeConverter {
+@Entity(tableName = "platform_v2")
+data class PlatformV2(
 
-    @TypeConverter
-    fun fromClientType(
-        type: ClientType?
-    ): String {
-        return type?.name
-            ?: ClientType.OPEN_ROUTER.name
-    }
+    @PrimaryKey(autoGenerate = true)
+    @ColumnInfo(name = "platform_id")
+    val id: Int = 0,
 
-    @TypeConverter
-    fun toClientType(
-        value: String?
-    ): ClientType {
+    @ColumnInfo(name = "uid")
+    val uid: String = UUID.randomUUID().toString(),
 
-        val normalized =
-            value
-                ?.trim()
-                ?.uppercase()
-                ?: return ClientType.OPEN_ROUTER
+    @ColumnInfo(name = "name")
+    val name: String,
 
-        return when (normalized) {
+    @ColumnInfo(name = "compatible_type")
+    val compatibleType: ClientType,
 
-            "OPENROUTER",
-            "OPEN_ROUTER" ->
-                ClientType.OPEN_ROUTER
+    @ColumnInfo(name = "enabled")
+    val enabled: Boolean = false,
 
-            "GOOGLE",
-            "GEMINI",
-            "GOOGLE_AI_STUDIO" ->
-                ClientType.GOOGLE_AI_STUDIO
+    @ColumnInfo(name = "api_url")
+    val apiUrl: String,
 
-            else ->
-                ClientType.values()
-                    .firstOrNull {
-                        it.name == normalized
-                    }
-                    ?: ClientType.OPEN_ROUTER
-        }
-    }
+    @ColumnInfo(name = "token")
+    val token: String? = null,
+
+    @ColumnInfo(name = "model")
+    val model: String,
+
+    @ColumnInfo(name = "provider")
+    val provider: String? = null,
+
+    @ColumnInfo(name = "is_free")
+    val isFree: Boolean? = null,
+
+    @ColumnInfo(name = "pricing_prompt")
+    val pricingPrompt: String? = null,
+
+    @ColumnInfo(name = "pricing_completion")
+    val pricingCompletion: String? = null,
+
+    @ColumnInfo(name = "temperature")
+    val temperature: Float? = null,
+
+    @ColumnInfo(name = "top_p")
+    val topP: Float? = null,
+
+    @ColumnInfo(name = "system_prompt")
+    val systemPrompt: String? = null,
+
+    @ColumnInfo(name = "stream")
+    val stream: Boolean = true,
+
+    @ColumnInfo(name = "reasoning")
+    val reasoning: Boolean = false,
+
+    @ColumnInfo(name = "timeout")
+    val timeout: Int = 30
+
+) {
+
+    // Compatibility with existing code that uses topP.
+    val top: Float?
+        get() = topP}
 }

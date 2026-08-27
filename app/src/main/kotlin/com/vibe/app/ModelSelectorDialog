@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.vibe.app.data.model.ClientType
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,19 +64,23 @@ fun ModelDialog(
             ClientType.GOOGLE_AI_STUDIO
 
     /*
-     * Reset the selected model whenever the
-     * dialog is opened for another model/platform.
+     * Selected model.
+     *
+     * Always keep the exact model ID entered
+     * by the user or returned by OpenRouter.
      */
     var selectedModel by
         remember(
             model,
             dialogState.isApiModelDialogOpen,
         ) {
-            mutableStateOf(model)
+            mutableStateOf(
+                model
+            )
         }
 
     /*
-     * Free / Paid filtering belongs only
+     * Free / Paid filtering belongs ONLY
      * to OpenRouter.
      */
     var isFreeOnly by
@@ -84,7 +89,8 @@ fun ModelDialog(
             dialogState.isApiModelDialogOpen,
         ) {
             mutableStateOf(
-                platform?.isFree ?: true
+                platform?.isFree
+                    ?: true
             )
         }
 
@@ -93,15 +99,18 @@ fun ModelDialog(
             platform?.uid,
             dialogState.isApiModelDialogOpen,
         ) {
-            mutableStateOf(false)
+            mutableStateOf(
+                false
+            )
         }
 
     /*
-     * Load models only when the active provider
-     * is OpenRouter.
+     * =========================================================
+     * OPENROUTER MODEL LOADING
+     * =========================================================
      *
      * Google AI Studio and every other provider
-     * must never reach the OpenRouter models API.
+     * must NEVER call the OpenRouter models API.
      */
     LaunchedEffect(
         isOpenRouter,
@@ -116,10 +125,11 @@ fun ModelDialog(
             !platform?.token.isNullOrBlank()
         ) {
 
-            settingViewModel.loadModels(
-                isFreeOnly =
-                    isFreeOnly
-            )
+            settingViewModel
+                .loadModels(
+                    isFreeOnly =
+                        isFreeOnly
+                )
         }
     }
 
@@ -155,7 +165,8 @@ fun ModelDialog(
                     Modifier
                         .fillMaxWidth()
                         .padding(
-                            vertical = 8.dp
+                            vertical =
+                                8.dp
                         ),
 
                 verticalArrangement =
@@ -166,7 +177,7 @@ fun ModelDialog(
 
                 /*
                  * =================================================
-                 * OpenRouter
+                 * OPENROUTER
                  * =================================================
                  */
                 if (isOpenRouter) {
@@ -176,7 +187,8 @@ fun ModelDialog(
                      */
                     Row(
                         modifier =
-                            Modifier.fillMaxWidth(),
+                            Modifier
+                                .fillMaxWidth(),
 
                         horizontalArrangement =
                             Arrangement.spacedBy(
@@ -205,7 +217,9 @@ fun ModelDialog(
                             },
 
                             modifier =
-                                Modifier.weight(1f),
+                                Modifier.weight(
+                                    1f
+                                ),
                         )
 
                         FilterChip(
@@ -229,7 +243,9 @@ fun ModelDialog(
                             },
 
                             modifier =
-                                Modifier.weight(1f),
+                                Modifier.weight(
+                                    1f
+                                ),
                         )
                     }
 
@@ -242,7 +258,10 @@ fun ModelDialog(
 
                         onExpandedChange = {
 
-                            if (!isLoadingModels) {
+                            if (
+                                !isLoadingModels
+                            ) {
+
                                 expanded =
                                     !expanded
                             }
@@ -274,7 +293,9 @@ fun ModelDialog(
 
                             trailingIcon = {
 
-                                if (isLoadingModels) {
+                                if (
+                                    isLoadingModels
+                                ) {
 
                                     CircularProgressIndicator(
                                         modifier =
@@ -318,6 +339,9 @@ fun ModelDialog(
 
                             when {
 
+                                /*
+                                 * Loading.
+                                 */
                                 isLoadingModels -> {
 
                                     DropdownMenuItem(
@@ -345,7 +369,11 @@ fun ModelDialog(
                                     )
                                 }
 
-                                availableModels.isEmpty() -> {
+                                /*
+                                 * No models available.
+                                 */
+                                availableModels
+                                    .isEmpty() -> {
 
                                     DropdownMenuItem(
                                         text = {
@@ -363,17 +391,34 @@ fun ModelDialog(
                                     )
                                 }
 
+                                /*
+                                 * Available OpenRouter models.
+                                 */
                                 else -> {
 
                                     availableModels
                                         .forEach { modelInfo ->
 
+                                            val pricing =
+                                                modelInfo.pricing
+
                                             val isFree =
-                                                modelInfo
-                                                    .pricing
+                                                pricing
                                                     ?.isFree ==
                                                     true
 
+                                            /*
+                                             * IMPORTANT:
+                                             *
+                                             * averagePrice is USD/token.
+                                             *
+                                             * We display:
+                                             *
+                                             * averagePricePer1K
+                                             *
+                                             * because the UI says:
+                                             * / 1K tokens
+                                             */
                                             val priceLabel =
                                                 if (isFree) {
 
@@ -381,18 +426,27 @@ fun ModelDialog(
 
                                                 } else {
 
-                                                    val averagePrice =
-                                                        modelInfo
-                                                            .pricing
-                                                            ?.averagePrice
-                                                            ?: 0.0
+                                                    val averagePricePer1K =
+                                                        pricing
+                                                            ?.averagePricePer1K
 
-                                                    "$" +
-                                                        String.format(
-                                                            "%.6f",
-                                                            averagePrice,
-                                                        ) +
-                                                        " / 1K"
+                                                    if (
+                                                        averagePricePer1K !=
+                                                        null
+                                                    ) {
+
+                                                        "$" +
+                                                            String.format(
+                                                                Locale.US,
+                                                                "%.6f",
+                                                                averagePricePer1K,
+                                                            ) +
+                                                            " / 1K"
+
+                                                    } else {
+
+                                                        "السعر غير متاح"
+                                                    }
                                                 }
 
                                             DropdownMenuItem(
@@ -425,6 +479,11 @@ fun ModelDialog(
                                                                         .weight(
                                                                             1f
                                                                         ),
+
+                                                                style =
+                                                                    MaterialTheme
+                                                                        .typography
+                                                                        .bodyLarge,
                                                             )
 
                                                             Spacer(
@@ -443,12 +502,19 @@ fun ModelDialog(
                                                                     MaterialTheme
                                                                         .typography
                                                                         .bodySmall,
+
+                                                                color =
+                                                                    MaterialTheme
+                                                                        .colorScheme
+                                                                        .onSurfaceVariant,
                                                             )
                                                         }
 
                                                         /*
-                                                         * Display the exact
-                                                         * OpenRouter model ID.
+                                                         * Show the exact
+                                                         * OpenRouter model ID
+                                                         * underneath the
+                                                         * friendly model name.
                                                          */
                                                         if (
                                                             modelInfo.name !=
@@ -476,12 +542,17 @@ fun ModelDialog(
                                                 onClick = {
 
                                                     /*
-                                                     * IMPORTANT:
+                                                     * Save EXACT OpenRouter
+                                                     * model ID.
                                                      *
-                                                     * Save the exact model ID
-                                                     * returned by OpenRouter.
+                                                     * Example:
                                                      *
-                                                     * No hardcoded fallback.
+                                                     * google/gemini-...
+                                                     *
+                                                     * No:
+                                                     * openrouter/free
+                                                     *
+                                                     * No fallback.
                                                      */
                                                     selectedModel =
                                                         modelInfo.id
@@ -500,12 +571,19 @@ fun ModelDialog(
 
                     /*
                      * =================================================
-                     * Google AI Studio / OpenAI / Anthropic / Qwen /
-                     * Kimi / DeepSeek / MiniMax / Custom
+                     * OTHER PROVIDERS
                      * =================================================
                      *
-                     * These providers use a manually configurable
-                     * model ID.
+                     * Google AI Studio
+                     * OpenAI
+                     * Anthropic
+                     * Qwen
+                     * Kimi
+                     * MiniMax
+                     * DeepSeek
+                     * Custom
+                     *
+                     * use manually configured model IDs.
                      */
                     OutlinedTextField(
                         value =
@@ -518,14 +596,20 @@ fun ModelDialog(
                         },
 
                         modifier =
-                            Modifier.fillMaxWidth(),
+                            Modifier
+                                .fillMaxWidth(),
 
                         label = {
 
                             Text(
-                                if (isGoogleAIStudio) {
+                                if (
+                                    isGoogleAIStudio
+                                ) {
+
                                     "Gemini Model ID"
+
                                 } else {
+
                                     "Model ID"
                                 }
                             )
@@ -535,7 +619,8 @@ fun ModelDialog(
 
                             Text(
                                 when (
-                                    platform?.compatibleType
+                                    platform
+                                        ?.compatibleType
                                 ) {
 
                                     ClientType.GOOGLE_AI_STUDIO ->
@@ -572,16 +657,44 @@ fun ModelDialog(
 
                             Text(
                                 when (
-                                    platform?.compatibleType
+                                    platform
+                                        ?.compatibleType
                                 ) {
 
                                     ClientType.GOOGLE_AI_STUDIO ->
+
                                         "أدخل معرف Gemini كما هو مستخدم في Google AI Studio"
 
                                     ClientType.CUSTOM ->
+
                                         "أدخل معرف النموذج الذي يدعمه مزود الـ API"
 
+                                    ClientType.OPENAI ->
+
+                                        "أدخل معرف نموذج OpenAI"
+
+                                    ClientType.ANTHROPIC ->
+
+                                        "أدخل معرف نموذج Anthropic"
+
+                                    ClientType.QWEN ->
+
+                                        "أدخل معرف نموذج Qwen"
+
+                                    ClientType.KIMI ->
+
+                                        "أدخل معرف نموذج Kimi"
+
+                                    ClientType.MINIMAX ->
+
+                                        "أدخل معرف نموذج MiniMax"
+
+                                    ClientType.DEEPSEEK ->
+
+                                        "أدخل معرف نموذج DeepSeek"
+
                                     else ->
+
                                         "أدخل معرف النموذج كما يطلبه مزود الـ API"
                                 }
                             )
@@ -594,6 +707,11 @@ fun ModelDialog(
             }
         },
 
+        /*
+         * =========================================================
+         * SAVE
+         * =========================================================
+         */
         confirmButton = {
 
             TextButton(
@@ -605,15 +723,17 @@ fun ModelDialog(
                 onClick = {
 
                     /*
-                     * Store exactly what the user
-                     * selected or entered.
+                     * updateApiModel() stores this
+                     * value directly inside:
                      *
-                     * QwenChatCompletionsAgentGateway
-                     * and the other gateways will use:
+                     * PlatformV2.model
+                     *
+                     * Gateways later use:
                      *
                      * request.platform.model
                      *
-                     * directly.
+                     * therefore no fallback or
+                     * model replacement happens here.
                      */
                     settingViewModel
                         .updateApiModel(

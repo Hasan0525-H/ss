@@ -98,7 +98,6 @@ fun HomeScreen(
     val lifecycleState by lifecycleOwner.lifecycle.currentStateFlow.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    // Handle navigation events from ViewModel
     LaunchedEffect(projectListState.navigationEvent) {
         projectListState.navigationEvent?.let { event ->
             when (event) {
@@ -111,7 +110,8 @@ fun HomeScreen(
     }
 
     LaunchedEffect(lifecycleState) {
-        if (lifecycleState == Lifecycle.State.RESUMED &&
+        if (
+            lifecycleState == Lifecycle.State.RESUMED &&
             !projectListState.isSelectionMode &&
             !projectListState.isSearchMode
         ) {
@@ -120,20 +120,31 @@ fun HomeScreen(
         }
     }
 
-    BackHandler(enabled = projectListState.isSelectionMode || projectListState.isSearchMode) {
+    BackHandler(
+        enabled =
+            projectListState.isSelectionMode ||
+                projectListState.isSearchMode
+    ) {
         when {
-            projectListState.isSelectionMode -> homeViewModel.disableSelectionMode()
-            projectListState.isSearchMode -> homeViewModel.disableSearchMode()
+            projectListState.isSelectionMode ->
+                homeViewModel.disableSelectionMode()
+
+            projectListState.isSearchMode ->
+                homeViewModel.disableSearchMode()
         }
     }
 
     Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        modifier =
+            Modifier.nestedScroll(
+                scrollBehavior.nestedScrollConnection
+            ),
         topBar = {
             HomeTopAppBar(
                 isSelectionMode = projectListState.isSelectionMode,
                 isSearchMode = projectListState.isSearchMode,
-                selectedCount = projectListState.selectedProjects.count { it },
+                selectedCount =
+                    projectListState.selectedProjects.count { it },
                 scrollBehavior = scrollBehavior,
                 settingsOnClick = settingOnClick,
                 navigationOnClick = {
@@ -141,93 +152,150 @@ fun HomeScreen(
                         homeViewModel.disableSelectionMode()
                         return@HomeTopAppBar
                     }
+
                     if (projectListState.isSearchMode) {
                         homeViewModel.disableSearchMode()
                     } else {
                         homeViewModel.enableSearchMode()
                     }
                 },
-                onSearchQueryChanged = homeViewModel::updateSearchQuery,
+                onSearchQueryChanged =
+                    homeViewModel::updateSearchQuery,
                 searchQuery = searchQuery,
             )
         },
         floatingActionButton = {
             if (projectListState.isSelectionMode) {
                 DeleteProjectsButton(
-                    selectedCount = projectListState.selectedProjects.count { it },
-                    onClick = { homeViewModel.openDeleteWarningDialog() },
+                    selectedCount =
+                        projectListState.selectedProjects.count { it },
+                    onClick =
+                        homeViewModel::openDeleteWarningDialog,
                 )
             } else if (!projectListState.isSearchMode) {
                 NewProjectButton(
                     expanded = listState.isScrollingUp(),
-                    isCreating = projectListState.creationState is HomeViewModel.ProjectCreationState.InProgress,
-                    onClick = { homeViewModel.createNewProject() },
+                    isCreating =
+                        projectListState.creationState
+                            is HomeViewModel.ProjectCreationState.InProgress,
+                    onClick =
+                        homeViewModel::createNewProject,
                 )
             }
         },
     ) { innerPadding ->
+
         LazyColumn(
             modifier = Modifier.padding(innerPadding),
             state = listState,
         ) {
             if (!projectListState.isSearchMode) {
-                item { ProjectsTitle(scrollBehavior) }
+                item {
+                    ProjectsTitle(scrollBehavior)
+                }
             }
-            if (projectListState.isSearchMode && projectListState.projects.isEmpty() && searchQuery.isNotEmpty()) {
+
+            if (
+                projectListState.isSearchMode &&
+                projectListState.projects.isEmpty() &&
+                searchQuery.isNotEmpty()
+            ) {
                 item {
                     Text(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        text = stringResource(R.string.no_search_results),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(32.dp),
+                        text =
+                            stringResource(
+                                R.string.no_search_results
+                            ),
                         textAlign = TextAlign.Center,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style =
+                            MaterialTheme.typography.bodyLarge,
+                        color =
+                            MaterialTheme.colorScheme
+                                .onSurfaceVariant,
                     )
                 }
             }
-            itemsIndexed(projectListState.projects, key = { _, it -> it.project.projectId }) { idx, pwc ->
+
+            itemsIndexed(
+                projectListState.projects,
+                key = { _, it ->
+                    it.project.projectId
+                }
+            ) { idx, pwc ->
+
                 ProjectListItem(
                     pwc = pwc,
-                    activeSessionPlatformName = homeViewModel.getActiveSessionPlatformName(pwc.project.chatId),
-                    isSelectionMode = projectListState.isSelectionMode,
-                    isSelected = projectListState.selectedProjects.getOrElse(idx) { false },
+                    activeSessionPlatformName =
+                        homeViewModel.getActiveSessionPlatformName(
+                            pwc.project.chatId
+                        ),
+                    isSelectionMode =
+                        projectListState.isSelectionMode,
+                    isSelected =
+                        projectListState.selectedProjects
+                            .getOrElse(idx) { false },
+
                     onLongClick = {
                         if (!projectListState.isSearchMode) {
                             homeViewModel.enableSelectionMode()
                             homeViewModel.selectProject(idx)
                         }
                     },
+
                     onClick = {
                         if (projectListState.isSelectionMode) {
                             homeViewModel.selectProject(idx)
                         } else {
-                            val currentEnabledPlatforms = homeViewModel.platformState.value
-                                .filter { it.enabled }
-                                .map { it.uid }
-                                .takeIf { it.isNotEmpty() }
-                                ?: pwc.chat.enabledPlatform
-                            onProjectClick(pwc.project.chatId, currentEnabledPlatforms)
+                            val currentEnabledPlatforms =
+                                homeViewModel.platformState.value
+                                    .filter { it.enabled }
+                                    .map { it.uid }
+                                    .takeIf { it.isNotEmpty() }
+                                    ?: pwc.chat.enabledPlatform
+
+                            onProjectClick(
+                                pwc.project.chatId,
+                                currentEnabledPlatforms
+                            )
                         }
                     },
                 )
+
                 if (idx < projectListState.projects.lastIndex) {
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    HorizontalDivider(
+                        modifier =
+                            Modifier.padding(
+                                horizontal = 16.dp
+                            )
+                    )
                 }
             }
         }
 
         if (showDeleteWarningDialog) {
             DeleteWarningDialog(
-                onDismissRequest = homeViewModel::closeDeleteWarningDialog,
+                onDismissRequest =
+                    homeViewModel::closeDeleteWarningDialog,
+
                 onConfirm = {
-                    val deletedCount = projectListState.selectedProjects.count { it }
+                    val deletedCount =
+                        projectListState.selectedProjects.count { it }
+
                     homeViewModel.deleteSelectedProjects()
+
                     Toast.makeText(
                         context,
-                        context.getString(R.string.deleted_projects, deletedCount),
+                        context.getString(
+                            R.string.deleted_projects,
+                            deletedCount
+                        ),
                         Toast.LENGTH_SHORT,
                     ).show()
+
                     homeViewModel.closeDeleteWarningDialog()
                 },
             )
@@ -246,46 +314,83 @@ private fun ProjectListItem(
     onClick: () -> Unit,
 ) {
     ListItem(
-        modifier = Modifier
-            .fillMaxWidth()
-            .combinedClickable(onLongClick = onLongClick, onClick = onClick)
-            .padding(start = 8.dp, end = 8.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .combinedClickable(
+                    onLongClick = onLongClick,
+                    onClick = onClick
+                )
+                .padding(
+                    start = 8.dp,
+                    end = 8.dp
+                ),
+
         headlineContent = {
             Text(
                 text = pwc.project.name,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.titleMedium,
+                style =
+                    MaterialTheme.typography.titleMedium,
             )
         },
+
         leadingContent = {
             if (isSelectionMode) {
-                Checkbox(checked = isSelected, onCheckedChange = { onClick() })
+                Checkbox(
+                    checked = isSelected,
+                    onCheckedChange = {
+                        onClick()
+                    }
+                )
             } else {
-                ProjectListItemIcon(workspacePath = pwc.project.workspacePath)
+                ProjectListItemIcon(
+                    workspacePath =
+                        pwc.project.workspacePath
+                )
             }
         },
+
         trailingContent = {
-            BuildStatusBadge(status = pwc.project.buildStatus)
+            BuildStatusBadge(
+                status = pwc.project.buildStatus
+            )
         },
+
         supportingContent = {
             if (activeSessionPlatformName != null) {
                 Text(
-                    text = stringResource(R.string.home_session_thinking, activeSessionPlatformName),
+                    text =
+                        stringResource(
+                            R.string.home_session_thinking,
+                            activeSessionPlatformName
+                        ),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary,
+                    style =
+                        MaterialTheme.typography.bodyMedium,
+                    color =
+                        MaterialTheme.colorScheme.primary,
                 )
             } else {
-                val displayText = pwc.lastMessageContent?.replace('\n', ' ')?.trim()
-                    ?: formatUpdatedAt(pwc.chat.updatedAt)
+                val displayText =
+                    pwc.lastMessageContent
+                        ?.replace('\n', ' ')
+                        ?.trim()
+                        ?: formatUpdatedAt(
+                            pwc.chat.updatedAt
+                        )
+
                 Text(
                     text = displayText,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style =
+                        MaterialTheme.typography.bodyMedium,
+                    color =
+                        MaterialTheme.colorScheme
+                            .onSurfaceVariant,
                 )
             }
         },
@@ -293,31 +398,61 @@ private fun ProjectListItem(
 }
 
 @Composable
-private fun ProjectListItemIcon(workspacePath: String) {
+private fun ProjectListItemIcon(
+    workspacePath: String
+) {
     val iconSize = 48.dp
-    val iconSizePx = with(LocalDensity.current) { iconSize.roundToPx() }
-    val iconSignature = ProjectIconRenderer.iconSignature(workspacePath)
-    val iconBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(
+
+    val iconSizePx =
+        with(LocalDensity.current) {
+            iconSize.roundToPx()
+        }
+
+    val iconSignature =
+        ProjectIconRenderer.iconSignature(
+            workspacePath
+        )
+
+    val iconBitmap by produceState<
+        androidx.compose.ui.graphics.ImageBitmap?
+    >(
         initialValue = null,
         workspacePath,
         iconSignature,
         iconSizePx,
     ) {
-        value = ProjectIconRenderer.loadProjectIcon(workspacePath, iconSizePx)
+        value =
+            ProjectIconRenderer.loadProjectIcon(
+                workspacePath,
+                iconSizePx
+            )
     }
 
     Box(
-        modifier = Modifier
-            .size(iconSize)
-            .shadow(
-                elevation = 6.dp,
-                shape = RoundedCornerShape(12.dp),
-                ambientColor = Color.Black.copy(alpha = 0.1f),
-                spotColor = Color.Black.copy(alpha = 0.15f),
-            )
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surface),
-        contentAlignment = Alignment.Center,
+        modifier =
+            Modifier
+                .size(iconSize)
+                .shadow(
+                    elevation = 6.dp,
+                    shape =
+                        RoundedCornerShape(12.dp),
+                    ambientColor =
+                        Color.Black.copy(
+                            alpha = 0.1f
+                        ),
+                    spotColor =
+                        Color.Black.copy(
+                            alpha = 0.15f
+                        ),
+                )
+                .clip(
+                    RoundedCornerShape(12.dp)
+                )
+                .background(
+                    MaterialTheme.colorScheme.surface
+                ),
+        contentAlignment =
+            Alignment.Center,
     ) {
         if (iconBitmap != null) {
             Image(
@@ -328,7 +463,10 @@ private fun ProjectListItemIcon(workspacePath: String) {
             )
         } else {
             Icon(
-                imageVector = ImageVector.vectorResource(id = R.drawable.ic_rounded_chat),
+                imageVector =
+                    ImageVector.vectorResource(
+                        id = R.drawable.ic_rounded_chat
+                    ),
                 contentDescription = null,
             )
         }
@@ -336,22 +474,40 @@ private fun ProjectListItemIcon(workspacePath: String) {
 }
 
 @Composable
-private fun BuildStatusBadge(status: ProjectBuildStatus) {
+private fun BuildStatusBadge(
+    status: ProjectBuildStatus
+) {
     when (status) {
-        ProjectBuildStatus.INITIALIZING -> CircularProgressIndicator(
-            modifier = Modifier.padding(4.dp),
-            strokeWidth = 2.dp,
-        )
-        ProjectBuildStatus.SUCCESS -> Badge(containerColor = MaterialTheme.colorScheme.tertiary) {
-            Text("\u2713")
-        }
-        ProjectBuildStatus.FAILED -> Badge(containerColor = MaterialTheme.colorScheme.error) {
-            Text("!")
-        }
-        ProjectBuildStatus.BUILDING -> CircularProgressIndicator(
-            modifier = Modifier.padding(4.dp),
-            strokeWidth = 2.dp,
-        )
+        ProjectBuildStatus.INITIALIZING ->
+            CircularProgressIndicator(
+                modifier =
+                    Modifier.padding(4.dp),
+                strokeWidth = 2.dp,
+            )
+
+        ProjectBuildStatus.SUCCESS ->
+            Badge(
+                containerColor =
+                    MaterialTheme.colorScheme.tertiary
+            ) {
+                Text("\u2713")
+            }
+
+        ProjectBuildStatus.FAILED ->
+            Badge(
+                containerColor =
+                    MaterialTheme.colorScheme.error
+            ) {
+                Text("!")
+            }
+
+        ProjectBuildStatus.BUILDING ->
+            CircularProgressIndicator(
+                modifier =
+                    Modifier.padding(4.dp),
+                strokeWidth = 2.dp,
+            )
+
         ProjectBuildStatus.READY -> Unit
     }
 }
@@ -363,10 +519,31 @@ private fun DeleteProjectsButton(
 ) {
     ExtendedFloatingActionButton(
         onClick = onClick,
-        icon = { Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.delete)) },
-        text = { Text(text = stringResource(R.string.delete) + " ($selectedCount)") },
-        containerColor = MaterialTheme.colorScheme.errorContainer,
-        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+
+        icon = {
+            Icon(
+                Icons.Outlined.Delete,
+                contentDescription =
+                    stringResource(
+                        R.string.delete_platform
+                    )
+            )
+        },
+
+        text = {
+            Text(
+                text =
+                    stringResource(
+                        R.string.delete_platform
+                    ) + " ($selectedCount)"
+            )
+        },
+
+        containerColor =
+            MaterialTheme.colorScheme.errorContainer,
+
+        contentColor =
+            MaterialTheme.colorScheme.onErrorContainer,
     )
 }
 
@@ -383,89 +560,236 @@ private fun HomeTopAppBar(
     searchQuery: String,
 ) {
     TopAppBar(
-        colors = TopAppBarDefaults.topAppBarColors(
-            scrolledContainerColor = if (isSelectionMode) MaterialTheme.colorScheme.primaryContainer else Color.Unspecified,
-            containerColor = if (isSelectionMode) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.background,
-            titleContentColor = if (isSelectionMode) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onBackground,
-        ),
+        colors =
+            TopAppBarDefaults.topAppBarColors(
+                scrolledContainerColor =
+                    if (isSelectionMode)
+                        MaterialTheme.colorScheme
+                            .primaryContainer
+                    else
+                        Color.Unspecified,
+
+                containerColor =
+                    if (isSelectionMode)
+                        MaterialTheme.colorScheme
+                            .primaryContainer
+                    else
+                        MaterialTheme.colorScheme
+                            .background,
+
+                titleContentColor =
+                    if (isSelectionMode)
+                        MaterialTheme.colorScheme
+                            .onPrimaryContainer
+                    else
+                        MaterialTheme.colorScheme
+                            .onBackground,
+            ),
+
         title = {
             when {
                 isSearchMode -> {
                     TextField(
                         value = searchQuery,
-                        onValueChange = onSearchQueryChanged,
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text(stringResource(R.string.search_projects)) },
+                        onValueChange =
+                            onSearchQueryChanged,
+                        modifier =
+                            Modifier.fillMaxWidth(),
+                        placeholder = {
+                            Text(
+                                stringResource(
+                                    R.string.search_projects
+                                )
+                            )
+                        },
                         singleLine = true,
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent,
-                        ),
+                        colors =
+                            TextFieldDefaults.colors(
+                                focusedContainerColor =
+                                    Color.Transparent,
+                                unfocusedContainerColor =
+                                    Color.Transparent,
+                                focusedIndicatorColor =
+                                    Color.Transparent,
+                                unfocusedIndicatorColor =
+                                    Color.Transparent,
+                            ),
                         trailingIcon = {
                             if (searchQuery.isNotEmpty()) {
-                                IconButton(onClick = { onSearchQueryChanged("") }) {
-                                    Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.clear))
+                                IconButton(
+                                    onClick = {
+                                        onSearchQueryChanged("")
+                                    }
+                                ) {
+                                    Icon(
+                                        Icons.Rounded.Close,
+                                        contentDescription =
+                                            stringResource(
+                                                R.string.clear
+                                            )
+                                    )
                                 }
                             }
                         },
                     )
                 }
+
                 isSelectionMode -> {
                     Text(
-                        modifier = Modifier.padding(4.dp),
-                        text = stringResource(R.string.projects_selected, selectedCount),
+                        modifier =
+                            Modifier.padding(4.dp),
+                        text =
+                            stringResource(
+                                R.string.projects_selected,
+                                selectedCount
+                            ),
                         maxLines = 1,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        overflow = TextOverflow.Ellipsis,
+                        color =
+                            MaterialTheme.colorScheme
+                                .onPrimaryContainer,
+                        overflow =
+                            TextOverflow.Ellipsis,
                     )
                 }
+
                 else -> {
                     Text(
-                        modifier = Modifier.padding(4.dp),
-                        text = stringResource(R.string.projects),
+                        modifier =
+                            Modifier.padding(4.dp),
+                        text =
+                            stringResource(
+                                R.string.projects
+                            ),
                         maxLines = 1,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = scrollBehavior.state.overlappedFraction),
-                        overflow = TextOverflow.Ellipsis,
+                        color =
+                            MaterialTheme.colorScheme
+                                .onSurface
+                                .copy(
+                                    alpha =
+                                        scrollBehavior
+                                            .state
+                                            .overlappedFraction
+                                ),
+                        overflow =
+                            TextOverflow.Ellipsis,
                     )
                 }
             }
         },
+
         navigationIcon = {
             when {
-                isSelectionMode -> IconButton(modifier = Modifier.padding(4.dp), onClick = navigationOnClick) {
-                    Icon(Icons.Rounded.Close, tint = MaterialTheme.colorScheme.onPrimaryContainer, contentDescription = stringResource(R.string.close))
+                isSelectionMode -> {
+                    IconButton(
+                        modifier =
+                            Modifier.padding(4.dp),
+                        onClick =
+                            navigationOnClick
+                    ) {
+                        Icon(
+                            Icons.Rounded.Close,
+                            tint =
+                                MaterialTheme.colorScheme
+                                    .onPrimaryContainer,
+                            contentDescription =
+                                stringResource(
+                                    R.string.close
+                                )
+                        )
+                    }
                 }
-                isSearchMode -> IconButton(modifier = Modifier.padding(4.dp), onClick = navigationOnClick) {
-                    Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.close))
+
+                isSearchMode -> {
+                    IconButton(
+                        modifier =
+                            Modifier.padding(4.dp),
+                        onClick =
+                            navigationOnClick
+                    ) {
+                        Icon(
+                            Icons.Rounded.Close,
+                            contentDescription =
+                                stringResource(
+                                    R.string.close
+                                )
+                        )
+                    }
                 }
-                else -> IconButton(modifier = Modifier.padding(4.dp), onClick = navigationOnClick) {
-                    Icon(Icons.Rounded.Search, contentDescription = stringResource(R.string.search_projects))
+
+                else -> {
+                    IconButton(
+                        modifier =
+                            Modifier.padding(4.dp),
+                        onClick =
+                            navigationOnClick
+                    ) {
+                        Icon(
+                            Icons.Rounded.Search,
+                            contentDescription =
+                                stringResource(
+                                    R.string.search_projects
+                                )
+                        )
+                    }
                 }
             }
         },
+
         actions = {
-            if (!isSelectionMode && !isSearchMode) {
-                IconButton(modifier = Modifier.padding(4.dp), onClick = settingsOnClick) {
-                    Icon(Icons.Outlined.Settings, contentDescription = stringResource(R.string.settings))
+            if (
+                !isSelectionMode &&
+                !isSearchMode
+            ) {
+                IconButton(
+                    modifier =
+                        Modifier.padding(4.dp),
+                    onClick = settingsOnClick
+                ) {
+                    Icon(
+                        Icons.Outlined.Settings,
+                        contentDescription =
+                            stringResource(
+                                R.string.settings
+                            )
+                    )
                 }
             }
         },
+
         scrollBehavior = scrollBehavior,
     )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ProjectsTitle(scrollBehavior: TopAppBarScrollBehavior) {
+private fun ProjectsTitle(
+    scrollBehavior: TopAppBarScrollBehavior
+) {
     Text(
-        modifier = Modifier
-            .padding(top = 32.dp)
-            .padding(horizontal = 24.dp, vertical = 16.dp),
-        text = stringResource(R.string.projects),
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 1.0F - scrollBehavior.state.overlappedFraction),
-        style = MaterialTheme.typography.headlineLarge,
+        modifier =
+            Modifier
+                .padding(top = 32.dp)
+                .padding(
+                    horizontal = 24.dp,
+                    vertical = 16.dp
+                ),
+        text =
+            stringResource(
+                R.string.projects
+            ),
+        color =
+            MaterialTheme.colorScheme
+                .onSurface
+                .copy(
+                    alpha =
+                        1.0F -
+                            scrollBehavior
+                                .state
+                                .overlappedFraction
+                ),
+        style =
+            MaterialTheme.typography
+                .headlineLarge,
     )
 }
 
@@ -476,33 +800,71 @@ private fun NewProjectButton(
     isCreating: Boolean = false,
     onClick: () -> Unit = {},
 ) {
-    val orientation = LocalConfiguration.current.orientation
-    val fabModifier = if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
-        modifier.systemBarsPadding()
-    } else {
-        modifier
-    }
+    val orientation =
+        LocalConfiguration.current.orientation
+
+    val fabModifier =
+        if (
+            orientation ==
+                Configuration.ORIENTATION_LANDSCAPE
+        ) {
+            modifier.systemBarsPadding()
+        } else {
+            modifier
+        }
+
     ExtendedFloatingActionButton(
-        modifier = fabModifier
-            .padding(bottom = 16.dp)
-            .shadow(
-                elevation = 12.dp,
-                shape = RoundedCornerShape(16.dp),
-                ambientColor = Color.Black.copy(alpha = 0.2f),
-                spotColor = Color.Black.copy(alpha = 0.35f),
-            ),
-        onClick = { if (!isCreating) onClick() },
-        expanded = expanded,
-        containerColor = Color(0xFF1A1A1A),
-        contentColor = Color.White,
-        icon = {
-            if (isCreating) {
-                CircularProgressIndicator(strokeWidth = 2.dp, color = Color.White)
-            } else {
-                Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.new_project))
+        modifier =
+            fabModifier
+                .padding(bottom = 16.dp)
+                .shadow(
+                    elevation = 12.dp,
+                    shape =
+                        RoundedCornerShape(16.dp),
+                    ambientColor =
+                        Color.Black.copy(alpha = 0.2f),
+                    spotColor =
+                        Color.Black.copy(alpha = 0.35f),
+                ),
+
+        onClick = {
+            if (!isCreating) {
+                onClick()
             }
         },
-        text = { Text(text = stringResource(R.string.new_project)) },
+
+        expanded = expanded,
+
+        containerColor =
+            Color(0xFF1A1A1A),
+
+        contentColor = Color.White,
+
+        icon = {
+            if (isCreating) {
+                CircularProgressIndicator(
+                    strokeWidth = 2.dp,
+                    color = Color.White
+                )
+            } else {
+                Icon(
+                    Icons.Filled.Add,
+                    contentDescription =
+                        stringResource(
+                            R.string.new_project
+                        )
+                )
+            }
+        },
+
+        text = {
+            Text(
+                text =
+                    stringResource(
+                        R.string.new_project
+                    )
+            )
+        },
     )
 }
 
@@ -512,63 +874,166 @@ private fun DeleteWarningDialog(
     onConfirm: () -> Unit,
 ) {
     AlertDialog(
-        onDismissRequest = onDismissRequest,
-        title = { Text(stringResource(R.string.delete_selected_projects)) },
-        text = { Text(stringResource(R.string.this_operation_can_t_be_undone)) },
-        confirmButton = {
-            TextButton(onClick = onConfirm) { Text(stringResource(R.string.delete)) }
+        onDismissRequest =
+            onDismissRequest,
+
+        title = {
+            Text(
+                stringResource(
+                    R.string.delete_selected_projects
+                )
+            )
         },
+
+        text = {
+            Text(
+                stringResource(
+                    R.string.this_operation_can_t_be_undone
+                )
+            )
+        },
+
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm
+            ) {
+                Text(
+                    stringResource(
+                        R.string.delete_platform
+                    )
+                )
+            }
+        },
+
         dismissButton = {
-            TextButton(onClick = onDismissRequest) { Text(stringResource(R.string.cancel)) }
+            TextButton(
+                onClick = onDismissRequest
+            ) {
+                Text(
+                    stringResource(
+                        R.string.cancel
+                    )
+                )
+            }
         },
     )
 }
 
 @Composable
 private fun LazyListState.isScrollingUp(): Boolean {
-    var previousIndex by remember(this) { mutableIntStateOf(firstVisibleItemIndex) }
-    var previousScrollOffset by remember(this) { mutableIntStateOf(firstVisibleItemScrollOffset) }
+    var previousIndex by remember(this) {
+        mutableIntStateOf(
+            firstVisibleItemIndex
+        )
+    }
+
+    var previousScrollOffset by remember(this) {
+        mutableIntStateOf(
+            firstVisibleItemScrollOffset
+        )
+    }
+
     return remember(this) {
         derivedStateOf {
-            if (previousIndex != firstVisibleItemIndex) {
-                previousIndex > firstVisibleItemIndex
+            if (
+                previousIndex !=
+                firstVisibleItemIndex
+            ) {
+                previousIndex >
+                    firstVisibleItemIndex
             } else {
-                previousScrollOffset >= firstVisibleItemScrollOffset
+                previousScrollOffset >=
+                    firstVisibleItemScrollOffset
             }.also {
-                previousIndex = firstVisibleItemIndex
-                previousScrollOffset = firstVisibleItemScrollOffset
+                previousIndex =
+                    firstVisibleItemIndex
+
+                previousScrollOffset =
+                    firstVisibleItemScrollOffset
             }
         }
     }.value
 }
 
-private fun formatUpdatedAt(unixSeconds: Long): String {
-    val date = Date(unixSeconds * 1000)
-    val now = Calendar.getInstance()
-    val target = Calendar.getInstance().apply { time = date }
+private fun formatUpdatedAt(
+    unixSeconds: Long
+): String {
+    val date =
+        Date(unixSeconds * 1000)
+
+    val now =
+        Calendar.getInstance()
+
+    val target =
+        Calendar.getInstance().apply {
+            time = date
+        }
 
     return when {
-        isSameDay(now, target) -> SimpleDateFormat("HH:mm", Locale.getDefault()).format(date)
+        isSameDay(now, target) ->
+            SimpleDateFormat(
+                "HH:mm",
+                Locale.getDefault()
+            ).format(date)
+
         isYesterday(now, target) -> {
-            val locale = Locale.getDefault()
-            val yesterday = if (locale.language == "zh") "昨天" else "Yesterday"
-            "$yesterday ${SimpleDateFormat("HH:mm", locale).format(date)}"
+            val locale =
+                Locale.getDefault()
+
+            val yesterday =
+                if (locale.language == "zh")
+                    "昨天"
+                else
+                    "Yesterday"
+
+            "$yesterday ${
+                SimpleDateFormat(
+                    "HH:mm",
+                    locale
+                ).format(date)
+            }"
         }
-        now.get(Calendar.YEAR) == target.get(Calendar.YEAR) ->
-            SimpleDateFormat("MM/dd", Locale.getDefault()).format(date)
+
+        now.get(Calendar.YEAR) ==
+            target.get(Calendar.YEAR) ->
+            SimpleDateFormat(
+                "MM/dd",
+                Locale.getDefault()
+            ).format(date)
+
         else ->
-            SimpleDateFormat("yyyy/MM/dd", Locale.getDefault()).format(date)
+            SimpleDateFormat(
+                "yyyy/MM/dd",
+                Locale.getDefault()
+            ).format(date)
     }
 }
 
-private fun isSameDay(a: Calendar, b: Calendar): Boolean =
-    a.get(Calendar.YEAR) == b.get(Calendar.YEAR) &&
-        a.get(Calendar.DAY_OF_YEAR) == b.get(Calendar.DAY_OF_YEAR)
+private fun isSameDay(
+    a: Calendar,
+    b: Calendar
+): Boolean =
+    a.get(Calendar.YEAR) ==
+        b.get(Calendar.YEAR) &&
+        a.get(Calendar.DAY_OF_YEAR) ==
+        b.get(Calendar.DAY_OF_YEAR)
 
-private fun isYesterday(now: Calendar, target: Calendar): Boolean {
-    val yesterday = Calendar.getInstance().apply {
-        timeInMillis = now.timeInMillis
-        add(Calendar.DAY_OF_YEAR, -1)
-    }
-    return isSameDay(yesterday, target)
+private fun isYesterday(
+    now: Calendar,
+    target: Calendar
+): Boolean {
+    val yesterday =
+        Calendar.getInstance().apply {
+            timeInMillis =
+                now.timeInMillis
+            add(
+                Calendar.DAY_OF_YEAR,
+                -1
+            )
+        }
+
+    return isSameDay(
+        yesterday,
+        target
+    )
 }

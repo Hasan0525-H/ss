@@ -13,176 +13,67 @@ import javax.inject.Singleton
 class OpenRouterModelsAPI @Inject constructor(
     private val client: HttpClient,
 ) {
-
     /**
-     * Fetch OpenRouter models.
-     *
-     * This API is used ONLY for OpenRouter.
-     *
-     * isFreeOnly:
-     *
-     * true:
-     * return free models only.
-     *
-     * false:
-     * return paid models only,
-     * sorted from cheapest to most expensive.
+     * Loads the live OpenRouter text-model catalog and keeps only models that
+     * currently advertise tool calling. This prevents chat-only, image/audio,
+     * stale hard-coded, or otherwise unsuitable entries from being offered to
+     * VibeApp's app-building agent.
      */
     suspend fun fetchOpenRouterModels(
         apiKey: String,
         isFreeOnly: Boolean,
     ): List<OpenRouterModel> {
+        val response = requestModels(apiKey)
 
-        val response =
-            requestModels(
-                apiKey = apiKey
-            )
+        val compatibleModels = response.data.asSequence()
+            .filter { it.supportsTools }
 
         return if (isFreeOnly) {
-
-            response.data
-                .asSequence()
-                .filter { model ->
-
-                    model.pricing
-                        ?.isFree ==
-                        true
-                }
-                .sortedBy { model ->
-
-                    model.name
-                        ?.takeIf {
-                            it.isNotBlank()
-                        }
-                        ?: model.id
-                }
+            compatibleModels
+                .filter { it.pricing?.isFree == true }
+                .sortedBy { it.name?.takeIf(String::isNotBlank) ?: it.id }
                 .toList()
-
         } else {
-
-            response.data
-                .asSequence()
-                .filter { model ->
-
-                    model.pricing
-                        ?.isFree ==
-                        false
-                }
-                .sortedBy { model ->
-
-                    model.pricing
-                        ?.averagePrice
-                        ?: Double.MAX_VALUE
-                }
+            compatibleModels
+                .filter { it.pricing?.isFree == false }
+                .sortedWith(
+                    compareBy<OpenRouterModel> {
+                        it.pricing?.averagePrice ?: Double.MAX_VALUE
+                    }.thenBy {
+                        it.name?.takeIf(String::isNotBlank) ?: it.id
+                    }
+                )
                 .toList()
         }
     }
 
-    /**
-     * Fetch all OpenRouter models without
-     * Free / Paid filtering.
-     *
-     * Kept for compatibility with existing
-     * code that needs the raw response object.
-     */
-    suspend fun getModels(
-        token: String,
-    ): OpenRouterModelsResponse {
+    suspend fun getModels(token: String): OpenRouterModelsResponse =
+        requestModels(token)
 
-        return requestModels(
-            apiKey = token
-        )
+    private suspend fun requestModels(apiKey: String): OpenRouterModelsResponse {
+        val normalizedApiKey = normalizeApiKey(apiKey)
+
+        return client.get(OPENROUTER_MODELS_URL) {
+            header("Authorization", "Bearer $normalizedApiKey")
+            header("HTTP-Referer", APP_REFERER)
+            header("X-Title", APP_TITLE)
+        }.body()
     }
 
-    /**
-     * Execute the OpenRouter models request.
-     *
-     * This is the single network path used by
-     * both:
-     *
-     * - fetchOpenRouterModels()
-     * - getModels()
-     */
-    private suspend fun requestModels(
-        apiKey: String,
-    ): OpenRouterModelsResponse {
-
-        val normalizedApiKey =
-            normalizeApiKey(
-                apiKey
+    private fun normalizeApiKey(rawApiKey: String): String {
+        val trimmed = rawApiKey.trim()
+        val normalized = if (
+            trimmed.startsWith(
+                prefix = "Bearer ",
+                ignoreCase = true,
             )
-
-        return client
-            .get(
-                OPENROUTER_MODELS_URL
-            ) {
-
-                header(
-                    "Authorization",
-                    "Bearer $normalizedApiKey"
-                )
-
-                /*
-                 * Optional OpenRouter attribution
-                 * headers.
-                 */
-                header(
-                    "HTTP-Referer",
-                    APP_REFERER
-                )
-
-                header(
-                    "X-Title",
-                    APP_TITLE
-                )
-            }
-            .body()
-    }
-
-    /**
-     * Normalize an API key.
-     *
-     * Accepted input:
-     *
-     * sk-or-...
-     *
-     * Bearer sk-or-...
-     *
-     * bearer sk-or-...
-     *
-     * The returned value NEVER includes
-     * the "Bearer " prefix.
-     */
-    private fun normalizeApiKey(
-        rawApiKey: String,
-    ): String {
-
-        val trimmed =
-            rawApiKey.trim()
-
-        val normalized =
-            if (
-                trimmed.startsWith(
-                    prefix = "Bearer ",
-                    ignoreCase = true,
-                )
-            ) {
-
-                trimmed
-                    .substring(
-                        startIndex =
-                            "Bearer ".length
-                    )
-                    .trim()
-
-            } else {
-
-                trimmed
-            }
-
-        require(
-            normalized.isNotBlank()
         ) {
+            trimmed.substring("Bearer ".length).trim()
+        } else {
+            trimmed
+        }
+
+        require(normalized.isNotBlank()) {
             "OpenRouter API key is empty"
         }
 
@@ -190,20 +81,15 @@ class OpenRouterModelsAPI @Inject constructor(
     }
 
     companion object {
-
         /**
-         * Official OpenRouter models endpoint.
+         * Official OpenRouter endpoint with server-side capability filtering.
+         * OpenRouter documents both output_modalities=text and
+         * supported_parameters=tools for this endpoint.
          */
         private const val OPENROUTER_MODELS_URL =
-            "https://openrouter.ai/api/v1/models"
+            "https://openrouter.ai/api/v1/models?output_modalities=text&supported_parameters=tools"
 
-        /**
-         * OpenRouter attribution headers.
-         */
-        private const val APP_REFERER =
-            "https://vibe.app"
-
-        private const val APP_TITLE =
-            "Vibe App"
+        private const val APP_REFERER = "https://vibe.app"
+        private const val APP_TITLE = "Vibe App"
     }
 }

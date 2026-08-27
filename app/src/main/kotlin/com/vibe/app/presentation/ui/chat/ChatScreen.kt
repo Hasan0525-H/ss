@@ -202,12 +202,10 @@ fun ChatScreen(
     var isClearChatDialogOpen by remember { mutableStateOf(false) }
     var showNotificationRationale by remember { mutableStateOf(false) }
 
-    // Notification permission request (Android 13+)
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { /* granted or denied — agent session proceeds regardless */ }
+    ) { }
 
-    // Check and request notification permission before first agent session
     fun ensureNotificationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val granted = ContextCompat.checkSelfPermission(
@@ -227,7 +225,6 @@ fun ChatScreen(
         }
     }
 
-    // Whether the user is currently near the bottom of the list (within 3 items)
     val isNearBottom by remember {
         derivedStateOf {
             listState.firstVisibleItemIndex == 0 &&
@@ -235,15 +232,10 @@ fun ChatScreen(
         }
     }
 
-    // Show scroll-to-bottom button only when scrolled far enough from bottom (>= 5 items away)
     val showScrollToBottom by remember {
-        derivedStateOf {
-            !isNearBottom
-        }
+        derivedStateOf { !isNearBottom }
     }
 
-    // With reverseLayout enabled, item index 0 is the visual bottom.
-    // Re-entering the screen should always anchor there.
     LaunchedEffect(isLoaded) {
         if (isLoaded) {
             snapshotFlow { listState.layoutInfo.totalItemsCount }
@@ -252,8 +244,6 @@ fun ChatScreen(
         }
     }
 
-    // Auto-scroll when a new user message is sent (not on initial load).
-    // Uses a remembered baseline to distinguish DB-loaded messages from new ones.
     val messageCount = groupedMessages.userMessages.size
     var loadedMessageCount by remember { mutableIntStateOf(-1) }
     LaunchedEffect(isLoaded) {
@@ -268,18 +258,16 @@ fun ChatScreen(
         }
     }
 
-    // Auto-scroll when crash prompt appears
     LaunchedEffect(crashPrompt) {
         if (crashPrompt != null) {
             scrollToBottom()
         }
     }
 
-    // Auto-scroll to bottom when keyboard opens
     val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     LaunchedEffect(imeVisible) {
         if (imeVisible) {
-            delay(100) // Small delay to let keyboard animation start
+            delay(100)
             scrollToBottom()
         }
     }
@@ -304,7 +292,6 @@ fun ChatScreen(
         }
     }
 
-    // Re-sync platforms, messages, and check for new crash logs when returning from plugin/settings
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
@@ -356,7 +343,11 @@ fun ChatScreen(
                         if (apkPath != null) {
                             shareApk(context, apkPath)
                         } else {
-                            Toast.makeText(context, "No built APK found. Please run a build first.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.no_built_apk),
+                                Toast.LENGTH_SHORT,
+                            ).show()
                         }
                     }
                 },
@@ -379,14 +370,9 @@ fun ChatScreen(
                     .weight(1f)
                     .fillMaxWidth()
             ) {
-                // Structural state derived from groupedMessages — only changes when the
-                // *number* of items changes (new message / new agent step), NOT on every
-                // streaming token.  This prevents the LazyColumn DSL from re-executing on
-                // every token update, which was causing visual duplicates during scroll.
                 val messageCount by remember {
                     derivedStateOf { groupedMessages.userMessages.size }
                 }
-                // Per-turn list of step indices that should be shown (non-OUTPUT steps).
                 val stepIndicesPerTurn by remember {
                     derivedStateOf {
                         groupedMessages.agentSteps.map { steps ->
@@ -411,8 +397,6 @@ fun ChatScreen(
                             )
                         }
                     }
-                    // reverseLayout makes index 0 the visual bottom, so declare the newest
-                    // rows first to keep the latest turn anchored there without a follow-up scroll.
                     for (i in messageCount - 1 downTo 0) {
                         item(key = "assistant_$i") {
                             val platformIndexState = indexStates.getOrElse(i) { 0 }
@@ -437,8 +421,6 @@ fun ChatScreen(
                                     onCopyClick = { scope.launch { clipboardManager.setClipEntry(ClipEntry(ClipData.newPlainText(assistantContent, assistantContent))) } },
                                     onSelectClick = { chatViewModel.openSelectTextSheet(assistantContent) },
                                 )
-                                // Show undo bar only beneath the latest completed turn, and only
-                                // when there are at least 2 TURN snapshots (guaranteed by VM).
                                 if (isLastTurn && !isTurnLoading) {
                                     lastTurnSnapshot?.let { snap ->
                                         TurnUndoBar(
@@ -506,8 +488,6 @@ fun ChatScreen(
                         }
 
                         item(key = "user_$i") {
-                            // Content reads inside item lambda — only this item recomposes
-                            // when content changes, without rebuilding the full item list.
                             val message = groupedMessages.userMessages.getOrNull(i) ?: return@item
                             var isDropDownMenuExpanded by remember { mutableStateOf(false) }
                             Column(
@@ -725,13 +705,13 @@ private fun MissingPlatformPromptCard(
                         .weight(1f)
                 ) {
                     Text(
-                        text = "Add API Key",
+                        text = stringResource(R.string.add_api_key),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
                         modifier = Modifier.padding(top = 4.dp),
-                        text = "Please add an API key to start chatting.",
+                        text = stringResource(R.string.add_api_key_to_start_chatting),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -798,7 +778,7 @@ private fun ChatTopBar(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.PlayArrow,
-                        contentDescription = "Run"
+                        contentDescription = stringResource(R.string.run)
                     )
                 }
                 IconButton(
@@ -887,7 +867,6 @@ fun ChatDropdownMenu(
         shape = RoundedCornerShape(16.dp),
         shadowElevation = 8.dp,
     ) {
-        // -- Project --
         DropdownMenuItem(
             enabled = isProjectMenuEnabled,
             text = { Text(text = stringResource(R.string.update_project_name)) },
@@ -923,7 +902,6 @@ fun ChatDropdownMenu(
 
         HorizontalDivider(modifier = Modifier.padding(horizontal = 12.dp))
 
-        // -- Export --
         DropdownMenuItem(
             enabled = isChatMenuEnabled,
             text = { Text(text = stringResource(R.string.export_chat)) },
@@ -954,7 +932,6 @@ fun ChatDropdownMenu(
 
         HorizontalDivider(modifier = Modifier.padding(horizontal = 12.dp))
 
-        // -- Chat management --
         DropdownMenuItem(
             enabled = isChatMenuEnabled,
             text = {
@@ -973,7 +950,6 @@ fun ChatDropdownMenu(
             },
         )
 
-        // -- Debug (conditional) --
         if (isDebugEnabled) {
             HorizontalDivider(modifier = Modifier.padding(horizontal = 12.dp))
             DropdownMenuItem(
@@ -1037,7 +1013,11 @@ private suspend fun exportSourceCode(context: Context, projectId: String) {
     try {
         val sourceDir = File(context.filesDir, "projects/$projectId/app")
         if (!sourceDir.exists()) {
-            Toast.makeText(context, "Project workspace not found", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                context,
+                context.getString(R.string.project_workspace_not_found),
+                Toast.LENGTH_SHORT
+            ).show()
             return
         }
         val zipFileName = "${projectId}_source.zip"
@@ -1048,7 +1028,6 @@ private suspend fun exportSourceCode(context: Context, projectId: String) {
             ZipOutputStream(zipFile.outputStream().buffered()).use { zos ->
                 sourceDir.walkTopDown()
                     .filter { file ->
-                        // Exclude build output to keep zip size small
                         file.toRelativeString(sourceDir).split(File.separator).none { it == "build" }
                     }
                     .forEach { file ->
@@ -1067,7 +1046,10 @@ private suspend fun exportSourceCode(context: Context, projectId: String) {
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        val chooser = Intent.createChooser(shareIntent, "Share Source Code").apply {
+        val chooser = Intent.createChooser(
+            shareIntent,
+            context.getString(R.string.share_source_code)
+        ).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         val resInfo = context.packageManager.queryIntentActivities(chooser, PackageManager.MATCH_DEFAULT_ONLY)
@@ -1077,7 +1059,11 @@ private suspend fun exportSourceCode(context: Context, projectId: String) {
         context.startActivity(chooser)
     } catch (e: Exception) {
         Log.e("ExportSource", "Failed to export source code", e)
-        Toast.makeText(context, "Failed to export source code", Toast.LENGTH_SHORT).show()
+        Toast.makeText(
+            context,
+            context.getString(R.string.failed_export_source_code),
+            Toast.LENGTH_SHORT
+        ).show()
     }
 }
 
@@ -1085,7 +1071,11 @@ private fun shareApk(context: Context, apkPath: String) {
     try {
         val file = File(apkPath)
         if (!file.exists()) {
-            Toast.makeText(context, "APK file not found", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                context,
+                context.getString(R.string.apk_file_not_found),
+                Toast.LENGTH_SHORT
+            ).show()
             return
         }
         val uri = getUriForFile(context, "${context.packageName}.fileprovider", file)
@@ -1094,7 +1084,10 @@ private fun shareApk(context: Context, apkPath: String) {
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        val chooser = Intent.createChooser(shareIntent, "Share APK").apply {
+        val chooser = Intent.createChooser(
+            shareIntent,
+            context.getString(R.string.share_apk)
+        ).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         val resInfo = context.packageManager.queryIntentActivities(chooser, PackageManager.MATCH_DEFAULT_ONLY)
@@ -1104,7 +1097,11 @@ private fun shareApk(context: Context, apkPath: String) {
         context.startActivity(chooser)
     } catch (e: Exception) {
         Log.e("ExportApk", "Failed to share APK", e)
-        Toast.makeText(context, "Failed to share APK", Toast.LENGTH_SHORT).show()
+        Toast.makeText(
+            context,
+            context.getString(R.string.failed_share_apk),
+            Toast.LENGTH_SHORT
+        ).show()
     }
 }
 
@@ -1155,7 +1152,10 @@ private suspend fun exportChat(context: Context, chatViewModel: ChatViewModel) {
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        val chooser = Intent.createChooser(shareIntent, "Share Chat Export").apply {
+        val chooser = Intent.createChooser(
+            shareIntent,
+            context.getString(R.string.share_chat_export)
+        ).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         val resInfo = context.packageManager.queryIntentActivities(chooser, PackageManager.MATCH_DEFAULT_ONLY)
@@ -1165,7 +1165,11 @@ private suspend fun exportChat(context: Context, chatViewModel: ChatViewModel) {
         context.startActivity(chooser)
     } catch (e: Exception) {
         Log.e("ChatExport", "Failed to export chat", e)
-        Toast.makeText(context, "Failed to export chat", Toast.LENGTH_SHORT).show()
+        Toast.makeText(
+            context,
+            context.getString(R.string.failed_export_chat),
+            Toast.LENGTH_SHORT
+        ).show()
     }
 }
 
@@ -1190,7 +1194,7 @@ fun ChatInputBox(
     val mergedStyle = localStyle.merge(TextStyle(color = LocalContentColor.current))
     val context = LocalContext.current
     val supportedImageFormatsText = stringResource(R.string.supported_image_formats)
-    val failedToSelectImageText = "Failed to select image"
+    val failedToSelectImageText = stringResource(R.string.failed_to_select_image)
 
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -1427,7 +1431,6 @@ private fun copyFileToAppDirectory(context: Context, uri: android.net.Uri): Stri
 
         var targetFile = File(attachmentsDir, sanitizedFileName)
 
-        // If file exists, append timestamp to avoid overwrites
         if (targetFile.exists()) {
             val nameWithoutExt = sanitizedFileName.substringBeforeLast(".")
             val ext = sanitizedFileName.substringAfterLast(".", "")
@@ -1439,7 +1442,6 @@ private fun copyFileToAppDirectory(context: Context, uri: android.net.Uri): Stri
             targetFile = File(attachmentsDir, uniqueName)
         }
 
-        // Verify canonical path is within attachments directory to prevent path traversal
         val attachmentsDirCanonical = attachmentsDir.canonicalPath
         val targetFileCanonical = targetFile.canonicalPath
         if (!targetFileCanonical.startsWith(attachmentsDirCanonical + File.separator) &&
@@ -1476,19 +1478,16 @@ private fun getFileName(context: Context, uri: android.net.Uri): String {
 private fun sanitizeFileName(fileName: String): String {
     val maxLength = 200
 
-    // Remove path separators and ".." segments
     val withoutPathTraversal = fileName
         .replace("..", "")
         .replace("/", "")
         .replace("\\", "")
 
-    // Keep only safe characters: alphanumerics, dash, underscore, dot
     val sanitized = withoutPathTraversal
         .filter { it.isLetterOrDigit() || it == '-' || it == '_' || it == '.' }
         .take(maxLength)
         .trim('.')
 
-    // If sanitized name is empty, generate a fallback
     return sanitized.ifEmpty { "attachment_${System.currentTimeMillis()}" }
 }
 

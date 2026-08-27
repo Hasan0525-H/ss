@@ -1,25 +1,25 @@
 package com.vibe.app.presentation.ui.setting
 
 import android.widget.Toast
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Thermostat
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.VpnKey
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -32,11 +32,17 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.vibe.app.R
 import com.vibe.app.data.model.ClientType
 import com.vibe.app.data.model.GoogleAiStudioModelCatalog
-import com.vibe.app.presentation.common.SettingItem
 import com.vibe.app.presentation.ui.components.ModelCatalogSelector
 import com.vibe.app.presentation.ui.components.PlatformTopAppBar
 import com.vibe.app.presentation.ui.components.PreferenceSwitchWithContainer
+import com.vibe.app.presentation.ui.components.ReferenceCard
+import com.vibe.app.presentation.ui.components.ReferenceDivider
+import com.vibe.app.presentation.ui.components.ReferenceInfoBanner
+import com.vibe.app.presentation.ui.components.ReferenceSectionLabel
+import com.vibe.app.presentation.ui.components.ReferenceSettingRow
+import com.vibe.app.presentation.ui.components.ReferenceSliderCard
 import com.vibe.app.util.pinnedExitUntilCollapsedScrollBehavior
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,6 +67,12 @@ fun PlatformSettingScreen(
 
     var isFreeFilter by remember(platform?.uid) {
         mutableStateOf(platform?.isFree ?: true)
+    }
+    var temperatureValue by remember(platform?.uid) {
+        mutableFloatStateOf(platform?.temperature ?: 1f)
+    }
+    var topPValue by remember(platform?.uid) {
+        mutableFloatStateOf(platform?.topP ?: 1f)
     }
 
     val context = LocalContext.current
@@ -99,6 +111,8 @@ fun PlatformSettingScreen(
         val isOpenRouter =
             platformData.compatibleType == ClientType.OPEN_ROUTER
         val isCatalogProvider = isGoogleAIStudio || isOpenRouter
+        val isReasoningDisabled =
+            platformData.compatibleType == ClientType.OPENAI && platformData.reasoning
 
         val models = if (isGoogleAIStudio) {
             GoogleAiStudioModelCatalog.models(isFreeOnly = isFreeFilter)
@@ -126,7 +140,7 @@ fun PlatformSettingScreen(
                 modifier = Modifier
                     .padding(paddingValues)
                     .verticalScroll(scrollState)
-                    .padding(bottom = 24.dp)
+                    .padding(bottom = 30.dp)
             ) {
                 PreferenceSwitchWithContainer(
                     title = stringResource(R.string.enable_api),
@@ -134,118 +148,126 @@ fun PlatformSettingScreen(
                     onCheckedChange = { settingViewModel.toggleEnabled() },
                 )
 
-                SettingsCard {
-                    SettingItem(
-                        modifier = Modifier.height(72.dp),
+                ReferenceSectionLabel(
+                    text = stringResource(R.string.connection_settings),
+                )
+
+                ReferenceCard {
+                    ReferenceSettingRow(
                         title = stringResource(R.string.platform_name),
-                        description = platformData.name,
+                        value = platformData.name,
+                        icon = Icons.Outlined.Person,
                         enabled = platformData.enabled,
-                        onItemClick = settingViewModel::openPlatformNameDialog,
-                        showTrailingIcon = false,
+                        onClick = settingViewModel::openPlatformNameDialog,
                     )
-                    SettingsDivider()
-                    SettingItem(
-                        modifier = Modifier.height(72.dp),
+                    ReferenceDivider()
+                    ReferenceSettingRow(
                         title = stringResource(R.string.api_url),
-                        description = platformData.apiUrl,
+                        value = platformData.apiUrl,
+                        icon = Icons.Outlined.Link,
                         enabled = platformData.enabled,
-                        onItemClick = settingViewModel::openApiUrlDialog,
-                        showTrailingIcon = false,
+                        onClick = settingViewModel::openApiUrlDialog,
                     )
-                    SettingsDivider()
-                    SettingItem(
-                        modifier = Modifier.height(72.dp),
+                    ReferenceDivider()
+                    ReferenceSettingRow(
                         title = if (isGoogleAIStudio) {
                             stringResource(R.string.google_ai_studio_api_key)
                         } else {
                             stringResource(R.string.api_key)
                         },
-                        description = if (platformData.token.isNullOrBlank()) {
+                        value = if (platformData.token.isNullOrBlank()) {
                             stringResource(R.string.not_set)
                         } else {
-                            "${platformData.token!!.take(4)}*****"
+                            "•••••${platformData.token!!.takeLast(4)}"
                         },
+                        icon = Icons.Outlined.VpnKey,
                         enabled = platformData.enabled,
-                        onItemClick = settingViewModel::openApiTokenDialog,
-                        showTrailingIcon = false,
+                        onClick = settingViewModel::openApiTokenDialog,
                     )
                 }
 
-                SettingsCard {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Text(
-                            text = if (isGoogleAIStudio) {
-                                stringResource(R.string.google_ai_studio_model_description)
-                            } else {
-                                stringResource(R.string.api_model)
+                Spacer(Modifier.height(16.dp))
+
+                ReferenceInfoBanner(
+                    text = if (isGoogleAIStudio) {
+                        stringResource(R.string.google_ai_studio_model_description)
+                    } else {
+                        stringResource(R.string.model_selector_hint)
+                    },
+                )
+
+                Spacer(Modifier.height(14.dp))
+
+                if (isCatalogProvider) {
+                    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                        ModelCatalogSelector(
+                            providerType = platformData.compatibleType,
+                            selectedModel = platformData.model,
+                            isFreePlan = isFreeFilter,
+                            models = models,
+                            isLoading = isOpenRouter && isLoadingOpenRouterModels,
+                            enabled = platformData.enabled,
+                            onPlanTypeChange = { isFree ->
+                                isFreeFilter = isFree
+                                settingViewModel.updatePlatform(
+                                    platformData.copy(isFree = isFree)
+                                )
+                                if (isOpenRouter && !platformData.token.isNullOrBlank()) {
+                                    settingViewModel.loadModels(isFreeOnly = isFree)
+                                }
                             },
-                            style = MaterialTheme.typography.titleMedium,
+                            onModelSelected = { modelInfo ->
+                                settingViewModel.updateApiModel(modelInfo.id)
+                            },
                         )
-
-                        Spacer(Modifier.height(12.dp))
-
-                        if (isCatalogProvider) {
-                            ModelCatalogSelector(
-                                providerType = platformData.compatibleType,
-                                selectedModel = platformData.model,
-                                isFreePlan = isFreeFilter,
-                                models = models,
-                                isLoading = isOpenRouter && isLoadingOpenRouterModels,
-                                enabled = platformData.enabled,
-                                onPlanTypeChange = { isFree ->
-                                    isFreeFilter = isFree
-                                    settingViewModel.updatePlatform(
-                                        platformData.copy(isFree = isFree)
-                                    )
-                                    if (isOpenRouter && !platformData.token.isNullOrBlank()) {
-                                        settingViewModel.loadModels(
-                                            isFreeOnly = isFree
-                                        )
-                                    }
-                                },
-                                onModelSelected = { modelInfo ->
-                                    settingViewModel.updateApiModel(modelInfo.id)
-                                },
-                            )
-                        } else {
-                            SettingItem(
-                                modifier = Modifier.height(72.dp),
-                                title = stringResource(R.string.api_model),
-                                description = displayedModel,
-                                enabled = platformData.enabled,
-                                onItemClick = settingViewModel::openApiModelDialog,
-                                showTrailingIcon = false,
-                            )
-                        }
+                    }
+                } else {
+                    ReferenceCard {
+                        ReferenceSettingRow(
+                            title = stringResource(R.string.api_model),
+                            value = displayedModel,
+                            icon = Icons.Outlined.Tune,
+                            enabled = platformData.enabled,
+                            onClick = settingViewModel::openApiModelDialog,
+                        )
                     }
                 }
 
-                val isReasoningDisabled =
-                    platformData.compatibleType == ClientType.OPENAI &&
-                        platformData.reasoning
-                val notSetText = stringResource(R.string.not_set)
+                Spacer(Modifier.height(16.dp))
 
-                SettingsCard {
-                    SettingItem(
-                        modifier = Modifier.height(72.dp),
-                        title = stringResource(R.string.temperature),
-                        description = platformData.temperature?.toString() ?: notSetText,
-                        enabled = platformData.enabled && !isReasoningDisabled,
-                        onItemClick = settingViewModel::openTemperatureDialog,
-                        showTrailingIcon = false,
-                    )
-                    SettingsDivider()
-                    SettingItem(
-                        modifier = Modifier.height(72.dp),
-                        title = stringResource(R.string.top_p),
-                        description = platformData.topP?.toString() ?: notSetText,
-                        enabled = platformData.enabled && !isReasoningDisabled,
-                        onItemClick = settingViewModel::openTopPDialog,
-                        showTrailingIcon = false,
-                    )
-                }
+                ReferenceSliderCard(
+                    title = stringResource(R.string.temperature),
+                    description = stringResource(R.string.temperature_description),
+                    value = temperatureValue,
+                    valueText = String.format(Locale.US, "%.1f", temperatureValue),
+                    valueRange = 0f..2f,
+                    onValueChange = { temperatureValue = it },
+                    onValueChangeFinished = {
+                        settingViewModel.updatePlatform(
+                            platformData.copy(temperature = temperatureValue)
+                        )
+                    },
+                    icon = Icons.Outlined.Thermostat,
+                    enabled = platformData.enabled && !isReasoningDisabled,
+                )
+
+                Spacer(Modifier.height(12.dp))
+
+                ReferenceSliderCard(
+                    title = stringResource(R.string.top_p),
+                    description = stringResource(R.string.top_p_description),
+                    value = topPValue,
+                    valueText = String.format(Locale.US, "%.2f", topPValue),
+                    valueRange = 0f..1f,
+                    onValueChange = { topPValue = it },
+                    onValueChangeFinished = {
+                        settingViewModel.updatePlatform(
+                            platformData.copy(topP = topPValue)
+                        )
+                    },
+                    icon = Icons.Outlined.Tune,
+                    enabled = platformData.enabled && !isReasoningDisabled,
+                )
 
                 PlatformNameDialog(
                     dialogState = dialogState,
@@ -266,16 +288,6 @@ fun PlatformSettingScreen(
                     model = platformData.model,
                     settingViewModel = settingViewModel,
                 )
-                TemperatureDialog(
-                    dialogState = dialogState,
-                    temperature = platformData.temperature,
-                    settingViewModel = settingViewModel,
-                )
-                TopPDialog(
-                    dialogState = dialogState,
-                    topP = platformData.topP,
-                    settingViewModel = settingViewModel,
-                )
                 DeletePlatformDialog(
                     dialogState = dialogState,
                     settingViewModel = settingViewModel,
@@ -283,34 +295,4 @@ fun PlatformSettingScreen(
             }
         }
     }
-}
-
-@Composable
-private fun SettingsCard(
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-        shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-        ),
-        border = BorderStroke(
-            width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant,
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-    ) {
-        Column(content = content)
-    }
-}
-
-@Composable
-private fun SettingsDivider() {
-    HorizontalDivider(
-        modifier = Modifier.padding(horizontal = 16.dp),
-        color = MaterialTheme.colorScheme.outlineVariant,
-    )
 }

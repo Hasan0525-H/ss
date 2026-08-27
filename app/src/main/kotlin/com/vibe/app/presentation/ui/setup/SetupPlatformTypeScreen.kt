@@ -33,14 +33,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.vibe.app.R
 import com.vibe.app.data.model.ClientType
 
-
 data class PlatformTypeInfo(
     val clientType: ClientType,
     val titleResId: Int,
     val descriptionResId: Int
 )
-
-
 
 private val platformTypes = listOf(
 
@@ -51,14 +48,17 @@ private val platformTypes = listOf(
     ),
 
     PlatformTypeInfo(
+        clientType = ClientType.GOOGLE_AI_STUDIO,
+        titleResId = R.string.google_ai_studio,
+        descriptionResId = R.string.google_ai_studio_description
+    ),
+
+    PlatformTypeInfo(
         clientType = ClientType.CUSTOM,
         titleResId = R.string.custom_api,
         descriptionResId = R.string.custom_api_description
     )
-
 )
-
-
 
 @Composable
 fun SetupPlatformTypeScreen(
@@ -67,48 +67,32 @@ fun SetupPlatformTypeScreen(
     onPlatformTypeSelected: () -> Unit,
     onBackAction: () -> Unit
 ) {
-
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
             SetupAppBar(onBackAction)
         }
-
     ) { innerPadding ->
 
-
         Column(
-
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
-
         ) {
-
 
             PlatformTypeHeader()
 
-
-
             LazyColumn(
-
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
-
-                verticalArrangement =
-                    Arrangement.spacedBy(12.dp)
-
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-
 
                 items(platformTypes) { platformTypeInfo ->
 
-
                     PlatformTypeCard(
-
                         platformTypeInfo = platformTypeInfo,
-
                         onClick = {
 
                             setupViewModel.selectClientType(
@@ -116,86 +100,51 @@ fun SetupPlatformTypeScreen(
                             )
 
                             onPlatformTypeSelected()
-
                         }
-
                     )
-
                 }
 
-
                 item {
-
                     Spacer(
                         modifier = Modifier.height(16.dp)
                     )
-
                 }
-
             }
-
         }
-
     }
-
 }
-
-
 
 @Composable
 private fun PlatformTypeHeader(
     modifier: Modifier = Modifier
 ) {
-
     Column(
-
         modifier = modifier
             .fillMaxWidth()
             .padding(20.dp)
-
     ) {
 
-
         Text(
-
             modifier = Modifier
                 .padding(4.dp)
                 .semantics {
                     heading()
                 },
-
-            text =
-                stringResource(
-                    R.string.choose_platform_type
-                ),
-
-            style =
-                MaterialTheme.typography.headlineMedium
-
+            text = stringResource(
+                R.string.choose_platform_type
+            ),
+            style = MaterialTheme.typography.headlineMedium
         )
-
-
 
         Text(
-
-            modifier =
-                Modifier.padding(4.dp),
-
-            text =
-                stringResource(
-                    R.string.choose_platform_type_description
-                ),
-
-            style =
-                MaterialTheme.typography.bodyLarge
-
+            modifier = Modifier.padding(4.dp),
+            text = stringResource(
+                R.string.choose_platform_type_description
+            ),
+            style = MaterialTheme.typography.bodyLarge
         )
-
     }
-
 }
-
-
 
 @Composable
 private fun PlatformTypeCard(
@@ -203,122 +152,63 @@ private fun PlatformTypeCard(
     platformTypeInfo: PlatformTypeInfo,
     onClick: () -> Unit
 ) {
-
-
     Card(
-
         modifier = modifier
             .fillMaxWidth()
             .clickable(
                 onClick = onClick
             ),
-
-
-        colors =
-            CardDefaults.cardColors(
-                containerColor =
-                    MaterialTheme.colorScheme.surfaceContainerLow
-            ),
-
-
-        shape =
-            RoundedCornerShape(16.dp)
-
+        colors = CardDefaults.cardColors(
+            containerColor =
+                MaterialTheme.colorScheme.surfaceContainerLow
+        ),
+        shape = RoundedCornerShape(16.dp)
     ) {
 
-
         Row(
-
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp),
-
-
-            verticalAlignment =
-                Alignment.CenterVertically
-
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
 
-
-
             Column(
-
-                modifier =
-                    Modifier.weight(1f)
-
+                modifier = Modifier.weight(1f)
             ) {
 
-
                 Text(
-
-                    text =
-                        stringResource(
-                            platformTypeInfo.titleResId
-                        ),
-
-                    style =
-                        MaterialTheme.typography.titleMedium
-
+                    text = stringResource(
+                        platformTypeInfo.titleResId
+                    ),
+                    style = MaterialTheme.typography.titleMedium
                 )
-
-
 
                 Spacer(
-                    modifier =
-                        Modifier.height(4.dp)
+                    modifier = Modifier.height(4.dp)
                 )
-
-
 
                 Text(
-
-                    text =
-                        stringResource(
-                            platformTypeInfo.descriptionResId
-                        ),
-
-                    style =
-                        MaterialTheme.typography.bodyMedium,
-
-
+                    text = stringResource(
+                        platformTypeInfo.descriptionResId
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
                     color =
                         MaterialTheme.colorScheme.onSurfaceVariant
-
                 )
-
             }
 
-
-
             Spacer(
-                modifier =
-                    Modifier.width(16.dp)
+                modifier = Modifier.width(16.dp)
             )
-
-
 
             Icon(
-
                 imageVector =
                     Icons.AutoMirrored.Filled.KeyboardArrowRight,
-
-
-                contentDescription =
-                    null,
-
-
+                contentDescription = null,
                 tint =
                     MaterialTheme.colorScheme.onSurfaceVariant,
-
-
-                modifier =
-                    Modifier.size(24.dp)
-
+                modifier = Modifier.size(24.dp)
             )
-
         }
-
     }
-
 }

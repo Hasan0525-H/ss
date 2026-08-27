@@ -30,6 +30,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FabPosition
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -164,6 +165,12 @@ fun HomeScreen(
                 searchQuery = searchQuery,
             )
         },
+        floatingActionButtonPosition =
+            if (projectListState.isSelectionMode) {
+                FabPosition.End
+            } else {
+                FabPosition.Start
+            },
         floatingActionButton = {
             if (projectListState.isSelectionMode) {
                 DeleteProjectsButton(

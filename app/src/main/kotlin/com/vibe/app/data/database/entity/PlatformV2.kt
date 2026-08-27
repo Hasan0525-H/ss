@@ -66,7 +66,6 @@ data class PlatformV2(
 
 ) {
 
-    // Compatibility with existing code that uses topP.
     val top: Float?
-        get() = topP}
+        get() = topP
 }

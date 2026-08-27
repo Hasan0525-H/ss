@@ -63,6 +63,7 @@ import com.vibe.app.presentation.ui.setup.SetupViewModelV2.Companion.WIZARD_STEP
 import com.vibe.app.presentation.ui.setup.SetupViewModelV2.Companion.WIZARD_STEP_BASICS
 import com.vibe.app.presentation.ui.setup.SetupViewModelV2.Companion.WIZARD_STEP_MODEL
 import com.vibe.app.presentation.ui.setup.SetupViewModelV2.Companion.WIZARD_TOTAL_STEPS
+import java.util.Locale
 
 @Composable
 fun SetupPlatformWizardScreen(
@@ -106,6 +107,11 @@ fun SetupPlatformWizardScreen(
             R.string.switched_platform_hint
         )
 
+    val savePlatformFailedText =
+        stringResource(
+            R.string.save_platform_failed
+        )
+
     /*
      * Provider switch notification.
      */
@@ -138,7 +144,7 @@ fun SetupPlatformWizardScreen(
                 Toast.makeText(
                     context,
                     status.message.ifBlank {
-                        "Failed to save platform"
+                        savePlatformFailedText
                     },
                     Toast.LENGTH_LONG,
                 ).show()
@@ -350,11 +356,6 @@ fun SetupPlatformWizardScreen(
                     ) {
                         setupViewModel.nextWizardStep()
                     } else {
-                        /*
-                         * Save only.
-                         * Navigation happens after
-                         * SaveStatus.Success.
-                         */
                         setupViewModel.savePlatform()
                     }
                 },
@@ -744,7 +745,9 @@ private fun ApiKeyStep(
                         )
 
                     ClientType.CUSTOM ->
-                        "API Key اختياري إذا كان السيرفر الخاص بك لا يحتاج مصادقة."
+                        stringResource(
+                            R.string.custom_api_key_optional_description
+                        )
 
                     else ->
                         stringResource(
@@ -782,7 +785,9 @@ private fun ApiKeyStep(
                             )
 
                         ClientType.CUSTOM ->
-                            "API Key (اختياري)"
+                            stringResource(
+                                R.string.custom_api_key_optional_label
+                            )
 
                         else ->
                             stringResource(
@@ -818,7 +823,9 @@ private fun ApiKeyStep(
                             )
 
                         ClientType.CUSTOM ->
-                            "اتركه فارغًا إذا كان الـ API لا يتطلب Authorization."
+                            stringResource(
+                                R.string.custom_api_key_optional_supporting
+                            )
 
                         else ->
                             stringResource(
@@ -909,11 +916,6 @@ private fun ModelStep(
             mutableStateOf(false)
         }
 
-    /*
-     * Search is local.
-     *
-     * We do NOT call OpenRouter for each letter.
-     */
     var modelSearchQuery by
         remember(clientType) {
             mutableStateOf("")
@@ -921,6 +923,11 @@ private fun ModelStep(
 
     val context =
         LocalContext.current
+
+    val chatOnlyWarningText =
+        stringResource(
+            R.string.model_chat_only_warning
+        )
 
     val isLoading =
         modelsFetchStatus is
@@ -936,11 +943,6 @@ private fun ModelStep(
             emptyList()
         }
 
-    /*
-     * Filter by:
-     * - Friendly model name
-     * - Exact OpenRouter model ID
-     */
     val filteredModels =
         remember(
             availableModels,
@@ -1032,12 +1034,6 @@ private fun ModelStep(
         )
 
         if (isOpenRouter) {
-
-            /*
-             * =============================================
-             * FREE / PAID
-             * =============================================
-             */
             Row(
                 modifier =
                     Modifier.fillMaxWidth(),
@@ -1063,7 +1059,9 @@ private fun ModelStep(
 
                     label = {
                         Text(
-                            "مجاني (Free)"
+                            stringResource(
+                                R.string.model_plan_free
+                            )
                         )
                     },
                 )
@@ -1084,7 +1082,9 @@ private fun ModelStep(
 
                     label = {
                         Text(
-                            "مدفوع (Paid)"
+                            stringResource(
+                                R.string.model_plan_paid
+                            )
                         )
                     },
                 )
@@ -1095,11 +1095,6 @@ private fun ModelStep(
                     Modifier.height(16.dp)
             )
 
-            /*
-             * =============================================
-             * SEARCH
-             * =============================================
-             */
             OutlinedTextField(
                 value =
                     modelSearchQuery,
@@ -1116,13 +1111,17 @@ private fun ModelStep(
 
                 label = {
                     Text(
-                        "بحث في موديلات OpenRouter"
+                        stringResource(
+                            R.string.openrouter_model_search
+                        )
                     )
                 },
 
                 placeholder = {
                     Text(
-                        "اسم الموديل أو Model ID"
+                        stringResource(
+                            R.string.openrouter_model_search_hint
+                        )
                     )
                 },
 
@@ -1138,11 +1137,6 @@ private fun ModelStep(
                     Modifier.height(12.dp)
             )
 
-            /*
-             * =============================================
-             * OPENROUTER MODEL SELECTOR
-             * =============================================
-             */
             ExposedDropdownMenuBox(
                 expanded =
                     isDropdownExpanded,
@@ -1224,10 +1218,6 @@ private fun ModelStep(
                     },
                 ) {
                     when {
-
-                        /*
-                         * Loading.
-                         */
                         isLoading -> {
                             DropdownMenuItem(
                                 text = {
@@ -1249,10 +1239,6 @@ private fun ModelStep(
                             )
                         }
 
-                        /*
-                         * Empty API result or no local
-                         * search matches.
-                         */
                         filteredModels.isEmpty() -> {
                             DropdownMenuItem(
                                 text = {
@@ -1261,9 +1247,13 @@ private fun ModelStep(
                                             modelSearchQuery
                                                 .isBlank()
                                         ) {
-                                            "لا توجد نماذج متاحة"
+                                            stringResource(
+                                                R.string.models_not_available
+                                            )
                                         } else {
-                                            "لا توجد نتائج مطابقة"
+                                            stringResource(
+                                                R.string.models_no_matches
+                                            )
                                         }
                                     )
                                 },
@@ -1275,9 +1265,6 @@ private fun ModelStep(
                             )
                         }
 
-                        /*
-                         * Models.
-                         */
                         else -> {
                             filteredModels
                                 .forEach { modelInfo ->
@@ -1291,7 +1278,9 @@ private fun ModelStep(
 
                                     val priceText =
                                         if (isFree) {
-                                            "مجاني"
+                                            stringResource(
+                                                R.string.model_price_free
+                                            )
                                         } else {
                                             val pricePer1K =
                                                 pricing
@@ -1300,28 +1289,32 @@ private fun ModelStep(
                                             if (
                                                 pricePer1K != null
                                             ) {
-                                                "$" +
+                                                stringResource(
+                                                    R.string.model_price_per_1k,
                                                     String.format(
+                                                        Locale.US,
                                                         "%.6f",
                                                         pricePer1K,
-                                                    ) +
-                                                    " / 1K tokens"
+                                                    ),
+                                                )
                                             } else {
-                                                "السعر غير متاح"
+                                                stringResource(
+                                                    R.string.model_price_unavailable
+                                                )
                                             }
                                         }
 
-                                    /*
-                                     * supportsTools comes from
-                                     * OpenRouter supported_parameters.
-                                     */
                                     val capabilityText =
                                         if (
                                             modelInfo.supportsTools
                                         ) {
-                                            "✓ يدعم Tools"
+                                            stringResource(
+                                                R.string.model_supports_tools
+                                            )
                                         } else {
-                                            "دردشة فقط (Chat only)"
+                                            stringResource(
+                                                R.string.model_chat_only
+                                            )
                                         }
 
                                     DropdownMenuItem(
@@ -1342,9 +1335,6 @@ private fun ModelStep(
                                                             .bodyLarge,
                                                 )
 
-                                                /*
-                                                 * Show exact ID.
-                                                 */
                                                 if (
                                                     modelInfo.name !=
                                                     null
@@ -1365,9 +1355,6 @@ private fun ModelStep(
                                                     )
                                                 }
 
-                                                /*
-                                                 * Agent/tool capability.
-                                                 */
                                                 Text(
                                                     text =
                                                         capabilityText,
@@ -1392,9 +1379,6 @@ private fun ModelStep(
                                                         },
                                                 )
 
-                                                /*
-                                                 * Pricing.
-                                                 */
                                                 Text(
                                                     text =
                                                         priceText,
@@ -1413,31 +1397,17 @@ private fun ModelStep(
                                         },
 
                                         onClick = {
-                                            /*
-                                             * Store exact model ID.
-                                             *
-                                             * Never replace with:
-                                             * openrouter/free
-                                             */
                                             onModelChange(
                                                 modelInfo.id
                                             )
 
-                                            /*
-                                             * Do not prohibit Chat-only
-                                             * models because the user may
-                                             * still want them for chat.
-                                             *
-                                             * Warn that they cannot be
-                                             * relied on for Agent mode.
-                                             */
                                             if (
                                                 !modelInfo
                                                     .supportsTools
                                             ) {
                                                 Toast.makeText(
                                                     context,
-                                                    "هذا الموديل مناسب للدردشة فقط. إنشاء التطبيقات يحتاج موديل يدعم Tools.",
+                                                    chatOnlyWarningText,
                                                     Toast.LENGTH_LONG,
                                                 ).show()
                                             }
@@ -1453,14 +1423,6 @@ private fun ModelStep(
             }
 
         } else {
-
-            /*
-             * =============================================
-             * GOOGLE AI STUDIO / CUSTOM
-             * =============================================
-             *
-             * Model ID is manually editable.
-             */
             OutlinedTextField(
                 value =
                     model,
@@ -1627,10 +1589,6 @@ private fun WizardNavigationButtons(
     }
 }
 
-/*
- * Only the three providers visible
- * in the setup UI need help URLs.
- */
 private fun getApiHelpUrl(
     clientType: ClientType,
 ): String? =

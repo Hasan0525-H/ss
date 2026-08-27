@@ -13,7 +13,9 @@ class OpenRouterModelsAPI @Inject constructor(
 ) {
 
     /**
-     * جلب أحدث قائمة موديلات OpenRouter
+     * جلب أحدث قائمة موديلات OpenRouter.
+     *
+     * هذه الخدمة مخصصة لـ OpenRouter فقط.
      *
      * isFreeOnly:
      * true  = مجاني فقط
@@ -24,52 +26,103 @@ class OpenRouterModelsAPI @Inject constructor(
         isFreeOnly: Boolean
     ): List<OpenRouterModel> {
 
-        val formattedToken = if (apiKey.startsWith("Bearer ")) {
-            apiKey
-        } else {
-            "Bearer $apiKey"
-        }
+        val formattedToken =
+            if (
+                apiKey.startsWith(
+                    "Bearer ",
+                    ignoreCase = true
+                )
+            ) {
+                apiKey
+            } else {
+                "Bearer $apiKey"
+            }
 
-        val response: OpenRouterModelsResponse = client.get(
-            "https://openrouter.ai/api/v1/models"
-        ) {
-            header("Authorization", formattedToken)
-            header("HTTP-Referer", "https://vibe.app")
-            header("X-Title", "Vibe App")
-        }.body()
+        val response: OpenRouterModelsResponse =
+            client.get(
+                OPENROUTER_MODELS_URL
+            ) {
+                header(
+                    "Authorization",
+                    formattedToken
+                )
+
+                header(
+                    "HTTP-Referer",
+                    "https://vibe.app"
+                )
+
+                header(
+                    "X-Title",
+                    "Vibe App"
+                )
+            }.body()
 
         return if (isFreeOnly) {
+
             response.data
-                .filter { it.pricing?.isFree == true }
-                .sortedBy { it.name ?: it.id }
-        } else {
-            response.data
-                .filter { it.pricing?.isFree == false }
+                .filter {
+                    it.pricing?.isFree == true
+                }
                 .sortedBy {
-                    it.pricing?.averagePrice ?: Double.MAX_VALUE
+                    it.name ?: it.id
+                }
+
+        } else {
+
+            response.data
+                .filter {
+                    it.pricing?.isFree == false
+                }
+                .sortedBy {
+                    it.pricing?.averagePrice
+                        ?: Double.MAX_VALUE
                 }
         }
     }
 
     /**
-     * جلب جميع الموديلات بدون فلترة
+     * جلب جميع موديلات OpenRouter بدون فلترة.
      */
     suspend fun getModels(
         token: String
     ): OpenRouterModelsResponse {
 
-        val formattedToken = if (token.startsWith("Bearer ")) {
-            token
-        } else {
-            "Bearer $token"
-        }
+        val formattedToken =
+            if (
+                token.startsWith(
+                    "Bearer ",
+                    ignoreCase = true
+                )
+            ) {
+                token
+            } else {
+                "Bearer $token"
+            }
 
         return client.get(
-            "https://openrouter.ai/api/v1/models"
+            OPENROUTER_MODELS_URL
         ) {
-            header("Authorization", formattedToken)
-            header("HTTP-Referer", "https://vibe.app")
-            header("X-Title", "Vibe App")
+            header(
+                "Authorization",
+                formattedToken
+            )
+
+            header(
+                "HTTP-Referer",
+                "https://vibe.app"
+            )
+
+            header(
+                "X-Title",
+                "Vibe App"
+            )
         }.body()
+    }
+
+    companion object {
+
+        private const val OPENROUTER_MODELS_URL =
+            "https://openrouter.ai/api/v1/models"
     }
 }

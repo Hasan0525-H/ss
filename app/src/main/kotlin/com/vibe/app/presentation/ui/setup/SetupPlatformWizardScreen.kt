@@ -69,44 +69,34 @@ fun SetupPlatformWizardScreen(
     modifier: Modifier = Modifier,
     setupViewModel: SetupViewModelV2 = hiltViewModel(),
     onComplete: () -> Unit,
-    onBackAction: () -> Unit
+    onBackAction: () -> Unit,
 ) {
-
     val wizardStep by
-        setupViewModel.wizardStep
-            .collectAsStateWithLifecycle()
+        setupViewModel.wizardStep.collectAsStateWithLifecycle()
 
     val selectedClientType by
-        setupViewModel.selectedClientType
-            .collectAsStateWithLifecycle()
+        setupViewModel.selectedClientType.collectAsStateWithLifecycle()
 
     val platformName by
-        setupViewModel.platformName
-            .collectAsStateWithLifecycle()
+        setupViewModel.platformName.collectAsStateWithLifecycle()
 
     val apiUrl by
-        setupViewModel.apiUrl
-            .collectAsStateWithLifecycle()
+        setupViewModel.apiUrl.collectAsStateWithLifecycle()
 
     val apiKey by
-        setupViewModel.apiKey
-            .collectAsStateWithLifecycle()
+        setupViewModel.apiKey.collectAsStateWithLifecycle()
 
     val model by
-        setupViewModel.model
-            .collectAsStateWithLifecycle()
+        setupViewModel.model.collectAsStateWithLifecycle()
 
     val isFreePlan by
-        setupViewModel.isFreePlan
-            .collectAsStateWithLifecycle()
+        setupViewModel.isFreePlan.collectAsStateWithLifecycle()
 
     val modelsFetchStatus by
-        setupViewModel.modelsFetchStatus
-            .collectAsStateWithLifecycle()
+        setupViewModel.modelsFetchStatus.collectAsStateWithLifecycle()
 
     val saveStatus by
-        setupViewModel.saveStatus
-            .collectAsStateWithLifecycle()
+        setupViewModel.saveStatus.collectAsStateWithLifecycle()
 
     val context =
         LocalContext.current
@@ -117,57 +107,43 @@ fun SetupPlatformWizardScreen(
         )
 
     /*
-     * Platform switch notification.
+     * Provider switch notification.
      */
     LaunchedEffect(Unit) {
-
         setupViewModel
             .switchedPlatformEvent
             .collect { name ->
-
                 Toast.makeText(
                     context,
                     switchedHint.format(name),
-                    Toast.LENGTH_SHORT
+                    Toast.LENGTH_SHORT,
                 ).show()
             }
     }
 
     /*
-     * IMPORTANT:
-     *
-     * Do not leave this screen immediately after
-     * calling savePlatform().
-     *
-     * Wait until the ViewModel confirms that
-     * database saving completed successfully.
+     * Wait for database save before leaving
+     * the setup wizard.
      */
     LaunchedEffect(saveStatus) {
-
         when (
             val status = saveStatus
         ) {
-
             SaveStatus.Success -> {
-
-                setupViewModel
-                    .clearSaveStatus()
-
+                setupViewModel.clearSaveStatus()
                 onComplete()
             }
 
             is SaveStatus.Error -> {
-
                 Toast.makeText(
                     context,
                     status.message.ifBlank {
                         "Failed to save platform"
                     },
-                    Toast.LENGTH_LONG
+                    Toast.LENGTH_LONG,
                 ).show()
 
-                setupViewModel
-                    .clearSaveStatus()
+                setupViewModel.clearSaveStatus()
             }
 
             else -> Unit
@@ -177,25 +153,29 @@ fun SetupPlatformWizardScreen(
     val isSaving =
         saveStatus is SaveStatus.Saving
 
+    /*
+     * Custom OpenAI-compatible endpoints can work
+     * without authentication, so API key is optional
+     * for ClientType.CUSTOM.
+     */
     val canProceed by
         remember(
             wizardStep,
+            selectedClientType,
             platformName,
             apiUrl,
             apiKey,
-            model
+            model,
         ) {
-
             derivedStateOf {
-
                 when (wizardStep) {
-
                     WIZARD_STEP_BASICS ->
                         platformName.isNotBlank() &&
                             apiUrl.isNotBlank()
 
                     WIZARD_STEP_API_KEY ->
-                        apiKey.isNotBlank()
+                        selectedClientType == ClientType.CUSTOM ||
+                            apiKey.isNotBlank()
 
                     WIZARD_STEP_MODEL ->
                         model.isNotBlank()
@@ -207,17 +187,10 @@ fun SetupPlatformWizardScreen(
         }
 
     BackHandler {
-
         if (wizardStep > 0) {
-
-            setupViewModel
-                .previousWizardStep()
-
+            setupViewModel.previousWizardStep()
         } else {
-
-            setupViewModel
-                .resetWizard()
-
+            setupViewModel.resetWizard()
             onBackAction()
         }
     }
@@ -227,25 +200,17 @@ fun SetupPlatformWizardScreen(
             modifier.fillMaxSize(),
 
         topBar = {
-
             SetupAppBar(
                 backAction = {
-
                     if (wizardStep > 0) {
-
-                        setupViewModel
-                            .previousWizardStep()
-
+                        setupViewModel.previousWizardStep()
                     } else {
-
-                        setupViewModel
-                            .resetWizard()
-
+                        setupViewModel.resetWizard()
                         onBackAction()
                     }
                 }
             )
-        }
+        },
     ) { innerPadding ->
 
         Column(
@@ -261,7 +226,7 @@ fun SetupPlatformWizardScreen(
                     wizardStep,
 
                 totalSteps =
-                    WIZARD_TOTAL_STEPS
+                    WIZARD_TOTAL_STEPS,
             )
 
             AnimatedContent(
@@ -269,32 +234,28 @@ fun SetupPlatformWizardScreen(
                     wizardStep,
 
                 transitionSpec = {
-
                     if (
                         targetState >
                         initialState
                     ) {
-
                         (
                             slideInHorizontally {
                                 it
                             } + fadeIn()
-                            togetherWith
-                                slideOutHorizontally {
-                                    -it
-                                } + fadeOut()
+                            ) togetherWith (
+                            slideOutHorizontally {
+                                -it
+                            } + fadeOut()
                             )
-
                     } else {
-
                         (
                             slideInHorizontally {
                                 -it
                             } + fadeIn()
-                            togetherWith
-                                slideOutHorizontally {
-                                    it
-                                } + fadeOut()
+                            ) togetherWith (
+                            slideOutHorizontally {
+                                it
+                            } + fadeOut()
                             )
                     }
                 },
@@ -303,13 +264,11 @@ fun SetupPlatformWizardScreen(
                     "wizard_step_animation",
 
                 modifier =
-                    Modifier.weight(1f)
+                    Modifier.weight(1f),
             ) { step ->
 
                 when (step) {
-
                     WIZARD_STEP_BASICS -> {
-
                         BasicsStep(
                             clientType =
                                 selectedClientType,
@@ -324,12 +283,11 @@ fun SetupPlatformWizardScreen(
                                 apiUrl,
 
                             onApiUrlChange =
-                                setupViewModel::updateApiUrl
+                                setupViewModel::updateApiUrl,
                         )
                     }
 
                     WIZARD_STEP_API_KEY -> {
-
                         ApiKeyStep(
                             clientType =
                                 selectedClientType,
@@ -338,12 +296,11 @@ fun SetupPlatformWizardScreen(
                                 apiKey,
 
                             onApiKeyChange =
-                                setupViewModel::updateApiKey
+                                setupViewModel::updateApiKey,
                         )
                     }
 
                     WIZARD_STEP_MODEL -> {
-
                         ModelStep(
                             clientType =
                                 selectedClientType,
@@ -361,7 +318,7 @@ fun SetupPlatformWizardScreen(
                                 setupViewModel::updatePlanType,
 
                             modelsFetchStatus =
-                                modelsFetchStatus
+                                modelsFetchStatus,
                         )
                     }
                 }
@@ -378,47 +335,33 @@ fun SetupPlatformWizardScreen(
                     isSaving,
 
                 onBack = {
-
                     if (wizardStep > 0) {
-
-                        setupViewModel
-                            .previousWizardStep()
-
+                        setupViewModel.previousWizardStep()
                     } else {
-
-                        setupViewModel
-                            .resetWizard()
-
+                        setupViewModel.resetWizard()
                         onBackAction()
                     }
                 },
 
                 onNext = {
-
                     if (
                         wizardStep <
                         WIZARD_TOTAL_STEPS - 1
                     ) {
-
-                        setupViewModel
-                            .nextWizardStep()
-
+                        setupViewModel.nextWizardStep()
                     } else {
-
                         /*
                          * Save only.
-                         *
-                         * onComplete() will run later
-                         * after SaveStatus.Success.
+                         * Navigation happens after
+                         * SaveStatus.Success.
                          */
-                        setupViewModel
-                            .savePlatform()
+                        setupViewModel.savePlatform()
                     }
                 },
 
                 isLastStep =
                     wizardStep ==
-                        WIZARD_TOTAL_STEPS - 1
+                        WIZARD_TOTAL_STEPS - 1,
             )
         }
     }
@@ -428,36 +371,32 @@ fun SetupPlatformWizardScreen(
 private fun WizardProgressIndicator(
     currentStep: Int,
     totalSteps: Int,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
-
     Column(
         modifier =
             modifier
                 .fillMaxWidth()
                 .padding(
                     horizontal = 20.dp,
-                    vertical = 16.dp
+                    vertical = 16.dp,
                 )
     ) {
-
         Text(
             text =
                 stringResource(
                     R.string.step_x_of_y,
                     currentStep + 1,
-                    totalSteps
+                    totalSteps,
                 ),
 
             style =
-                MaterialTheme
-                    .typography
-                    .labelMedium,
+                MaterialTheme.typography.labelMedium,
 
             color =
                 MaterialTheme
                     .colorScheme
-                    .onSurfaceVariant
+                    .onSurfaceVariant,
         )
 
         Spacer(
@@ -467,14 +406,13 @@ private fun WizardProgressIndicator(
 
         LinearProgressIndicator(
             progress = {
-
                 (currentStep + 1)
                     .toFloat() /
                     totalSteps
             },
 
             modifier =
-                Modifier.fillMaxWidth()
+                Modifier.fillMaxWidth(),
         )
 
         Spacer(
@@ -487,9 +425,8 @@ private fun WizardProgressIndicator(
                 Modifier.fillMaxWidth(),
 
             horizontalArrangement =
-                Arrangement.SpaceBetween
+                Arrangement.SpaceBetween,
         ) {
-
             StepLabel(
                 text =
                     stringResource(
@@ -502,7 +439,7 @@ private fun WizardProgressIndicator(
 
                 isCurrent =
                     currentStep ==
-                        WIZARD_STEP_BASICS
+                        WIZARD_STEP_BASICS,
             )
 
             StepLabel(
@@ -517,7 +454,7 @@ private fun WizardProgressIndicator(
 
                 isCurrent =
                     currentStep ==
-                        WIZARD_STEP_API_KEY
+                        WIZARD_STEP_API_KEY,
             )
 
             StepLabel(
@@ -532,7 +469,7 @@ private fun WizardProgressIndicator(
 
                 isCurrent =
                     currentStep ==
-                        WIZARD_STEP_MODEL
+                        WIZARD_STEP_MODEL,
             )
         }
     }
@@ -543,9 +480,8 @@ private fun StepLabel(
     text: String,
     isCompleted: Boolean,
     isCurrent: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
-
     Row(
         modifier =
             modifier,
@@ -556,11 +492,9 @@ private fun StepLabel(
         horizontalArrangement =
             Arrangement.spacedBy(
                 4.dp
-            )
+            ),
     ) {
-
         if (isCompleted) {
-
             Icon(
                 imageVector =
                     Icons.Default.Check,
@@ -574,9 +508,7 @@ private fun StepLabel(
                         .primary,
 
                 modifier =
-                    Modifier.size(
-                        14.dp
-                    )
+                    Modifier.size(14.dp),
             )
         }
 
@@ -585,13 +517,10 @@ private fun StepLabel(
                 text,
 
             style =
-                MaterialTheme
-                    .typography
-                    .labelSmall,
+                MaterialTheme.typography.labelSmall,
 
             color =
                 when {
-
                     isCurrent ->
                         MaterialTheme
                             .colorScheme
@@ -606,7 +535,7 @@ private fun StepLabel(
                         MaterialTheme
                             .colorScheme
                             .onSurfaceVariant
-                }
+                },
         )
     }
 }
@@ -618,9 +547,8 @@ private fun BasicsStep(
     onPlatformNameChange: (String) -> Unit,
     apiUrl: String,
     onApiUrlChange: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
-
     Column(
         modifier =
             modifier
@@ -632,7 +560,6 @@ private fun BasicsStep(
                     horizontal = 20.dp
                 )
     ) {
-
         Text(
             modifier =
                 Modifier.semantics {
@@ -645,9 +572,7 @@ private fun BasicsStep(
                 ),
 
             style =
-                MaterialTheme
-                    .typography
-                    .headlineSmall
+                MaterialTheme.typography.headlineSmall,
         )
 
         Spacer(
@@ -662,14 +587,12 @@ private fun BasicsStep(
                 ),
 
             style =
-                MaterialTheme
-                    .typography
-                    .bodyMedium,
+                MaterialTheme.typography.bodyMedium,
 
             color =
                 MaterialTheme
                     .colorScheme
-                    .onSurfaceVariant
+                    .onSurfaceVariant,
         )
 
         Spacer(
@@ -677,9 +600,6 @@ private fun BasicsStep(
                 Modifier.height(24.dp)
         )
 
-        /*
-         * Platform name.
-         */
         OutlinedTextField(
             value =
                 platformName,
@@ -688,7 +608,6 @@ private fun BasicsStep(
                 onPlatformNameChange,
 
             label = {
-
                 Text(
                     stringResource(
                         R.string.platform_name
@@ -697,7 +616,6 @@ private fun BasicsStep(
             },
 
             placeholder = {
-
                 Text(
                     stringResource(
                         R.string.platform_name_hint
@@ -712,13 +630,12 @@ private fun BasicsStep(
                 true,
 
             supportingText = {
-
                 Text(
                     stringResource(
                         R.string.platform_name_supporting
                     )
                 )
-            }
+            },
         )
 
         Spacer(
@@ -726,18 +643,6 @@ private fun BasicsStep(
                 Modifier.height(20.dp)
         )
 
-        /*
-         * API URL.
-         *
-         * OpenRouter:
-         * https://openrouter.ai/api
-         *
-         * Google AI Studio:
-         * https://generativelanguage.googleapis.com/v1beta/openai
-         *
-         * Custom:
-         * user-defined URL
-         */
         OutlinedTextField(
             value =
                 apiUrl,
@@ -746,7 +651,6 @@ private fun BasicsStep(
                 onApiUrlChange,
 
             label = {
-
                 Text(
                     stringResource(
                         R.string.api_url
@@ -755,7 +659,6 @@ private fun BasicsStep(
             },
 
             placeholder = {
-
                 Text(
                     stringResource(
                         R.string.api_url_hint
@@ -770,27 +673,23 @@ private fun BasicsStep(
                 true,
 
             supportingText = {
-
                 if (
                     clientType ==
                     ClientType.GOOGLE_AI_STUDIO
                 ) {
-
                     Text(
                         stringResource(
                             R.string.google_ai_studio_api_url_supporting
                         )
                     )
-
                 } else {
-
                     Text(
                         stringResource(
                             R.string.api_url_cautions
                         )
                     )
                 }
-            }
+            },
         )
     }
 }
@@ -800,9 +699,8 @@ private fun ApiKeyStep(
     clientType: ClientType?,
     apiKey: String,
     onApiKeyChange: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
-
     val uriHandler =
         LocalUriHandler.current
 
@@ -817,7 +715,6 @@ private fun ApiKeyStep(
                     horizontal = 20.dp
                 )
     ) {
-
         Text(
             modifier =
                 Modifier.semantics {
@@ -830,9 +727,7 @@ private fun ApiKeyStep(
                 ),
 
             style =
-                MaterialTheme
-                    .typography
-                    .headlineSmall
+                MaterialTheme.typography.headlineSmall,
         )
 
         Spacer(
@@ -842,14 +737,14 @@ private fun ApiKeyStep(
 
         Text(
             text =
-                when (
-                    clientType
-                ) {
-
+                when (clientType) {
                     ClientType.GOOGLE_AI_STUDIO ->
                         stringResource(
                             R.string.google_ai_studio_api_key_description
                         )
+
+                    ClientType.CUSTOM ->
+                        "API Key اختياري إذا كان السيرفر الخاص بك لا يحتاج مصادقة."
 
                     else ->
                         stringResource(
@@ -858,14 +753,12 @@ private fun ApiKeyStep(
                 },
 
             style =
-                MaterialTheme
-                    .typography
-                    .bodyMedium,
+                MaterialTheme.typography.bodyMedium,
 
             color =
                 MaterialTheme
                     .colorScheme
-                    .onSurfaceVariant
+                    .onSurfaceVariant,
         )
 
         Spacer(
@@ -873,9 +766,6 @@ private fun ApiKeyStep(
                 Modifier.height(24.dp)
         )
 
-        /*
-         * API key.
-         */
         OutlinedTextField(
             value =
                 apiKey,
@@ -884,28 +774,25 @@ private fun ApiKeyStep(
                 onApiKeyChange,
 
             label = {
-
                 Text(
-                    if (
-                        clientType ==
-                        ClientType.GOOGLE_AI_STUDIO
-                    ) {
+                    when (clientType) {
+                        ClientType.GOOGLE_AI_STUDIO ->
+                            stringResource(
+                                R.string.google_ai_studio_api_key
+                            )
 
-                        stringResource(
-                            R.string.google_ai_studio_api_key
-                        )
+                        ClientType.CUSTOM ->
+                            "API Key (اختياري)"
 
-                    } else {
-
-                        stringResource(
-                            R.string.api_key
-                        )
+                        else ->
+                            stringResource(
+                                R.string.api_key
+                            )
                     }
                 )
             },
 
             placeholder = {
-
                 Text(
                     stringResource(
                         R.string.api_key_hint
@@ -923,60 +810,40 @@ private fun ApiKeyStep(
                 PasswordVisualTransformation(),
 
             supportingText = {
-
                 Text(
-                    if (
-                        clientType ==
-                        ClientType.GOOGLE_AI_STUDIO
-                    ) {
+                    when (clientType) {
+                        ClientType.GOOGLE_AI_STUDIO ->
+                            stringResource(
+                                R.string.google_ai_studio_api_key_supporting
+                            )
 
-                        stringResource(
-                            R.string.google_ai_studio_api_key_supporting
-                        )
+                        ClientType.CUSTOM ->
+                            "اتركه فارغًا إذا كان الـ API لا يتطلب Authorization."
 
-                    } else {
-
-                        stringResource(
-                            R.string.api_key_supporting
-                        )
+                        else ->
+                            stringResource(
+                                R.string.api_key_supporting
+                            )
                     }
                 )
-            }
+            },
         )
 
-        /*
-         * API-key help link.
-         *
-         * Only OpenRouter and Google AI Studio
-         * have predefined links.
-         *
-         * Custom does not.
-         */
         clientType?.let { type ->
-
             val helpUrl =
-                getApiHelpUrl(
-                    type
-                )
+                getApiHelpUrl(type)
 
-            if (
-                helpUrl != null
-            ) {
-
+            if (helpUrl != null) {
                 Spacer(
                     modifier =
-                        Modifier.height(
-                            16.dp
-                        )
+                        Modifier.height(16.dp)
                 )
 
                 HorizontalDivider()
 
                 Spacer(
                     modifier =
-                        Modifier.height(
-                            16.dp
-                        )
+                        Modifier.height(16.dp)
                 )
 
                 Text(
@@ -986,16 +853,12 @@ private fun ApiKeyStep(
                         ),
 
                     style =
-                        MaterialTheme
-                            .typography
-                            .labelLarge
+                        MaterialTheme.typography.labelLarge,
                 )
 
                 Spacer(
                     modifier =
-                        Modifier.height(
-                            4.dp
-                        )
+                        Modifier.height(4.dp)
                 )
 
                 Text(
@@ -1018,11 +881,10 @@ private fun ApiKeyStep(
 
                     modifier =
                         Modifier.clickable {
-
                             uriHandler.openUri(
                                 helpUrl
                             )
-                        }
+                        },
                 )
             }
         }
@@ -1040,15 +902,25 @@ private fun ModelStep(
     isFreePlan: Boolean,
     onPlanTypeChange: (Boolean) -> Unit,
     modelsFetchStatus: ModelsFetchStatus,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
-
     var isDropdownExpanded by
-        remember {
-            mutableStateOf(
-                false
-            )
+        remember(clientType) {
+            mutableStateOf(false)
         }
+
+    /*
+     * Search is local.
+     *
+     * We do NOT call OpenRouter for each letter.
+     */
+    var modelSearchQuery by
+        remember(clientType) {
+            mutableStateOf("")
+        }
+
+    val context =
+        LocalContext.current
 
     val isLoading =
         modelsFetchStatus is
@@ -1056,15 +928,42 @@ private fun ModelStep(
 
     val availableModels =
         if (
-            modelsFetchStatus
-                is ModelsFetchStatus.Success
+            modelsFetchStatus is
+            ModelsFetchStatus.Success
         ) {
-
             modelsFetchStatus.models
-
         } else {
-
             emptyList()
+        }
+
+    /*
+     * Filter by:
+     * - Friendly model name
+     * - Exact OpenRouter model ID
+     */
+    val filteredModels =
+        remember(
+            availableModels,
+            modelSearchQuery,
+        ) {
+            val query =
+                modelSearchQuery.trim()
+
+            if (query.isBlank()) {
+                availableModels
+            } else {
+                availableModels.filter { modelInfo ->
+                    modelInfo.id.contains(
+                        other = query,
+                        ignoreCase = true,
+                    ) ||
+                        modelInfo.name
+                            ?.contains(
+                                other = query,
+                                ignoreCase = true,
+                            ) == true
+                }
+            }
         }
 
     val isOpenRouter =
@@ -1086,7 +985,6 @@ private fun ModelStep(
                     horizontal = 20.dp
                 )
     ) {
-
         Text(
             modifier =
                 Modifier.semantics {
@@ -1099,65 +997,47 @@ private fun ModelStep(
                 ),
 
             style =
-                MaterialTheme
-                    .typography
-                    .headlineSmall
+                MaterialTheme.typography.headlineSmall,
         )
 
         Spacer(
             modifier =
-                Modifier.height(
-                    8.dp
-                )
+                Modifier.height(8.dp)
         )
 
         Text(
             text =
-                if (
-                    isGoogleAIStudio
-                ) {
-
+                if (isGoogleAIStudio) {
                     stringResource(
                         R.string.google_ai_studio_model_description
                     )
-
                 } else {
-
                     stringResource(
                         R.string.model_description
                     )
                 },
 
             style =
-                MaterialTheme
-                    .typography
-                    .bodyMedium,
+                MaterialTheme.typography.bodyMedium,
 
             color =
                 MaterialTheme
                     .colorScheme
-                    .onSurfaceVariant
+                    .onSurfaceVariant,
         )
 
         Spacer(
             modifier =
-                Modifier.height(
-                    20.dp
-                )
+                Modifier.height(20.dp)
         )
 
-        /*
-         * =====================================================
-         * OPENROUTER FREE / PAID FILTER
-         * =====================================================
-         *
-         * Only OpenRouter uses this.
-         *
-         * Google AI Studio and Custom must never
-         * trigger this filtering.
-         */
         if (isOpenRouter) {
 
+            /*
+             * =============================================
+             * FREE / PAID
+             * =============================================
+             */
             Row(
                 modifier =
                     Modifier.fillMaxWidth(),
@@ -1165,29 +1045,27 @@ private fun ModelStep(
                 horizontalArrangement =
                     Arrangement.spacedBy(
                         12.dp
-                    )
+                    ),
             ) {
-
                 FilterChip(
                     selected =
                         isFreePlan,
 
                     onClick = {
+                        onPlanTypeChange(true)
 
-                        onPlanTypeChange(
-                            true
-                        )
+                        modelSearchQuery =
+                            ""
 
                         isDropdownExpanded =
                             false
                     },
 
                     label = {
-
                         Text(
                             "مجاني (Free)"
                         )
-                    }
+                    },
                 )
 
                 FilterChip(
@@ -1195,53 +1073,87 @@ private fun ModelStep(
                         !isFreePlan,
 
                     onClick = {
+                        onPlanTypeChange(false)
 
-                        onPlanTypeChange(
-                            false
-                        )
+                        modelSearchQuery =
+                            ""
 
                         isDropdownExpanded =
                             false
                     },
 
                     label = {
-
                         Text(
                             "مدفوع (Paid)"
                         )
-                    }
+                    },
                 )
             }
 
             Spacer(
                 modifier =
-                    Modifier.height(
-                        16.dp
-                    )
+                    Modifier.height(16.dp)
             )
-        }
 
-        /*
-         * =====================================================
-         * OPENROUTER MODEL SELECTOR
-         * =====================================================
-         */
-        if (isOpenRouter) {
+            /*
+             * =============================================
+             * SEARCH
+             * =============================================
+             */
+            OutlinedTextField(
+                value =
+                    modelSearchQuery,
 
+                onValueChange = { query ->
+                    modelSearchQuery =
+                        query
+
+                    if (!isLoading) {
+                        isDropdownExpanded =
+                            true
+                    }
+                },
+
+                label = {
+                    Text(
+                        "بحث في موديلات OpenRouter"
+                    )
+                },
+
+                placeholder = {
+                    Text(
+                        "اسم الموديل أو Model ID"
+                    )
+                },
+
+                modifier =
+                    Modifier.fillMaxWidth(),
+
+                singleLine =
+                    true,
+            )
+
+            Spacer(
+                modifier =
+                    Modifier.height(12.dp)
+            )
+
+            /*
+             * =============================================
+             * OPENROUTER MODEL SELECTOR
+             * =============================================
+             */
             ExposedDropdownMenuBox(
                 expanded =
                     isDropdownExpanded,
 
                 onExpandedChange = {
-
                     if (!isLoading) {
-
                         isDropdownExpanded =
                             !isDropdownExpanded
                     }
-                }
+                },
             ) {
-
                 OutlinedTextField(
                     value =
                         model,
@@ -1252,7 +1164,6 @@ private fun ModelStep(
                         true,
 
                     label = {
-
                         Text(
                             stringResource(
                                 R.string.model
@@ -1261,7 +1172,6 @@ private fun ModelStep(
                     },
 
                     placeholder = {
-
                         Text(
                             stringResource(
                                 R.string.model_name
@@ -1270,21 +1180,15 @@ private fun ModelStep(
                     },
 
                     trailingIcon = {
-
                         if (isLoading) {
-
                             CircularProgressIndicator(
                                 modifier =
-                                    Modifier.size(
-                                        20.dp
-                                    ),
+                                    Modifier.size(20.dp),
 
                                 strokeWidth =
-                                    2.dp
+                                    2.dp,
                             )
-
                         } else {
-
                             ExposedDropdownMenuDefaults
                                 .TrailingIcon(
                                     expanded =
@@ -1302,13 +1206,12 @@ private fun ModelStep(
                         true,
 
                     supportingText = {
-
                         Text(
                             stringResource(
                                 R.string.model_supporting
                             )
                         )
-                    }
+                    },
                 )
 
                 ExposedDropdownMenu(
@@ -1316,71 +1219,67 @@ private fun ModelStep(
                         isDropdownExpanded,
 
                     onDismissRequest = {
-
                         isDropdownExpanded =
                             false
-                    }
+                    },
                 ) {
-
                     when {
 
                         /*
                          * Loading.
                          */
                         isLoading -> {
-
                             DropdownMenuItem(
                                 text = {
-
                                     Row(
                                         modifier =
                                             Modifier.fillMaxWidth(),
 
                                         horizontalArrangement =
-                                            Arrangement.Center
+                                            Arrangement.Center,
                                     ) {
-
                                         CircularProgressIndicator(
                                             modifier =
-                                                Modifier.size(
-                                                    24.dp
-                                                )
+                                                Modifier.size(24.dp)
                                         )
                                     }
                                 },
 
-                                onClick = {}
+                                onClick = {},
                             )
                         }
 
                         /*
-                         * No models.
+                         * Empty API result or no local
+                         * search matches.
                          */
-                        availableModels
-                            .isEmpty() -> {
-
+                        filteredModels.isEmpty() -> {
                             DropdownMenuItem(
                                 text = {
-
                                     Text(
-                                        "لا توجد نماذج متاحة"
+                                        if (
+                                            modelSearchQuery
+                                                .isBlank()
+                                        ) {
+                                            "لا توجد نماذج متاحة"
+                                        } else {
+                                            "لا توجد نتائج مطابقة"
+                                        }
                                     )
                                 },
 
                                 onClick = {
-
                                     isDropdownExpanded =
                                         false
-                                }
+                                },
                             )
                         }
 
                         /*
-                         * OpenRouter models.
+                         * Models.
                          */
                         else -> {
-
-                            availableModels
+                            filteredModels
                                 .forEach { modelInfo ->
 
                                     val pricing =
@@ -1390,73 +1289,66 @@ private fun ModelStep(
                                         pricing?.isFree ==
                                             true
 
-                                    /*
-                                     * OpenRouter pricing is
-                                     * USD per token.
-                                     *
-                                     * averagePricePer1K converts
-                                     * it correctly for display.
-                                     */
                                     val priceText =
                                         if (isFree) {
-
                                             "مجاني"
-
                                         } else {
-
                                             val pricePer1K =
                                                 pricing
                                                     ?.averagePricePer1K
 
                                             if (
-                                                pricePer1K !=
-                                                null
+                                                pricePer1K != null
                                             ) {
-
                                                 "$" +
                                                     String.format(
                                                         "%.6f",
-                                                        pricePer1K
+                                                        pricePer1K,
                                                     ) +
                                                     " / 1K tokens"
-
                                             } else {
-
                                                 "السعر غير متاح"
                                             }
                                         }
 
+                                    /*
+                                     * supportsTools comes from
+                                     * OpenRouter supported_parameters.
+                                     */
+                                    val capabilityText =
+                                        if (
+                                            modelInfo.supportsTools
+                                        ) {
+                                            "✓ يدعم Tools"
+                                        } else {
+                                            "دردشة فقط (Chat only)"
+                                        }
+
                                     DropdownMenuItem(
                                         text = {
-
                                             Column(
                                                 modifier =
                                                     Modifier
                                                         .fillMaxWidth()
                                             ) {
-
                                                 Text(
                                                     text =
-                                                        modelInfo
-                                                            .name
+                                                        modelInfo.name
                                                             ?: modelInfo.id,
 
                                                     style =
                                                         MaterialTheme
                                                             .typography
-                                                            .bodyLarge
+                                                            .bodyLarge,
                                                 )
 
                                                 /*
-                                                 * Show exact OpenRouter
-                                                 * model ID when friendly
-                                                 * name is available.
+                                                 * Show exact ID.
                                                  */
                                                 if (
                                                     modelInfo.name !=
                                                     null
                                                 ) {
-
                                                     Text(
                                                         text =
                                                             modelInfo.id,
@@ -1469,10 +1361,40 @@ private fun ModelStep(
                                                         color =
                                                             MaterialTheme
                                                                 .colorScheme
-                                                                .onSurfaceVariant
+                                                                .onSurfaceVariant,
                                                     )
                                                 }
 
+                                                /*
+                                                 * Agent/tool capability.
+                                                 */
+                                                Text(
+                                                    text =
+                                                        capabilityText,
+
+                                                    style =
+                                                        MaterialTheme
+                                                            .typography
+                                                            .bodySmall,
+
+                                                    color =
+                                                        if (
+                                                            modelInfo
+                                                                .supportsTools
+                                                        ) {
+                                                            MaterialTheme
+                                                                .colorScheme
+                                                                .primary
+                                                        } else {
+                                                            MaterialTheme
+                                                                .colorScheme
+                                                                .onSurfaceVariant
+                                                        },
+                                                )
+
+                                                /*
+                                                 * Pricing.
+                                                 */
                                                 Text(
                                                     text =
                                                         priceText,
@@ -1485,26 +1407,44 @@ private fun ModelStep(
                                                     color =
                                                         MaterialTheme
                                                             .colorScheme
-                                                            .onSurfaceVariant
+                                                            .onSurfaceVariant,
                                                 )
                                             }
                                         },
 
                                         onClick = {
-
                                             /*
-                                             * Save exact OpenRouter
-                                             * model ID.
+                                             * Store exact model ID.
                                              *
-                                             * No fallback.
+                                             * Never replace with:
+                                             * openrouter/free
                                              */
                                             onModelChange(
                                                 modelInfo.id
                                             )
 
+                                            /*
+                                             * Do not prohibit Chat-only
+                                             * models because the user may
+                                             * still want them for chat.
+                                             *
+                                             * Warn that they cannot be
+                                             * relied on for Agent mode.
+                                             */
+                                            if (
+                                                !modelInfo
+                                                    .supportsTools
+                                            ) {
+                                                Toast.makeText(
+                                                    context,
+                                                    "هذا الموديل مناسب للدردشة فقط. إنشاء التطبيقات يحتاج موديل يدعم Tools.",
+                                                    Toast.LENGTH_LONG,
+                                                ).show()
+                                            }
+
                                             isDropdownExpanded =
                                                 false
-                                        }
+                                        },
                                     )
                                 }
                         }
@@ -1515,18 +1455,11 @@ private fun ModelStep(
         } else {
 
             /*
-             * =====================================================
+             * =============================================
              * GOOGLE AI STUDIO / CUSTOM
-             * =====================================================
+             * =============================================
              *
-             * Both use manually editable model IDs.
-             *
-             * Google example:
-             * gemini-2.5-flash
-             *
-             * Custom:
-             * whatever the OpenAI-compatible
-             * provider requires.
+             * Model ID is manually editable.
              */
             OutlinedTextField(
                 value =
@@ -1536,7 +1469,6 @@ private fun ModelStep(
                     onModelChange,
 
                 label = {
-
                     Text(
                         stringResource(
                             R.string.model
@@ -1545,16 +1477,10 @@ private fun ModelStep(
                 },
 
                 placeholder = {
-
                     Text(
-                        if (
-                            isGoogleAIStudio
-                        ) {
-
+                        if (isGoogleAIStudio) {
                             "gemini-2.5-flash"
-
                         } else {
-
                             stringResource(
                                 R.string.model_name
                             )
@@ -1569,60 +1495,45 @@ private fun ModelStep(
                     true,
 
                 supportingText = {
-
                     Text(
-                        if (
-                            isGoogleAIStudio
-                        ) {
-
+                        if (isGoogleAIStudio) {
                             stringResource(
                                 R.string.google_ai_studio_model_supporting
                             )
-
                         } else {
-
                             stringResource(
                                 R.string.model_supporting
                             )
                         }
                     )
-                }
+                },
             )
         }
 
         Spacer(
             modifier =
-                Modifier.height(
-                    16.dp
-                )
+                Modifier.height(16.dp)
         )
 
         Text(
             text =
-                if (
-                    isGoogleAIStudio
-                ) {
-
+                if (isGoogleAIStudio) {
                     stringResource(
                         R.string.google_ai_studio_model_examples
                     )
-
                 } else {
-
                     stringResource(
                         R.string.model_examples
                     )
                 },
 
             style =
-                MaterialTheme
-                    .typography
-                    .bodySmall,
+                MaterialTheme.typography.bodySmall,
 
             color =
                 MaterialTheme
                     .colorScheme
-                    .onSurfaceVariant
+                    .onSurfaceVariant,
         )
     }
 }
@@ -1635,9 +1546,8 @@ private fun WizardNavigationButtons(
     onBack: () -> Unit,
     onNext: () -> Unit,
     isLastStep: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
-
     Row(
         modifier =
             modifier
@@ -1649,34 +1559,27 @@ private fun WizardNavigationButtons(
         horizontalArrangement =
             Arrangement.spacedBy(
                 12.dp
-            )
+            ),
     ) {
-
         OutlinedButton(
             onClick =
                 onBack,
 
             modifier =
-                Modifier.weight(
-                    1f
-                ),
+                Modifier.weight(1f),
 
             enabled =
-                !isSaving
+                !isSaving,
         ) {
-
             Text(
                 text =
                     if (
                         currentStep == 0
                     ) {
-
                         stringResource(
                             R.string.cancel
                         )
-
                     } else {
-
                         stringResource(
                             R.string.back
                         )
@@ -1689,44 +1592,31 @@ private fun WizardNavigationButtons(
                 onNext,
 
             modifier =
-                Modifier.weight(
-                    1f
-                ),
+                Modifier.weight(1f),
 
             enabled =
                 canProceed &&
-                    !isSaving
+                    !isSaving,
         ) {
-
             if (
                 isLastStep &&
                 isSaving
             ) {
-
                 CircularProgressIndicator(
                     modifier =
-                        Modifier.size(
-                            20.dp
-                        ),
+                        Modifier.size(20.dp),
 
                     strokeWidth =
-                        2.dp
+                        2.dp,
                 )
-
             } else {
-
                 Text(
                     text =
-                        if (
-                            isLastStep
-                        ) {
-
+                        if (isLastStep) {
                             stringResource(
                                 R.string.finish
                             )
-
                         } else {
-
                             stringResource(
                                 R.string.next
                             )
@@ -1738,14 +1628,13 @@ private fun WizardNavigationButtons(
 }
 
 /*
- * Only the three providers visible in the app
- * need API-key help URLs.
+ * Only the three providers visible
+ * in the setup UI need help URLs.
  */
 private fun getApiHelpUrl(
-    clientType: ClientType
+    clientType: ClientType,
 ): String? =
     when (clientType) {
-
         ClientType.GOOGLE_AI_STUDIO ->
             "https://aistudio.google.com/apikey"
 

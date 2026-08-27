@@ -46,8 +46,9 @@ fun PlatformSettingScreen(
     modifier: Modifier = Modifier,
     settingViewModel: PlatformSettingViewModel =
         hiltViewModel(),
-    onNavigationClick: () -> Unit
+    onNavigationClick: () -> Unit,
 ) {
+
     val scrollState =
         rememberScrollState()
 
@@ -98,29 +99,37 @@ fun PlatformSettingScreen(
         )
 
     /*
-     * OpenRouter is the only provider that
-     * loads its model list from OpenRouter.
+     * Only OpenRouter loads models dynamically
+     * from the OpenRouter models endpoint.
      *
-     * Google AI Studio is completely independent
-     * and must never call OpenRouter here.
+     * Google AI Studio and all other providers
+     * remain completely independent.
      */
     LaunchedEffect(
         platform?.compatibleType,
         isFreeFilter,
-        platform?.token
+        platform?.token,
     ) {
+
         if (
             platform?.compatibleType ==
             ClientType.OPEN_ROUTER &&
             !platform?.token.isNullOrBlank()
         ) {
+
             settingViewModel.loadModels(
                 isFreeFilter
             )
         }
     }
 
+    /*
+     * Notify user when another provider was
+     * disabled because the current provider
+     * became active.
+     */
     LaunchedEffect(Unit) {
+
         settingViewModel
             .switchedPlatformEvent
             .collect { name ->
@@ -128,12 +137,16 @@ fun PlatformSettingScreen(
                 Toast.makeText(
                     context,
                     switchedHint.format(name),
-                    Toast.LENGTH_SHORT
+                    Toast.LENGTH_SHORT,
                 ).show()
             }
     }
 
+    /*
+     * Leave this screen after successful deletion.
+     */
     LaunchedEffect(isDeleted) {
+
         if (isDeleted) {
             onNavigationClick()
         }
@@ -153,22 +166,24 @@ fun PlatformSettingScreen(
             modifier = modifier,
 
             topBar = {
+
                 PlatformTopAppBar(
-                    title = platformData.name,
+                    title =
+                        platformData.name,
 
                     onBackClick =
                         onNavigationClick,
 
                     onDeleteClick = {
+
                         settingViewModel
                             .openDeleteDialog()
                     },
 
                     scrollBehavior =
-                        scrollBehavior
+                        scrollBehavior,
                 )
-            }
-
+            },
         ) { paddingValues ->
 
             Column(
@@ -182,6 +197,9 @@ fun PlatformSettingScreen(
                         )
             ) {
 
+                /*
+                 * Enable / disable provider.
+                 */
                 PreferenceSwitchWithContainer(
                     title =
                         stringResource(
@@ -192,14 +210,20 @@ fun PlatformSettingScreen(
                         platformData.enabled,
 
                     onCheckedChange = {
+
                         settingViewModel
                             .toggleEnabled()
-                    }
+                    },
                 )
 
+                /*
+                 * Platform name.
+                 */
                 SettingItem(
                     modifier =
-                        Modifier.height(64.dp),
+                        Modifier.height(
+                            64.dp
+                        ),
 
                     title =
                         stringResource(
@@ -213,16 +237,23 @@ fun PlatformSettingScreen(
                         platformData.enabled,
 
                     onItemClick = {
+
                         settingViewModel
                             .openPlatformNameDialog()
                     },
 
-                    showTrailingIcon = false
+                    showTrailingIcon =
+                        false,
                 )
 
+                /*
+                 * API URL.
+                 */
                 SettingItem(
                     modifier =
-                        Modifier.height(64.dp),
+                        Modifier.height(
+                            64.dp
+                        ),
 
                     title =
                         stringResource(
@@ -236,23 +267,37 @@ fun PlatformSettingScreen(
                         platformData.enabled,
 
                     onItemClick = {
+
                         settingViewModel
                             .openApiUrlDialog()
                     },
 
-                    showTrailingIcon = false
+                    showTrailingIcon =
+                        false,
                 )
 
+                /*
+                 * API key.
+                 *
+                 * Google AI Studio receives its
+                 * own label while preserving the
+                 * same storage mechanism.
+                 */
                 SettingItem(
                     modifier =
-                        Modifier.height(64.dp),
+                        Modifier.height(
+                            64.dp
+                        ),
 
                     title =
                         if (isGoogleAIStudio) {
+
                             stringResource(
                                 R.string.google_ai_studio_api_key
                             )
+
                         } else {
+
                             stringResource(
                                 R.string.api_key
                             )
@@ -263,10 +308,13 @@ fun PlatformSettingScreen(
                             platformData.token
                                 .isNullOrBlank()
                         ) {
+
                             stringResource(
                                 R.string.not_set
                             )
+
                         } else {
+
                             "${platformData.token!!.take(4)}*****"
                         },
 
@@ -274,30 +322,41 @@ fun PlatformSettingScreen(
                         platformData.enabled,
 
                     onItemClick = {
+
                         settingViewModel
                             .openApiTokenDialog()
                     },
 
-                    showTrailingIcon = false
+                    showTrailingIcon =
+                        false,
                 )
 
+                /*
+                 * Model section.
+                 */
                 Column(
                     modifier =
                         Modifier
                             .fillMaxWidth()
                             .padding(
-                                horizontal = 16.dp,
-                                vertical = 8.dp
+                                horizontal =
+                                    16.dp,
+
+                                vertical =
+                                    8.dp,
                             )
                 ) {
 
                     Text(
                         text =
                             if (isGoogleAIStudio) {
+
                                 stringResource(
                                     R.string.google_ai_studio_model_description
                                 )
+
                             } else {
+
                                 stringResource(
                                     R.string.api_model
                                 )
@@ -310,19 +369,20 @@ fun PlatformSettingScreen(
 
                         modifier =
                             Modifier.padding(
-                                bottom = 8.dp
-                            )
+                                bottom =
+                                    8.dp
+                            ),
                     )
 
                     /*
                      * OpenRouter:
-                     * show Free/Paid filters and
-                     * dynamically loaded models.
                      *
-                     * Google AI Studio:
-                     * do not show OpenRouter filters.
-                     * The Gemini model is configured
-                     * directly.
+                     * - Load models dynamically.
+                     * - Free/Paid filter.
+                     * - Select exact model ID returned
+                     *   by OpenRouter.
+                     *
+                     * No fallback model is injected.
                      */
                     if (isOpenRouter) {
 
@@ -333,7 +393,7 @@ fun PlatformSettingScreen(
                             horizontalArrangement =
                                 Arrangement.spacedBy(
                                     8.dp
-                                )
+                                ),
                         ) {
 
                             FilterChip(
@@ -341,18 +401,20 @@ fun PlatformSettingScreen(
                                     isFreeFilter,
 
                                 onClick = {
+
                                     isFreeFilter =
                                         true
                                 },
 
                                 label = {
+
                                     Text(
                                         "مجاني (Free)"
                                     )
                                 },
 
                                 enabled =
-                                    platformData.enabled
+                                    platformData.enabled,
                             )
 
                             FilterChip(
@@ -360,25 +422,29 @@ fun PlatformSettingScreen(
                                     !isFreeFilter,
 
                                 onClick = {
+
                                     isFreeFilter =
                                         false
                                 },
 
                                 label = {
+
                                     Text(
                                         "مدفوع (Paid)"
                                     )
                                 },
 
                                 enabled =
-                                    platformData.enabled
-                            )
-
-                            Spacer(
-                                modifier =
-                                    Modifier.height(8.dp)
+                                    platformData.enabled,
                             )
                         }
+
+                        Spacer(
+                            modifier =
+                                Modifier.height(
+                                    8.dp
+                                )
+                        )
 
                         ExposedDropdownMenuBox(
                             expanded =
@@ -386,13 +452,15 @@ fun PlatformSettingScreen(
                                     platformData.enabled,
 
                             onExpandedChange = {
+
                                 if (
                                     platformData.enabled
                                 ) {
+
                                     isDropdownExpanded =
                                         !isDropdownExpanded
                                 }
-                            }
+                            },
                         ) {
 
                             OutlinedTextField(
@@ -401,12 +469,14 @@ fun PlatformSettingScreen(
 
                                 onValueChange = {},
 
-                                readOnly = true,
+                                readOnly =
+                                    true,
 
                                 enabled =
                                     platformData.enabled,
 
                                 label = {
+
                                     Text(
                                         stringResource(
                                             R.string.api_model
@@ -415,6 +485,7 @@ fun PlatformSettingScreen(
                                 },
 
                                 placeholder = {
+
                                     Text(
                                         stringResource(
                                             R.string.model_name
@@ -435,7 +506,7 @@ fun PlatformSettingScreen(
                                                 ),
 
                                             strokeWidth =
-                                                2.dp
+                                                2.dp,
                                         )
 
                                     } else {
@@ -453,7 +524,8 @@ fun PlatformSettingScreen(
                                         .menuAnchor()
                                         .fillMaxWidth(),
 
-                                singleLine = true
+                                singleLine =
+                                    true,
                             )
 
                             ExposedDropdownMenu(
@@ -462,9 +534,10 @@ fun PlatformSettingScreen(
                                         platformData.enabled,
 
                                 onDismissRequest = {
+
                                     isDropdownExpanded =
                                         false
-                                }
+                                },
                             ) {
 
                                 if (
@@ -474,15 +547,17 @@ fun PlatformSettingScreen(
 
                                     DropdownMenuItem(
                                         text = {
+
                                             Text(
                                                 "لا توجد نماذج متاحة"
                                             )
                                         },
 
                                         onClick = {
+
                                             isDropdownExpanded =
                                                 false
-                                        }
+                                        },
                                     )
 
                                 } else {
@@ -511,13 +586,12 @@ fun PlatformSettingScreen(
                                                     "$" +
                                                         String.format(
                                                             "%.6f",
-                                                            price
+                                                            price,
                                                         ) +
                                                         " / 1K tokens"
                                                 }
 
                                             DropdownMenuItem(
-
                                                 text = {
 
                                                     Column {
@@ -541,13 +615,18 @@ fun PlatformSettingScreen(
                                                             color =
                                                                 MaterialTheme
                                                                     .colorScheme
-                                                                    .onSurfaceVariant
+                                                                    .onSurfaceVariant,
                                                         )
                                                     }
                                                 },
 
                                                 onClick = {
 
+                                                    /*
+                                                     * Save the selected
+                                                     * OpenRouter model ID
+                                                     * exactly as returned.
+                                                     */
                                                     settingViewModel
                                                         .updateApiModel(
                                                             modelInfo.id
@@ -555,7 +634,7 @@ fun PlatformSettingScreen(
 
                                                     isDropdownExpanded =
                                                         false
-                                                }
+                                                },
                                             )
                                         }
                                 }
@@ -565,50 +644,68 @@ fun PlatformSettingScreen(
                     } else {
 
                         /*
-                         * Google AI Studio and Custom APIs
-                         * use a manually configured model.
+                         * Google AI Studio,
+                         * Qwen,
+                         * Kimi,
+                         * MiniMax,
+                         * DeepSeek,
+                         * OpenAI,
+                         * Anthropic,
+                         * Custom
                          *
-                         * This avoids treating Google as
-                         * an OpenRouter model provider.
+                         * use a manually configured
+                         * model ID.
+                         *
+                         * Clicking this item opens
+                         * ModelDialog.
                          */
-                        OutlinedTextField(
-                            value =
-                                platformData.model,
+                        SettingItem(
+                            modifier =
+                                Modifier.height(
+                                    64.dp
+                                ),
 
-                            onValueChange = {},
+                            title =
+                                if (isGoogleAIStudio) {
 
-                            readOnly = true,
+                                    stringResource(
+                                        R.string.google_ai_studio_model_description
+                                    )
+
+                                } else {
+
+                                    stringResource(
+                                        R.string.api_model
+                                    )
+                                },
+
+                            description =
+                                platformData.model
+                                    .ifBlank {
+
+                                        stringResource(
+                                            R.string.not_set
+                                        )
+                                    },
 
                             enabled =
                                 platformData.enabled,
 
-                            label = {
-                                Text(
-                                    stringResource(
-                                        R.string.api_model
-                                    )
-                                )
+                            onItemClick = {
+
+                                settingViewModel
+                                    .openApiModelDialog()
                             },
 
-                            placeholder = {
-                                Text(
-                                    stringResource(
-                                        if (isGoogleAIStudio) {
-                                            R.string.google_ai_studio_model_examples
-                                        } else {
-                                            R.string.model_name
-                                        }
-                                    )
-                                },
-
-                            modifier =
-                                Modifier.fillMaxWidth(),
-
-                            singleLine = true
+                            showTrailingIcon =
+                                false,
                         )
                     }
                 }
 
+                /*
+                 * OpenAI reasoning handling.
+                 */
                 val isReasoningDisabled =
                     platformData.compatibleType ==
                         ClientType.OPENAI &&
@@ -619,9 +716,14 @@ fun PlatformSettingScreen(
                         R.string.not_set
                     )
 
+                /*
+                 * Temperature.
+                 */
                 SettingItem(
                     modifier =
-                        Modifier.height(64.dp),
+                        Modifier.height(
+                            64.dp
+                        ),
 
                     title =
                         stringResource(
@@ -638,16 +740,23 @@ fun PlatformSettingScreen(
                             !isReasoningDisabled,
 
                     onItemClick = {
+
                         settingViewModel
                             .openTemperatureDialog()
                     },
 
-                    showTrailingIcon = false
+                    showTrailingIcon =
+                        false,
                 )
 
+                /*
+                 * Top P.
+                 */
                 SettingItem(
                     modifier =
-                        Modifier.height(64.dp),
+                        Modifier.height(
+                            64.dp
+                        ),
 
                     title =
                         stringResource(
@@ -664,13 +773,18 @@ fun PlatformSettingScreen(
                             !isReasoningDisabled,
 
                     onItemClick = {
+
                         settingViewModel
                             .openTopPDialog()
                     },
 
-                    showTrailingIcon = false
+                    showTrailingIcon =
+                        false,
                 )
 
+                /*
+                 * Platform name dialog.
+                 */
                 PlatformNameDialog(
                     dialogState =
                         dialogState,
@@ -679,9 +793,12 @@ fun PlatformSettingScreen(
                         platformData.name,
 
                     settingViewModel =
-                        settingViewModel
+                        settingViewModel,
                 )
 
+                /*
+                 * API URL dialog.
+                 */
                 APIUrlDialog(
                     dialogState =
                         dialogState,
@@ -690,17 +807,26 @@ fun PlatformSettingScreen(
                         platformData.apiUrl,
 
                     settingViewModel =
-                        settingViewModel
+                        settingViewModel,
                 )
 
+                /*
+                 * API key dialog.
+                 */
                 APIKeyDialog(
                     dialogState =
                         dialogState,
 
                     settingViewModel =
-                        settingViewModel
+                        settingViewModel,
                 )
 
+                /*
+                 * Manual model dialog.
+                 *
+                 * Used by all providers except
+                 * OpenRouter's dynamic selector.
+                 */
                 ModelDialog(
                     dialogState =
                         dialogState,
@@ -709,9 +835,12 @@ fun PlatformSettingScreen(
                         platformData.model,
 
                     settingViewModel =
-                        settingViewModel
+                        settingViewModel,
                 )
 
+                /*
+                 * Temperature dialog.
+                 */
                 TemperatureDialog(
                     dialogState =
                         dialogState,
@@ -720,9 +849,12 @@ fun PlatformSettingScreen(
                         platformData.temperature,
 
                     settingViewModel =
-                        settingViewModel
+                        settingViewModel,
                 )
 
+                /*
+                 * Top P dialog.
+                 */
                 TopPDialog(
                     dialogState =
                         dialogState,
@@ -731,15 +863,18 @@ fun PlatformSettingScreen(
                         platformData.topP,
 
                     settingViewModel =
-                        settingViewModel
+                        settingViewModel,
                 )
 
+                /*
+                 * Delete platform dialog.
+                 */
                 DeletePlatformDialog(
                     dialogState =
                         dialogState,
 
                     settingViewModel =
-                        settingViewModel
+                        settingViewModel,
                 )
             }
         }

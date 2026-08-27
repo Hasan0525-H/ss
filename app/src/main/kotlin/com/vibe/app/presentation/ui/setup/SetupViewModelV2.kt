@@ -20,15 +20,28 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 sealed class SaveStatus {
-    data object Idle : SaveStatus()
-    data object Saving : SaveStatus()
-    data object Success : SaveStatus()
-    data class Error(val message: String) : SaveStatus()
+
+    data object Idle :
+        SaveStatus()
+
+    data object Saving :
+        SaveStatus()
+
+    data object Success :
+        SaveStatus()
+
+    data class Error(
+        val message: String
+    ) : SaveStatus()
 }
 
 sealed class ModelsFetchStatus {
-    data object Idle : ModelsFetchStatus()
-    data object Loading : ModelsFetchStatus()
+
+    data object Idle :
+        ModelsFetchStatus()
+
+    data object Loading :
+        ModelsFetchStatus()
 
     data class Success(
         val models: List<OpenRouterModel>
@@ -45,53 +58,73 @@ class SetupViewModelV2 @Inject constructor(
 ) : ViewModel() {
 
     private val _platforms =
-        MutableStateFlow<List<PlatformV2>>(emptyList())
+        MutableStateFlow<List<PlatformV2>>(
+            emptyList()
+        )
 
-    val platforms: StateFlow<List<PlatformV2>> =
+    val platforms:
+        StateFlow<List<PlatformV2>> =
         _platforms.asStateFlow()
 
     private val _wizardStep =
-        MutableStateFlow(0)
+        MutableStateFlow(
+            WIZARD_STEP_BASICS
+        )
 
-    val wizardStep: StateFlow<Int> =
+    val wizardStep:
+        StateFlow<Int> =
         _wizardStep.asStateFlow()
 
     private val _selectedClientType =
-        MutableStateFlow<ClientType?>(null)
+        MutableStateFlow<ClientType?>(
+            null
+        )
 
-    val selectedClientType: StateFlow<ClientType?> =
+    val selectedClientType:
+        StateFlow<ClientType?> =
         _selectedClientType.asStateFlow()
 
     private val _platformName =
         MutableStateFlow("")
 
-    val platformName: StateFlow<String> =
+    val platformName:
+        StateFlow<String> =
         _platformName.asStateFlow()
 
     private val _apiUrl =
         MutableStateFlow("")
 
-    val apiUrl: StateFlow<String> =
+    val apiUrl:
+        StateFlow<String> =
         _apiUrl.asStateFlow()
 
     private val _apiKey =
         MutableStateFlow("")
 
-    val apiKey: StateFlow<String> =
+    val apiKey:
+        StateFlow<String> =
         _apiKey.asStateFlow()
 
     private val _model =
         MutableStateFlow("")
 
-    val model: StateFlow<String> =
+    val model:
+        StateFlow<String> =
         _model.asStateFlow()
 
+    /*
+     * Used only by OpenRouter.
+     */
     private val _isFreePlan =
         MutableStateFlow(true)
 
-    val isFreePlan: StateFlow<Boolean> =
+    val isFreePlan:
+        StateFlow<Boolean> =
         _isFreePlan.asStateFlow()
 
+    /*
+     * Used only by OpenRouter dynamic models.
+     */
     private val _modelsFetchStatus =
         MutableStateFlow<ModelsFetchStatus>(
             ModelsFetchStatus.Idle
@@ -106,7 +139,8 @@ class SetupViewModelV2 @Inject constructor(
             SaveStatus.Idle
         )
 
-    val saveStatus: StateFlow<SaveStatus> =
+    val saveStatus:
+        StateFlow<SaveStatus> =
         _saveStatus.asStateFlow()
 
     private val _switchedPlatformEvent =
@@ -121,15 +155,46 @@ class SetupViewModelV2 @Inject constructor(
     }
 
     private fun loadPlatforms() {
+
         viewModelScope.launch {
-            _platforms.value =
-                settingRepository.fetchPlatformV2s()
+
+            try {
+
+                _platforms.value =
+                    settingRepository
+                        .fetchPlatformV2s()
+
+            } catch (
+                e: Exception
+            ) {
+
+                Log.e(
+                    TAG,
+                    "Failed to load platforms",
+                    e
+                )
+            }
         }
     }
 
+    /*
+     * =========================================================
+     * PROVIDER SELECTION
+     * =========================================================
+     *
+     * The visible UI currently exposes only:
+     *
+     * OPEN_ROUTER
+     * GOOGLE_AI_STUDIO
+     * CUSTOM
+     *
+     * Other ClientType values remain supported internally
+     * for compatibility with existing saved data/code.
+     */
     fun selectClientType(
         clientType: ClientType
     ) {
+
         _selectedClientType.value =
             clientType
 
@@ -143,7 +208,8 @@ class SetupViewModelV2 @Inject constructor(
                 clientType
             )
 
-        _apiKey.value = ""
+        _apiKey.value =
+            ""
 
         _model.value =
             getDefaultModel(
@@ -151,14 +217,18 @@ class SetupViewModelV2 @Inject constructor(
             )
 
         /*
-         * Free/Paid is meaningful only for
-         * OpenRouter.
+         * Free/Paid filtering belongs only
+         * to OpenRouter.
          */
         _isFreePlan.value =
-            clientType == ClientType.OPEN_ROUTER
+            clientType ==
+                ClientType.OPEN_ROUTER
 
         _modelsFetchStatus.value =
             ModelsFetchStatus.Idle
+
+        _saveStatus.value =
+            SaveStatus.Idle
 
         _wizardStep.value =
             WIZARD_STEP_BASICS
@@ -167,67 +237,103 @@ class SetupViewModelV2 @Inject constructor(
     fun updatePlatformName(
         name: String
     ) {
-        _platformName.value = name
+
+        _platformName.value =
+            name
     }
 
     fun updateApiUrl(
         url: String
     ) {
-        _apiUrl.value = url
+
+        _apiUrl.value =
+            url
     }
 
     fun updateApiKey(
         key: String
     ) {
-        _apiKey.value = key
+
+        _apiKey.value =
+            key
     }
 
     fun updateModel(
         modelName: String
     ) {
-        _model.value = modelName
+
+        _model.value =
+            modelName
     }
 
+    /*
+     * =========================================================
+     * OPENROUTER FREE / PAID
+     * =========================================================
+     */
     fun updatePlanType(
         isFree: Boolean
     ) {
-        _isFreePlan.value = isFree
 
         /*
-         * OpenRouter only has dynamic
-         * free/paid model filtering.
-         *
-         * Google AI Studio is completely
-         * independent from OpenRouter.
-         */
-        if (
-            _selectedClientType.value ==
-            ClientType.OPEN_ROUTER &&
-            _apiKey.value.isNotBlank()
-        ) {
-            fetchModels()
-        }
-    }
-
-    fun fetchModels() {
-
-        val currentApiKey =
-            _apiKey.value.trim()
-
-        if (currentApiKey.isBlank()) {
-            return
-        }
-
-        /*
-         * Only OpenRouter can use this
-         * model-fetching operation.
+         * Ignore this operation completely
+         * for Google AI Studio and Custom.
          */
         if (
             _selectedClientType.value !=
             ClientType.OPEN_ROUTER
         ) {
+
+            return
+        }
+
+        _isFreePlan.value =
+            isFree
+
+        if (
+            _apiKey.value
+                .isNotBlank()
+        ) {
+
+            fetchModels()
+        }
+    }
+
+    /*
+     * =========================================================
+     * OPENROUTER MODELS
+     * =========================================================
+     *
+     * This method MUST NEVER fetch models
+     * for Google AI Studio or Custom API.
+     */
+    fun fetchModels() {
+
+        if (
+            _selectedClientType.value !=
+            ClientType.OPEN_ROUTER
+        ) {
+
             _modelsFetchStatus.value =
                 ModelsFetchStatus.Idle
+
+            return
+        }
+
+        val currentApiKey =
+            normalizeApiKey(
+                _apiKey.value
+            )
+
+        if (
+            currentApiKey
+                .isNullOrBlank()
+        ) {
+
+            _modelsFetchStatus.value =
+                ModelsFetchStatus.Error(
+                    "OpenRouter API key is required"
+                )
 
             return
         }
@@ -255,16 +361,35 @@ class SetupViewModelV2 @Inject constructor(
                     )
 
                 /*
-                 * Automatically select the first
-                 * OpenRouter model when available.
+                 * Select a valid model automatically
+                 * when the current model is not present
+                 * in the newly fetched list.
+                 *
+                 * This avoids replacing the user's
+                 * selection unnecessarily.
                  */
                 if (
                     fetchedModels.isNotEmpty()
                 ) {
-                    _model.value =
-                        fetchedModels
-                            .first()
-                            .id
+
+                    val currentModel =
+                        _model.value.trim()
+
+                    val currentModelExists =
+                        fetchedModels.any {
+                            it.id ==
+                                currentModel
+                        }
+
+                    if (
+                        !currentModelExists
+                    ) {
+
+                        _model.value =
+                            fetchedModels
+                                .first()
+                                .id
+                    }
                 }
 
             } catch (
@@ -286,6 +411,11 @@ class SetupViewModelV2 @Inject constructor(
         }
     }
 
+    /*
+     * =========================================================
+     * WIZARD NAVIGATION
+     * =========================================================
+     */
     fun nextWizardStep() {
 
         if (
@@ -293,14 +423,19 @@ class SetupViewModelV2 @Inject constructor(
                 _wizardStep.value
             )
         ) {
+
             return
         }
 
         /*
-         * OpenRouter fetches models after
-         * the API key step.
+         * Fetch OpenRouter models after
+         * the API-key step.
          *
-         * Google AI Studio does not.
+         * Google AI Studio:
+         * manual Gemini model ID.
+         *
+         * Custom:
+         * manual model ID.
          */
         if (
             _wizardStep.value ==
@@ -308,10 +443,12 @@ class SetupViewModelV2 @Inject constructor(
             _selectedClientType.value ==
             ClientType.OPEN_ROUTER
         ) {
+
             fetchModels()
         }
 
         _wizardStep.update {
+
             minOf(
                 WIZARD_TOTAL_STEPS - 1,
                 it + 1
@@ -320,9 +457,11 @@ class SetupViewModelV2 @Inject constructor(
     }
 
     fun previousWizardStep() {
+
         _wizardStep.update {
+
             maxOf(
-                0,
+                WIZARD_STEP_BASICS,
                 it - 1
             )
         }
@@ -330,30 +469,139 @@ class SetupViewModelV2 @Inject constructor(
 
     fun resetWizard() {
 
-        _wizardStep.value = 0
+        _wizardStep.value =
+            WIZARD_STEP_BASICS
 
         _selectedClientType.value =
             null
 
-        _platformName.value = ""
+        _platformName.value =
+            ""
 
-        _apiUrl.value = ""
+        _apiUrl.value =
+            ""
 
-        _apiKey.value = ""
+        _apiKey.value =
+            ""
 
-        _model.value = ""
+        _model.value =
+            ""
 
-        _isFreePlan.value = true
+        _isFreePlan.value =
+            true
 
         _modelsFetchStatus.value =
             ModelsFetchStatus.Idle
+
+        /*
+         * Do NOT reset SaveStatus here.
+         *
+         * SetupPlatformWizardScreen waits for
+         * SaveStatus.Success before navigating.
+         */
     }
 
+    /*
+     * =========================================================
+     * SAVE PLATFORM
+     * =========================================================
+     */
     fun savePlatform() {
+
+        /*
+         * Extra protection against duplicate
+         * save requests.
+         */
+        if (
+            _saveStatus.value ==
+            SaveStatus.Saving
+        ) {
+
+            return
+        }
 
         val clientType =
             _selectedClientType.value
                 ?: return
+
+        val cleanName =
+            _platformName.value
+                .trim()
+
+        val cleanApiUrl =
+            _apiUrl.value
+                .trim()
+                .trimEnd('/')
+
+        val cleanModel =
+            _model.value
+                .trim()
+
+        val cleanApiKey =
+            normalizeApiKey(
+                _apiKey.value
+            )
+
+        /*
+         * Validate required values again
+         * at the ViewModel level.
+         */
+        if (
+            cleanName.isBlank()
+        ) {
+
+            _saveStatus.value =
+                SaveStatus.Error(
+                    "Platform name is required"
+                )
+
+            return
+        }
+
+        if (
+            cleanApiUrl.isBlank()
+        ) {
+
+            _saveStatus.value =
+                SaveStatus.Error(
+                    "API URL is required"
+                )
+
+            return
+        }
+
+        if (
+            cleanModel.isBlank()
+        ) {
+
+            _saveStatus.value =
+                SaveStatus.Error(
+                    "Model ID is required"
+                )
+
+            return
+        }
+
+        /*
+         * OpenRouter and Google require API keys.
+         *
+         * Custom API key is optional because
+         * local/private OpenAI-compatible endpoints
+         * may not require authentication.
+         */
+        if (
+            clientType !=
+            ClientType.CUSTOM &&
+            cleanApiKey.isNullOrBlank()
+        ) {
+
+            _saveStatus.value =
+                SaveStatus.Error(
+                    "API key is required"
+                )
+
+            return
+        }
 
         viewModelScope.launch {
 
@@ -366,8 +614,7 @@ class SetupViewModelV2 @Inject constructor(
                     PlatformV2(
 
                         name =
-                            _platformName.value
-                                .trim(),
+                            cleanName,
 
                         compatibleType =
                             clientType,
@@ -376,33 +623,37 @@ class SetupViewModelV2 @Inject constructor(
                             true,
 
                         apiUrl =
-                            _apiUrl.value
-                                .trim(),
+                            cleanApiUrl,
 
+                        /*
+                         * Stored without "Bearer ".
+                         *
+                         * The networking layer adds the
+                         * Authorization Bearer prefix.
+                         */
                         token =
-                            _apiKey.value
-                                .trim()
-                                .takeIf {
-                                    it.isNotEmpty()
-                                },
+                            cleanApiKey,
 
+                        /*
+                         * Exact selected model ID.
+                         */
                         model =
-                            _model.value
-                                .trim(),
+                            cleanModel,
 
                         /*
                          * Only OpenRouter stores
-                         * free/paid state.
-                         *
-                         * Google AI Studio gets null.
+                         * Free / Paid state.
                          */
                         isFree =
                             if (
                                 clientType ==
                                 ClientType.OPEN_ROUTER
                             ) {
+
                                 _isFreePlan.value
+
                             } else {
+
                                 null
                             },
 
@@ -435,7 +686,7 @@ class SetupViewModelV2 @Inject constructor(
                     }
 
                 /*
-                 * Only one platform is active
+                 * Only one provider can be active
                  * at a time.
                  */
                 othersEnabled.forEach {
@@ -444,7 +695,8 @@ class SetupViewModelV2 @Inject constructor(
                     settingRepository
                         .updatePlatformV2(
                             existingPlatform.copy(
-                                enabled = false
+                                enabled =
+                                    false
                             )
                         )
                 }
@@ -455,7 +707,8 @@ class SetupViewModelV2 @Inject constructor(
                     )
 
                 if (
-                    othersEnabled.isNotEmpty()
+                    othersEnabled
+                        .isNotEmpty()
                 ) {
 
                     _switchedPlatformEvent.emit(
@@ -463,11 +716,25 @@ class SetupViewModelV2 @Inject constructor(
                     )
                 }
 
+                /*
+                 * Refresh list before reporting
+                 * successful save.
+                 */
                 loadPlatforms()
 
+                /*
+                 * SetupPlatformWizardScreen observes
+                 * this status and performs onComplete().
+                 */
                 _saveStatus.value =
                     SaveStatus.Success
 
+                /*
+                 * Reset form state.
+                 *
+                 * SaveStatus intentionally remains
+                 * Success until clearSaveStatus().
+                 */
                 resetWizard()
 
             } catch (
@@ -490,6 +757,7 @@ class SetupViewModelV2 @Inject constructor(
     }
 
     fun clearSaveStatus() {
+
         _saveStatus.value =
             SaveStatus.Idle
     }
@@ -497,17 +765,36 @@ class SetupViewModelV2 @Inject constructor(
     fun deletePlatform(
         platform: PlatformV2
     ) {
+
         viewModelScope.launch {
 
-            settingRepository
-                .deletePlatformV2(
-                    platform
-                )
+            try {
 
-            loadPlatforms()
+                settingRepository
+                    .deletePlatformV2(
+                        platform
+                    )
+
+                loadPlatforms()
+
+            } catch (
+                e: Exception
+            ) {
+
+                Log.e(
+                    TAG,
+                    "Failed to delete platform",
+                    e
+                )
+            }
         }
     }
 
+    /*
+     * =========================================================
+     * WIZARD VALIDATION
+     * =========================================================
+     */
     fun canProceedFromStep(
         step: Int
     ): Boolean =
@@ -517,14 +804,19 @@ class SetupViewModelV2 @Inject constructor(
 
                 _platformName.value
                     .isNotBlank() &&
+                    _apiUrl.value
+                        .isNotBlank()
 
-                _apiUrl.value
-                    .isNotBlank()
-
+            /*
+             * Custom API can continue without
+             * an API key.
+             */
             WIZARD_STEP_API_KEY ->
 
-                _apiKey.value
-                    .isNotBlank()
+                _selectedClientType.value ==
+                    ClientType.CUSTOM ||
+                    _apiKey.value
+                        .isNotBlank()
 
             WIZARD_STEP_MODEL ->
 
@@ -536,13 +828,33 @@ class SetupViewModelV2 @Inject constructor(
         }
 
     fun isSetupComplete(): Boolean =
-        _platforms.value.isNotEmpty()
 
+        _platforms.value
+            .isNotEmpty()
+
+    /*
+     * =========================================================
+     * DEFAULT PLATFORM NAME
+     * =========================================================
+     */
     private fun getDefaultPlatformName(
         clientType: ClientType
     ): String =
         when (clientType) {
 
+            ClientType.OPEN_ROUTER ->
+                "OpenRouter"
+
+            ClientType.GOOGLE_AI_STUDIO ->
+                "Google AI Studio"
+
+            ClientType.CUSTOM ->
+                "Custom API"
+
+            /*
+             * Kept only for compatibility with
+             * old ClientType values.
+             */
             ClientType.OPENAI ->
                 "OpenAI"
 
@@ -560,31 +872,34 @@ class SetupViewModelV2 @Inject constructor(
 
             ClientType.DEEPSEEK ->
                 "DeepSeek"
-
-            ClientType.GOOGLE_AI_STUDIO ->
-                "Google AI Studio"
-
-            ClientType.OPEN_ROUTER ->
-                "OpenRouter"
-
-            ClientType.CUSTOM ->
-                "Custom API"
         }
 
+    /*
+     * =========================================================
+     * DEFAULT API URL
+     * =========================================================
+     */
     private fun getDefaultApiUrl(
         clientType: ClientType
     ): String =
         when (clientType) {
 
             ClientType.OPEN_ROUTER ->
+
                 ModelConstants
                     .OPENROUTER_API_URL
 
             ClientType.GOOGLE_AI_STUDIO ->
+
                 ModelConstants
                     .GOOGLE_AI_STUDIO_API_URL
 
+            /*
+             * Custom URL must be entered
+             * by the user.
+             */
             ClientType.CUSTOM ->
+
                 ModelConstants
                     .CUSTOM_API_URL
 
@@ -592,11 +907,35 @@ class SetupViewModelV2 @Inject constructor(
                 ""
         }
 
+    /*
+     * =========================================================
+     * DEFAULT MODEL
+     * =========================================================
+     */
     private fun getDefaultModel(
         clientType: ClientType
     ): String =
         when (clientType) {
 
+            /*
+             * OpenRouter replaces this with a
+             * fetched valid model when required.
+             */
+            ClientType.OPEN_ROUTER ->
+                "google/gemini-2.5-pro"
+
+            ClientType.GOOGLE_AI_STUDIO ->
+                "gemini-2.5-flash"
+
+            /*
+             * User must enter the exact model ID.
+             */
+            ClientType.CUSTOM ->
+                ""
+
+            /*
+             * Compatibility only.
+             */
             ClientType.OPENAI ->
                 "gpt-4o"
 
@@ -614,16 +953,50 @@ class SetupViewModelV2 @Inject constructor(
 
             ClientType.DEEPSEEK ->
                 "deepseek-chat"
-
-            ClientType.GOOGLE_AI_STUDIO ->
-                "gemini-2.5-flash"
-
-            ClientType.OPEN_ROUTER ->
-                "google/gemini-2.5-pro"
-
-            ClientType.CUSTOM ->
-                ""
         }
+
+    /*
+     * Remove an optional Bearer prefix before
+     * saving or using the API key.
+     */
+    private fun normalizeApiKey(
+        rawApiKey: String
+    ): String? {
+
+        val trimmed =
+            rawApiKey.trim()
+
+        if (
+            trimmed.isBlank()
+        ) {
+
+            return null
+        }
+
+        val normalized =
+            if (
+                trimmed.startsWith(
+                    prefix = "Bearer ",
+                    ignoreCase = true
+                )
+            ) {
+
+                trimmed
+                    .substring(
+                        "Bearer ".length
+                    )
+                    .trim()
+
+            } else {
+
+                trimmed
+            }
+
+        return normalized
+            .takeIf {
+                it.isNotBlank()
+            }
+    }
 
     companion object {
 

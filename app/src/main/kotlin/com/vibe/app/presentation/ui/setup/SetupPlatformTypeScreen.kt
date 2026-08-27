@@ -45,13 +45,11 @@ private val platformTypes = listOf(
         titleResId = R.string.openrouter,
         descriptionResId = R.string.openrouter_description
     ),
-
     PlatformTypeInfo(
         clientType = ClientType.GOOGLE_AI_STUDIO,
         titleResId = R.string.google_ai_studio,
         descriptionResId = R.string.google_ai_studio_description
     ),
-
     PlatformTypeInfo(
         clientType = ClientType.CUSTOM,
         titleResId = R.string.custom_api,
@@ -92,26 +90,21 @@ fun SetupPlatformTypeScreen(
 
                 items(
                     items = platformTypes,
-                    key = {
-                        it.clientType.name
-                    }
+                    key = { it.clientType.name }
                 ) { platformTypeInfo ->
 
                     PlatformTypeCard(
                         platformTypeInfo = platformTypeInfo,
                         onClick = {
-
                             setupViewModel.selectClientType(
                                 platformTypeInfo.clientType
                             )
-
                             onPlatformTypeSelected()
                         }
                     )
                 }
 
                 item {
-
                     Spacer(
                         modifier = Modifier.height(16.dp)
                     )

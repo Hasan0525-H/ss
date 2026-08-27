@@ -28,7 +28,9 @@ sealed class SaveStatus {
 
 sealed class ModelsFetchStatus {
     data object Idle : ModelsFetchStatus()
+
     data object Loading : ModelsFetchStatus()
+
     data class Success(
         val models: List<OpenRouterModel>
     ) : ModelsFetchStatus()
@@ -188,14 +190,15 @@ class SetupViewModelV2 @Inject constructor(
         _isFreePlan.value = isFree
 
         /*
-         * Free/Paid filtering is a feature of OpenRouter.
-         * Google AI Studio does not use the OpenRouter
-         * pricing filter, so changing this option must
-         * not trigger an OpenRouter request for Gemini.
+         * Free/Paid filtering belongs only to
+         * OpenRouter.
+         *
+         * Google AI Studio has its own Gemini API
+         * and must never call OpenRouter here.
          */
         if (
             _selectedClientType.value ==
-                ClientType.OPEN_ROUTER &&
+            ClientType.OPEN_ROUTER &&
             _apiKey.value.isNotBlank()
         ) {
             fetchModels()
@@ -203,6 +206,7 @@ class SetupViewModelV2 @Inject constructor(
     }
 
     fun fetchModels() {
+
         val currentApiKey =
             _apiKey.value.trim()
 
@@ -215,18 +219,18 @@ class SetupViewModelV2 @Inject constructor(
                 ?: return
 
         /*
-         * At this stage the repository exposes the
-         * OpenRouter models API. Therefore only
-         * OpenRouter is allowed to use this method.
+         * This method intentionally supports
+         * OpenRouter only.
          *
-         * Google AI Studio will receive its own
-         * Gemini models API in the next network/repository
-         * implementation step.
+         * Google AI Studio is independent from
+         * OpenRouter and uses the manually selected
+         * Gemini model.
          */
         if (
             clientType !=
-                ClientType.OPEN_ROUTER
+            ClientType.OPEN_ROUTER
         ) {
+
             _modelsFetchStatus.value =
                 ModelsFetchStatus.Idle
 
@@ -234,14 +238,18 @@ class SetupViewModelV2 @Inject constructor(
         }
 
         viewModelScope.launch {
+
             _modelsFetchStatus.value =
                 ModelsFetchStatus.Loading
 
             try {
+
                 val fetchedModels =
                     settingRepository
                         .fetchOpenRouterModels(
-                            apiKey = currentApiKey,
+                            apiKey =
+                                currentApiKey,
+
                             isFreeOnly =
                                 _isFreePlan.value
                         )
@@ -254,6 +262,7 @@ class SetupViewModelV2 @Inject constructor(
                 if (
                     fetchedModels.isNotEmpty()
                 ) {
+
                     _model.value =
                         fetchedModels
                             .first()
@@ -263,6 +272,7 @@ class SetupViewModelV2 @Inject constructor(
             } catch (
                 e: Exception
             ) {
+
                 Log.e(
                     TAG,
                     "Failed to fetch OpenRouter models",
@@ -272,13 +282,14 @@ class SetupViewModelV2 @Inject constructor(
                 _modelsFetchStatus.value =
                     ModelsFetchStatus.Error(
                         e.message
-                            ?: "فشل في جلب قائمة الموديلات"
+                            ?: "Failed to fetch model list"
                     )
             }
         }
     }
 
     fun nextWizardStep() {
+
         if (
             !canProceedFromStep(
                 _wizardStep.value
@@ -288,17 +299,17 @@ class SetupViewModelV2 @Inject constructor(
         }
 
         /*
-         * Only OpenRouter currently uses the
-         * OpenRouter models endpoint.
+         * Only OpenRouter fetches its models
+         * dynamically from the OpenRouter API.
          *
-         * Google AI Studio will be handled by
-         * GeminiModelsAPI separately.
+         * Google AI Studio does not use this
+         * OpenRouter endpoint.
          */
         if (
             _wizardStep.value ==
-                WIZARD_STEP_API_KEY &&
+            WIZARD_STEP_API_KEY &&
             _selectedClientType.value ==
-                ClientType.OPEN_ROUTER
+            ClientType.OPEN_ROUTER
         ) {
             fetchModels()
         }
@@ -321,6 +332,7 @@ class SetupViewModelV2 @Inject constructor(
     }
 
     fun resetWizard() {
+
         _wizardStep.value = 0
 
         _selectedClientType.value =
@@ -341,17 +353,21 @@ class SetupViewModelV2 @Inject constructor(
     }
 
     fun savePlatform() {
+
         val clientType =
             _selectedClientType.value
                 ?: return
 
         viewModelScope.launch {
+
             _saveStatus.value =
                 SaveStatus.Saving
 
             try {
+
                 val platform =
                     PlatformV2(
+
                         name =
                             _platformName.value
                                 .trim(),
@@ -377,19 +393,32 @@ class SetupViewModelV2 @Inject constructor(
                                 .trim(),
 
                         isFree =
-                            _isFreePlan.value,
+                            if (
+                                clientType ==
+                                ClientType.OPEN_ROUTER
+                            ) {
+                                _isFreePlan.value
+                            } else {
+                                null
+                            },
 
-                        temperature = 1.0f,
+                        temperature =
+                            1.0f,
 
-                        topP = 1.0f,
+                        topP =
+                            1.0f,
 
-                        systemPrompt = null,
+                        systemPrompt =
+                            null,
 
-                        stream = true,
+                        stream =
+                            true,
 
-                        reasoning = false,
+                        reasoning =
+                            false,
 
-                        timeout = 30
+                        timeout =
+                            30
                     )
 
                 val allPlatforms =
@@ -401,10 +430,16 @@ class SetupViewModelV2 @Inject constructor(
                         it.enabled
                     }
 
+                /*
+                 * Only one platform is active at
+                 * a time, regardless of provider.
+                 */
                 othersEnabled.forEach {
+                    existingPlatform ->
+
                     settingRepository
                         .updatePlatformV2(
-                            it.copy(
+                            existingPlatform.copy(
                                 enabled = false
                             )
                         )
@@ -418,6 +453,7 @@ class SetupViewModelV2 @Inject constructor(
                 if (
                     othersEnabled.isNotEmpty()
                 ) {
+
                     _switchedPlatformEvent.emit(
                         platform.name
                     )
@@ -433,6 +469,7 @@ class SetupViewModelV2 @Inject constructor(
             } catch (
                 e: Exception
             ) {
+
                 Log.e(
                     TAG,
                     "Failed to save platform",
@@ -457,6 +494,7 @@ class SetupViewModelV2 @Inject constructor(
         platform: PlatformV2
     ) {
         viewModelScope.launch {
+
             settingRepository
                 .deletePlatformV2(
                     platform
@@ -472,16 +510,20 @@ class SetupViewModelV2 @Inject constructor(
         when (step) {
 
             WIZARD_STEP_BASICS ->
+
                 _platformName.value
                     .isNotBlank() &&
-                    _apiUrl.value
-                        .isNotBlank()
+
+                _apiUrl.value
+                    .isNotBlank()
 
             WIZARD_STEP_API_KEY ->
+
                 _apiKey.value
                     .isNotBlank()
 
             WIZARD_STEP_MODEL ->
+
                 _model.value
                     .isNotBlank()
 
@@ -580,6 +622,7 @@ class SetupViewModelV2 @Inject constructor(
         }
 
     companion object {
+
         private const val TAG =
             "SetupViewModelV2"
 

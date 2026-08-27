@@ -1,38 +1,37 @@
 package com.vibe.app.presentation.ui.chat
 
 import android.net.Uri
-import android.util.Log
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardColors
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,18 +42,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
@@ -71,7 +69,6 @@ import com.mikepenz.markdown.m3.markdownColor
 import com.mikepenz.markdown.m3.markdownTypography
 import com.mikepenz.markdown.model.markdownPadding
 import com.vibe.app.R
-import com.vibe.app.presentation.theme.VibeAppTheme
 import java.io.File
 
 @Composable
@@ -79,42 +76,46 @@ fun UserChatBubble(
     modifier: Modifier = Modifier,
     text: String,
     files: List<String> = emptyList(),
-    onLongPress: () -> Unit
+    onLongPress: () -> Unit,
 ) {
-    val cardColor = CardColors(
-        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
-        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.38f)
-    )
-    Log.d("UserChatBubble", "files: $files (size: ${files.size})")
-    files.forEachIndexed { index, file ->
-        Log.d("UserChatBubble", "files[$index] = '$file' (length: ${file.length})")
-    }
-
-    Column(horizontalAlignment = Alignment.End) {
+    Column(
+        horizontalAlignment = Alignment.End,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
         Card(
             modifier = modifier
-                .padding(end = 10.dp)
+                .padding(horizontal = 10.dp)
                 .pointerInput(Unit) {
-                    detectTapGestures(onLongPress = { onLongPress.invoke() })
+                    detectTapGestures(onLongPress = { onLongPress() })
                 },
-            shape = RoundedCornerShape(12.dp),
-            colors = cardColor
+            shape = RoundedCornerShape(
+                topStart = 20.dp,
+                topEnd = 20.dp,
+                bottomStart = 20.dp,
+                bottomEnd = 7.dp,
+            ),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.58f),
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            ),
+            border = BorderStroke(
+                1.dp,
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+            ),
         ) {
             Markdown(
                 content = text.trimIndent(),
-                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 10.dp),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                 colors = chatMarkdownColors(),
                 typography = chatMarkdownTypography(),
                 padding = chatMarkdownPadding(),
                 components = chatMarkdownComponents(),
             )
         }
+
         UserFileThumbnailRow(
-            modifier = Modifier
-                .padding(top = 8.dp, end = 10.dp),
-            files = files
+            modifier = Modifier.padding(top = 8.dp, end = 10.dp),
+            files = files,
         )
     }
 }
@@ -129,42 +130,81 @@ fun OpponentChatBubble(
     onCopyClick: () -> Unit = {},
     onSelectClick: () -> Unit = {},
 ) {
-    val cardColor = CardColors(
-        containerColor = MaterialTheme.colorScheme.background,
-        contentColor = MaterialTheme.colorScheme.onBackground,
-        disabledContentColor = MaterialTheme.colorScheme.background.copy(alpha = 0.38f),
-        disabledContainerColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.38f)
-    )
+    Column(
+        modifier = modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = if (isLoading) loadingMinHeight else 0.dp),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+            ),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        ) {
+            Column {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 14.dp, end = 14.dp, top = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Surface(
+                        modifier = Modifier.size(30.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Outlined.AutoAwesome,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
+                    }
+                    Text(
+                        text = if (isError) "AI • Error" else "AI",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = if (isError) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
+                    if (isLoading) {
+                        Spacer(Modifier.width(2.dp))
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(14.dp),
+                            strokeWidth = 2.dp,
+                        )
+                    }
+                }
 
-    Column(modifier = modifier) {
-        Column {
-            Card(
-                modifier = Modifier.heightIn(min = if (isLoading) loadingMinHeight else 0.dp),
-                shape = RoundedCornerShape(0.dp),
-                colors = cardColor
-            ) {
-                val displayText = if (isLoading) text.trimIndent() + "●" else text.trimIndent()
-
+                val displayText = if (isLoading) text.trimIndent() + " ●" else text.trimIndent()
                 Markdown(
                     content = displayText,
-                    modifier = Modifier.padding(16.dp),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                     colors = chatMarkdownColors(),
                     typography = chatMarkdownTypography(),
                     padding = chatMarkdownPadding(),
                     components = chatMarkdownComponents(),
                 )
             }
+        }
 
-            if (!isLoading) {
-                Row(
-                    modifier = Modifier.padding(start = 8.dp)
-                ) {
-                    if (!isError) {
-                        CopyTextIcon(onCopyClick)
-                        Spacer(modifier = Modifier.width(4.dp))
-                        SelectTextIcon(onSelectClick)
-                    }
-                }
+        if (!isLoading && !isError) {
+            Row(
+                modifier = Modifier.padding(start = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                CopyTextIcon(onCopyClick)
+                SelectTextIcon(onSelectClick)
             }
         }
     }
@@ -172,30 +212,33 @@ fun OpponentChatBubble(
 
 @Composable
 fun VibeAppIcon(loading: Boolean) {
-    Box(
+    Surface(
         modifier = Modifier
             .padding(start = 8.dp)
+            .size(42.dp)
             .shadow(
-                elevation = 8.dp,
-                shape = RoundedCornerShape(40.dp),
-                ambientColor = Color.Black.copy(alpha = 0.1f),
-                spotColor = Color.Black.copy(alpha = 0.15f),
-            )
-            .size(40.dp)
-            .clip(RoundedCornerShape(40.dp))
-            .background(color = Color(0xFFFFFFFF)),
-        contentAlignment = Alignment.Center
+                elevation = 4.dp,
+                shape = RoundedCornerShape(14.dp),
+                ambientColor = Color.Black.copy(alpha = 0.08f),
+                spotColor = Color.Black.copy(alpha = 0.12f),
+            ),
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
-        if (loading) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(40.dp)
+        Box(contentAlignment = Alignment.Center) {
+            if (loading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(36.dp),
+                    strokeWidth = 2.dp,
+                )
+            }
+            Image(
+                painter = painterResource(R.drawable.ic_vibe),
+                contentDescription = null,
+                modifier = Modifier.size(32.dp),
             )
         }
-        Image(
-            painter = painterResource(R.drawable.ic_vibe),
-            contentDescription = null,
-            modifier = Modifier.size(36.dp)
-        )
     }
 }
 
@@ -205,8 +248,8 @@ private fun CopyTextIcon(onCopyClick: () -> Unit) {
         Icon(
             imageVector = ImageVector.vectorResource(id = R.drawable.ic_copy),
             contentDescription = stringResource(R.string.copy_text),
-            modifier = Modifier.size(16.dp),
-            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+            modifier = Modifier.size(17.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -216,48 +259,9 @@ private fun SelectTextIcon(onSelectClick: () -> Unit) {
     IconButton(onClick = onSelectClick, modifier = Modifier.size(38.dp)) {
         Icon(
             imageVector = ImageVector.vectorResource(id = R.drawable.ic_select),
-            contentDescription = "Select",
-            modifier = Modifier.size(16.dp),
-            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
-        )
-    }
-}
-
-@Preview
-@Composable
-fun UserChatBubblePreview() {
-    val sampleText = """
-        How can I print hello world
-        in Python?
-    """.trimIndent()
-    VibeAppTheme {
-        UserChatBubble(text = sampleText, files = emptyList(), onLongPress = {})
-    }
-}
-
-@Preview
-@Composable
-fun OpponentChatBubblePreview() {
-    val sampleText = """
-        # Demo
-    
-        Emphasis, aka italics, with *asterisks* or _underscores_. Strong emphasis, aka bold, with **asterisks** or __underscores__. Combined emphasis with **asterisks and _underscores_**. [Links with two blocks, text in square-brackets, destination is in parentheses.](https://www.example.com). Inline `code` has `back-ticks around` it.
-    
-        1. First ordered list item
-        2. Another item
-            * Unordered sub-list.
-        3. And another item.
-            You can have properly indented paragraphs within list items. Notice the blank line above, and the leading spaces (at least one, but we'll use three here to also align the raw Markdown).
-    
-        * Unordered list can use asterisks
-        - Or minuses
-        + Or pluses
-    """.trimIndent()
-    VibeAppTheme {
-        OpponentChatBubble(
-            text = sampleText,
-            isLoading = false,
-            onCopyClick = {},
+            contentDescription = null,
+            modifier = Modifier.size(17.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -265,39 +269,29 @@ fun OpponentChatBubblePreview() {
 @Composable
 private fun UserFileThumbnailRow(
     modifier: Modifier = Modifier,
-    files: List<String>
+    files: List<String>,
 ) {
-    val validFiles = files.filter { it.isNotEmpty() && it.isNotBlank() }
+    val validFiles = files.filter { it.isNotBlank() }
     var previewImagePath by remember { mutableStateOf<String?>(null) }
-
-    Log.d("UserFileThumbnailRow", "Original files: $files (size: ${files.size})")
-    Log.d("UserFileThumbnailRow", "Valid files: $validFiles (size: ${validFiles.size})")
-
-    if (validFiles.isEmpty()) {
-        return
-    }
+    if (validFiles.isEmpty()) return
 
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        colors = CardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-            contentColor = MaterialTheme.colorScheme.onSurface,
-            disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
-            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.38f)
-        )
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Row(
             modifier = Modifier
                 .wrapContentHeight()
                 .horizontalScroll(rememberScrollState())
-                .padding(12.dp),
-            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(10.dp)
+                .padding(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             validFiles.forEach { filePath ->
                 UserFileThumbnail(
                     filePath = filePath,
-                    onImageClick = { previewImagePath = filePath }
+                    onImageClick = { previewImagePath = filePath },
                 )
             }
         }
@@ -306,7 +300,7 @@ private fun UserFileThumbnailRow(
     previewImagePath?.let { imagePath ->
         FullscreenImagePreview(
             filePath = imagePath,
-            onDismissRequest = { previewImagePath = null }
+            onDismissRequest = { previewImagePath = null },
         )
     }
 }
@@ -314,71 +308,65 @@ private fun UserFileThumbnailRow(
 @Composable
 private fun UserFileThumbnail(
     filePath: String,
-    onImageClick: () -> Unit
+    onImageClick: () -> Unit,
 ) {
     val file = File(filePath)
     val isImage = isImageFile(file.extension)
-    val imageModel = remember(filePath) { Uri.fromFile(file) }
+    val width = if (isImage) 132.dp else 88.dp
 
     Column(
-        modifier = Modifier.width(if (isImage) 144.dp else 92.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+        modifier = Modifier.width(width),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
             modifier = Modifier
-                .width(if (isImage) 144.dp else 92.dp)
-                .size(if (isImage) 144.dp else 92.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f))
-                .then(if (isImage) Modifier.clickable(onClick = onImageClick) else Modifier)
+                .size(width)
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                .then(if (isImage) Modifier.clickable(onClick = onImageClick) else Modifier),
+            contentAlignment = Alignment.Center,
         ) {
             if (isImage) {
                 AsyncImage(
-                    model = imageModel,
+                    model = Uri.fromFile(file),
                     contentDescription = file.name,
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
+                    contentScale = ContentScale.Crop,
                 )
             } else {
                 Icon(
                     imageVector = ImageVector.vectorResource(R.drawable.ic_file),
                     contentDescription = file.name,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(8.dp),
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                    modifier = Modifier.size(34.dp),
+                    tint = MaterialTheme.colorScheme.primary,
                 )
             }
         }
-
+        Spacer(Modifier.height(5.dp))
         Text(
             text = file.name,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-            modifier = Modifier
-                .padding(top = 6.dp)
-                .width(if (isImage) 144.dp else 92.dp)
         )
     }
 }
 
 @Composable
 private fun chatMarkdownColors() = markdownColor(
-    codeBackground = MaterialTheme.colorScheme.surfaceVariant,
+    codeBackground = MaterialTheme.colorScheme.surfaceContainerLow,
 )
 
 @Composable
 fun chatMarkdownTypography(): com.mikepenz.markdown.model.MarkdownTypography {
-    val uniformLineHeightStyle = LineHeightStyle(
+    val lineHeightStyle = LineHeightStyle(
         alignment = LineHeightStyle.Alignment.Center,
         trim = LineHeightStyle.Trim.None,
     )
     val body = MaterialTheme.typography.bodyLarge.copy(
         lineHeight = 24.sp,
-        lineHeightStyle = uniformLineHeightStyle,
+        lineHeightStyle = lineHeightStyle,
     )
     return markdownTypography(
         h1 = MaterialTheme.typography.headlineSmall,
@@ -452,24 +440,24 @@ fun chatMarkdownComponents() = markdownComponents(
 @Composable
 fun FullscreenImagePreview(
     filePath: String,
-    onDismissRequest: () -> Unit
+    onDismissRequest: () -> Unit,
 ) {
     Dialog(
         onDismissRequest = onDismissRequest,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black.copy(alpha = 0.92f))
                 .clickable(onClick = onDismissRequest),
-            contentAlignment = Alignment.Center
+            contentAlignment = Alignment.Center,
         ) {
             AsyncImage(
                 model = Uri.fromFile(File(filePath)),
                 contentDescription = File(filePath).name,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Fit
+                contentScale = ContentScale.Fit,
             )
         }
     }

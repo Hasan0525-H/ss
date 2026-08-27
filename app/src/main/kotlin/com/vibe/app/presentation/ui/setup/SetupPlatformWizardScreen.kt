@@ -79,7 +79,6 @@ fun SetupPlatformWizardScreen(
     val apiKey by setupViewModel.apiKey.collectAsStateWithLifecycle()
     val model by setupViewModel.model.collectAsStateWithLifecycle()
     val isFreePlan by setupViewModel.isFreePlan.collectAsStateWithLifecycle()
-
     val modelsFetchStatus by setupViewModel.modelsFetchStatus.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
@@ -95,13 +94,27 @@ fun SetupPlatformWizardScreen(
         }
     }
 
-    val canProceed by remember {
+    val canProceed by remember(
+        wizardStep,
+        platformName,
+        apiUrl,
+        apiKey,
+        model
+    ) {
         derivedStateOf {
             when (wizardStep) {
-                WIZARD_STEP_BASICS -> platformName.isNotBlank() && apiUrl.isNotBlank()
-                WIZARD_STEP_API_KEY -> apiKey.isNotBlank()
-                WIZARD_STEP_MODEL -> model.isNotBlank()
-                else -> false
+                WIZARD_STEP_BASICS ->
+                    platformName.isNotBlank() &&
+                        apiUrl.isNotBlank()
+
+                WIZARD_STEP_API_KEY ->
+                    apiKey.isNotBlank()
+
+                WIZARD_STEP_MODEL ->
+                    model.isNotBlank()
+
+                else ->
+                    false
             }
         }
     }
@@ -130,12 +143,14 @@ fun SetupPlatformWizardScreen(
             )
         }
     ) { innerPadding ->
+
         Column(
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
                 .imePadding()
         ) {
+
             WizardProgressIndicator(
                 currentStep = wizardStep,
                 totalSteps = WIZARD_TOTAL_STEPS
@@ -145,24 +160,34 @@ fun SetupPlatformWizardScreen(
                 targetState = wizardStep,
                 transitionSpec = {
                     if (targetState > initialState) {
-                        (slideInHorizontally { it } + fadeIn()) togetherWith
-                                (slideOutHorizontally { -it } + fadeOut())
+                        (
+                            slideInHorizontally { it } + fadeIn()
+                            togetherWith
+                                slideOutHorizontally { -it } + fadeOut()
+                            )
                     } else {
-                        (slideInHorizontally { -it } + fadeIn()) togetherWith
-                                (slideOutHorizontally { it } + fadeOut())
+                        (
+                            slideInHorizontally { -it } + fadeIn()
+                            togetherWith
+                                slideOutHorizontally { it } + fadeOut()
+                            )
                     }
                 },
                 label = "wizard_step_animation",
                 modifier = Modifier.weight(1f)
             ) { step ->
+
                 when (step) {
+
                     WIZARD_STEP_BASICS -> {
                         BasicsStep(
                             clientType = selectedClientType,
                             platformName = platformName,
-                            onPlatformNameChange = setupViewModel::updatePlatformName,
+                            onPlatformNameChange =
+                                setupViewModel::updatePlatformName,
                             apiUrl = apiUrl,
-                            onApiUrlChange = setupViewModel::updateApiUrl
+                            onApiUrlChange =
+                                setupViewModel::updateApiUrl
                         )
                     }
 
@@ -170,17 +195,22 @@ fun SetupPlatformWizardScreen(
                         ApiKeyStep(
                             clientType = selectedClientType,
                             apiKey = apiKey,
-                            onApiKeyChange = setupViewModel::updateApiKey
+                            onApiKeyChange =
+                                setupViewModel::updateApiKey
                         )
                     }
 
                     WIZARD_STEP_MODEL -> {
                         ModelStep(
+                            clientType = selectedClientType,
                             model = model,
-                            onModelChange = setupViewModel::updateModel,
+                            onModelChange =
+                                setupViewModel::updateModel,
                             isFreePlan = isFreePlan,
-                            onPlanTypeChange = setupViewModel::updatePlanType,
-                            modelsFetchStatus = modelsFetchStatus
+                            onPlanTypeChange =
+                                setupViewModel::updatePlanType,
+                            modelsFetchStatus =
+                                modelsFetchStatus
                         )
                     }
                 }
@@ -198,14 +228,19 @@ fun SetupPlatformWizardScreen(
                     }
                 },
                 onNext = {
-                    if (wizardStep < WIZARD_TOTAL_STEPS - 1) {
+                    if (
+                        wizardStep <
+                            WIZARD_TOTAL_STEPS - 1
+                    ) {
                         setupViewModel.nextWizardStep()
                     } else {
                         setupViewModel.savePlatform()
                         onComplete()
                     }
                 },
-                isLastStep = wizardStep == WIZARD_TOTAL_STEPS - 1
+                isLastStep =
+                    wizardStep ==
+                        WIZARD_TOTAL_STEPS - 1
             )
         }
     }
@@ -220,47 +255,83 @@ private fun WizardProgressIndicator(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 16.dp)
+            .padding(
+                horizontal = 20.dp,
+                vertical = 16.dp
+            )
     ) {
+
         Text(
             text = stringResource(
                 R.string.step_x_of_y,
                 currentStep + 1,
                 totalSteps
             ),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            style =
+                MaterialTheme.typography.labelMedium,
+            color =
+                MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(
+            modifier = Modifier.height(8.dp)
+        )
 
         LinearProgressIndicator(
-            progress = { (currentStep + 1).toFloat() / totalSteps },
+            progress = {
+                (currentStep + 1)
+                    .toFloat() / totalSteps
+            },
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(
+            modifier = Modifier.height(8.dp)
+        )
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement =
+                Arrangement.SpaceBetween
         ) {
+
             StepLabel(
-                text = stringResource(R.string.step_basics),
-                isCompleted = currentStep > WIZARD_STEP_BASICS,
-                isCurrent = currentStep == WIZARD_STEP_BASICS
+                text =
+                    stringResource(
+                        R.string.step_basics
+                    ),
+                isCompleted =
+                    currentStep >
+                        WIZARD_STEP_BASICS,
+                isCurrent =
+                    currentStep ==
+                        WIZARD_STEP_BASICS
             )
 
             StepLabel(
-                text = stringResource(R.string.step_api_key),
-                isCompleted = currentStep > WIZARD_STEP_API_KEY,
-                isCurrent = currentStep == WIZARD_STEP_API_KEY
+                text =
+                    stringResource(
+                        R.string.step_api_key
+                    ),
+                isCompleted =
+                    currentStep >
+                        WIZARD_STEP_API_KEY,
+                isCurrent =
+                    currentStep ==
+                        WIZARD_STEP_API_KEY
             )
 
             StepLabel(
-                text = stringResource(R.string.step_model),
-                isCompleted = currentStep > WIZARD_STEP_MODEL,
-                isCurrent = currentStep == WIZARD_STEP_MODEL
+                text =
+                    stringResource(
+                        R.string.step_model
+                    ),
+                isCompleted =
+                    currentStep >
+                        WIZARD_STEP_MODEL,
+                isCurrent =
+                    currentStep ==
+                        WIZARD_STEP_MODEL
             )
         }
     }
@@ -275,25 +346,37 @@ private fun StepLabel(
 ) {
     Row(
         modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+        verticalAlignment =
+            Alignment.CenterVertically,
+        horizontalArrangement =
+            Arrangement.spacedBy(4.dp)
     ) {
+
         if (isCompleted) {
             Icon(
-                imageVector = Icons.Default.Check,
+                imageVector =
+                    Icons.Default.Check,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(14.dp)
+                tint =
+                    MaterialTheme.colorScheme.primary,
+                modifier =
+                    Modifier.size(14.dp)
             )
         }
 
         Text(
             text = text,
-            style = MaterialTheme.typography.labelSmall,
+            style =
+                MaterialTheme.typography.labelSmall,
             color = when {
-                isCurrent -> MaterialTheme.colorScheme.primary
-                isCompleted -> MaterialTheme.colorScheme.primary
-                else -> MaterialTheme.colorScheme.onSurfaceVariant
+                isCurrent ->
+                    MaterialTheme.colorScheme.primary
+
+                isCompleted ->
+                    MaterialTheme.colorScheme.primary
+
+                else ->
+                    MaterialTheme.colorScheme.onSurfaceVariant
             }
         )
     }
@@ -311,45 +394,118 @@ private fun BasicsStep(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(
+                rememberScrollState()
+            )
             .padding(horizontal = 20.dp)
     ) {
-        Text(
-            modifier = Modifier.semantics { heading() },
-            text = stringResource(R.string.step_basics),
-            style = MaterialTheme.typography.headlineSmall
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = stringResource(R.string.platform_basics_description),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            modifier =
+                Modifier.semantics {
+                    heading()
+                },
+            text =
+                stringResource(
+                    R.string.step_basics
+                ),
+            style =
+                MaterialTheme.typography.headlineSmall
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(
+            modifier = Modifier.height(8.dp)
+        )
+
+        Text(
+            text =
+                stringResource(
+                    R.string.platform_basics_description
+                ),
+            style =
+                MaterialTheme.typography.bodyMedium,
+            color =
+                MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(
+            modifier = Modifier.height(24.dp)
+        )
 
         OutlinedTextField(
             value = platformName,
-            onValueChange = onPlatformNameChange,
-            label = { Text(stringResource(R.string.platform_name)) },
-            placeholder = { Text(stringResource(R.string.platform_name_hint)) },
-            modifier = Modifier.fillMaxWidth(),
+            onValueChange =
+                onPlatformNameChange,
+            label = {
+                Text(
+                    stringResource(
+                        R.string.platform_name
+                    )
+                )
+            },
+            placeholder = {
+                Text(
+                    stringResource(
+                        R.string.platform_name_hint
+                    )
+                )
+            },
+            modifier =
+                Modifier.fillMaxWidth(),
             singleLine = true,
-            supportingText = { Text(stringResource(R.string.platform_name_supporting)) }
+            supportingText = {
+                Text(
+                    stringResource(
+                        R.string.platform_name_supporting
+                    )
+                )
+            }
         )
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(
+            modifier = Modifier.height(20.dp)
+        )
 
         OutlinedTextField(
             value = apiUrl,
-            onValueChange = onApiUrlChange,
-            label = { Text(stringResource(R.string.api_url)) },
-            placeholder = { Text(stringResource(R.string.api_url_hint)) },
-            modifier = Modifier.fillMaxWidth(),
+            onValueChange =
+                onApiUrlChange,
+            label = {
+                Text(
+                    stringResource(
+                        R.string.api_url
+                    )
+                )
+            },
+            placeholder = {
+                Text(
+                    stringResource(
+                        R.string.api_url_hint
+                    )
+                )
+            },
+            modifier =
+                Modifier.fillMaxWidth(),
             singleLine = true,
-            supportingText = { Text(stringResource(R.string.api_url_cautions)) }
+            supportingText = {
+
+                if (
+                    clientType ==
+                        ClientType.GOOGLE_AI_STUDIO
+                ) {
+                    Text(
+                        stringResource(
+                            R.string.google_ai_studio_api_url_supporting
+                        )
+                    )
+                } else {
+                    Text(
+                        stringResource(
+                            R.string.api_url_cautions
+                        )
+                    )
+                }
+            }
         )
     }
 }
@@ -366,60 +522,149 @@ private fun ApiKeyStep(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(
+                rememberScrollState()
+            )
             .padding(horizontal = 20.dp)
     ) {
-        Text(
-            modifier = Modifier.semantics { heading() },
-            text = stringResource(R.string.step_api_key),
-            style = MaterialTheme.typography.headlineSmall
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = stringResource(R.string.api_key_description),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            modifier =
+                Modifier.semantics {
+                    heading()
+                },
+            text =
+                stringResource(
+                    R.string.step_api_key
+                ),
+            style =
+                MaterialTheme.typography.headlineSmall
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(
+            modifier = Modifier.height(8.dp)
+        )
+
+        Text(
+            text = when (
+                clientType
+            ) {
+                ClientType.GOOGLE_AI_STUDIO ->
+                    stringResource(
+                        R.string.google_ai_studio_api_key_description
+                    )
+
+                else ->
+                    stringResource(
+                        R.string.api_key_description
+                    )
+            },
+            style =
+                MaterialTheme.typography.bodyMedium,
+            color =
+                MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(
+            modifier = Modifier.height(24.dp)
+        )
 
         OutlinedTextField(
             value = apiKey,
-            onValueChange = onApiKeyChange,
-            label = { Text(stringResource(R.string.api_key)) },
-            placeholder = { Text(stringResource(R.string.api_key_hint)) },
-            modifier = Modifier.fillMaxWidth(),
+            onValueChange =
+                onApiKeyChange,
+            label = {
+                Text(
+                    if (
+                        clientType ==
+                            ClientType.GOOGLE_AI_STUDIO
+                    ) {
+                        stringResource(
+                            R.string.google_ai_studio_api_key
+                        )
+                    } else {
+                        stringResource(
+                            R.string.api_key
+                        )
+                    }
+                )
+            },
+            placeholder = {
+                Text(
+                    stringResource(
+                        R.string.api_key_hint
+                    )
+                )
+            },
+            modifier =
+                Modifier.fillMaxWidth(),
             singleLine = true,
-            visualTransformation = PasswordVisualTransformation(),
-            supportingText = { Text(stringResource(R.string.api_key_supporting)) }
+            visualTransformation =
+                PasswordVisualTransformation(),
+            supportingText = {
+                Text(
+                    if (
+                        clientType ==
+                            ClientType.GOOGLE_AI_STUDIO
+                    ) {
+                        stringResource(
+                            R.string.google_ai_studio_api_key_supporting
+                        )
+                    } else {
+                        stringResource(
+                            R.string.api_key_supporting
+                        )
+                    }
+                )
+            }
         )
 
         clientType?.let { type ->
-            val helpUrl = getApiHelpUrl(type)
+
+            val helpUrl =
+                getApiHelpUrl(type)
 
             if (helpUrl != null) {
-                Spacer(modifier = Modifier.height(16.dp))
-                HorizontalDivider()
-                Spacer(modifier = Modifier.height(16.dp))
 
-                Text(
-                    text = stringResource(R.string.need_help),
-                    style = MaterialTheme.typography.labelLarge
+                Spacer(
+                    modifier = Modifier.height(16.dp)
                 )
 
-                Spacer(modifier = Modifier.height(4.dp))
+                HorizontalDivider()
+
+                Spacer(
+                    modifier = Modifier.height(16.dp)
+                )
+
+                Text(
+                    text =
+                        stringResource(
+                            R.string.need_help
+                        ),
+                    style =
+                        MaterialTheme.typography.labelLarge
+                )
+
+                Spacer(
+                    modifier = Modifier.height(4.dp)
+                )
 
                 Text(
                     text = helpUrl,
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        textDecoration = TextDecoration.Underline
-                    ),
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.clickable {
-                        uriHandler.openUri(helpUrl)
-                    }
+                    style =
+                        MaterialTheme.typography.bodySmall
+                            .copy(
+                                textDecoration =
+                                    TextDecoration.Underline
+                            ),
+                    color =
+                        MaterialTheme.colorScheme.primary,
+                    modifier =
+                        Modifier.clickable {
+                            uriHandler.openUri(
+                                helpUrl
+                            )
+                        }
                 )
             }
         }
@@ -429,6 +674,7 @@ private fun ApiKeyStep(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ModelStep(
+    clientType: ClientType?,
     model: String,
     onModelChange: (String) -> Unit,
     isFreePlan: Boolean,
@@ -436,130 +682,360 @@ private fun ModelStep(
     modelsFetchStatus: ModelsFetchStatus,
     modifier: Modifier = Modifier
 ) {
-    var isDropdownExpanded by remember { mutableStateOf(false) }
+    var isDropdownExpanded by
+        remember {
+            mutableStateOf(false)
+        }
 
-    val isLoading = modelsFetchStatus is ModelsFetchStatus.Loading
-    val availableModels = if (modelsFetchStatus is ModelsFetchStatus.Success) {
-        modelsFetchStatus.models
-    } else {
-        emptyList()
-    }
+    val isLoading =
+        modelsFetchStatus is
+            ModelsFetchStatus.Loading
+
+    val availableModels =
+        if (
+            modelsFetchStatus
+                is ModelsFetchStatus.Success
+        ) {
+            modelsFetchStatus.models
+        } else {
+            emptyList()
+        }
+
+    val isOpenRouter =
+        clientType ==
+            ClientType.OPEN_ROUTER
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(
+                rememberScrollState()
+            )
             .padding(horizontal = 20.dp)
     ) {
-        Text(
-            modifier = Modifier.semantics { heading() },
-            text = stringResource(R.string.step_model),
-            style = MaterialTheme.typography.headlineSmall
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = stringResource(R.string.model_description),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            modifier =
+                Modifier.semantics {
+                    heading()
+                },
+            text =
+                stringResource(
+                    R.string.step_model
+                ),
+            style =
+                MaterialTheme.typography.headlineSmall
         )
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(
+            modifier = Modifier.height(8.dp)
+        )
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            FilterChip(
-                selected = isFreePlan,
-                onClick = { onPlanTypeChange(true) },
-                label = { Text("مجاني (Free)") }
-            )
+        Text(
+            text = when (clientType) {
 
-            FilterChip(
-                selected = !isFreePlan,
-                onClick = { onPlanTypeChange(false) },
-                label = { Text("مدفوع (Paid)") }
+                ClientType.GOOGLE_AI_STUDIO ->
+                    stringResource(
+                        R.string.google_ai_studio_model_description
+                    )
+
+                else ->
+                    stringResource(
+                        R.string.model_description
+                    )
+            },
+            style =
+                MaterialTheme.typography.bodyMedium,
+            color =
+                MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(
+            modifier = Modifier.height(20.dp)
+        )
+
+        /*
+         * Free/Paid is an OpenRouter-specific
+         * feature. Google AI Studio must not show
+         * these filters.
+         */
+        if (isOpenRouter) {
+
+            Row(
+                modifier =
+                    Modifier.fillMaxWidth(),
+                horizontalArrangement =
+                    Arrangement.spacedBy(12.dp)
+            ) {
+
+                FilterChip(
+                    selected = isFreePlan,
+                    onClick = {
+                        onPlanTypeChange(true)
+                    },
+                    label = {
+                        Text(
+                            "مجاني (Free)"
+                        )
+                    }
+                )
+
+                FilterChip(
+                    selected = !isFreePlan,
+                    onClick = {
+                        onPlanTypeChange(false)
+                    },
+                    label = {
+                        Text(
+                            "مدفوع (Paid)"
+                        )
+                    }
+                )
+            }
+
+            Spacer(
+                modifier = Modifier.height(16.dp)
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        /*
+         * OpenRouter uses its dynamically fetched
+         * model list.
+         *
+         * Google AI Studio currently keeps the
+         * default Gemini model selected. The field
+         * remains editable so the user can enter any
+         * supported Gemini model ID until the dedicated
+         * Gemini models API is connected.
+         */
+        if (isOpenRouter) {
 
-        ExposedDropdownMenuBox(
-            expanded = isDropdownExpanded,
-            onExpandedChange = { isDropdownExpanded = !isDropdownExpanded }
-        ) {
-            OutlinedTextField(
-                value = model,
-                onValueChange = {},
-                readOnly = true,
-                label = { Text(stringResource(R.string.model)) },
-                placeholder = { Text(stringResource(R.string.model_name)) },
-                trailingIcon = {
-                    if (isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = isDropdownExpanded)
-                    }
-                },
-                modifier = Modifier
-                    .menuAnchor()
-                    .fillMaxWidth(),
-                singleLine = true,
-                supportingText = { Text(stringResource(R.string.model_supporting)) }
-            )
-
-            ExposedDropdownMenu(
-                expanded = isDropdownExpanded,
-                onDismissRequest = { isDropdownExpanded = false }
+            ExposedDropdownMenuBox(
+                expanded =
+                    isDropdownExpanded,
+                onExpandedChange = {
+                    isDropdownExpanded =
+                        !isDropdownExpanded
+                }
             ) {
-                if (availableModels.isEmpty() && !isLoading) {
-                    DropdownMenuItem(
-                        text = { Text("لا توجد نماذج متاحة") },
-                        onClick = { isDropdownExpanded = false }
-                    )
-                } else {
-                    availableModels.forEach { modelInfo ->
-                        val priceText = if (modelInfo.pricing?.isFree == true) {
-                            "مجاني"
+
+                OutlinedTextField(
+                    value = model,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = {
+                        Text(
+                            stringResource(
+                                R.string.model
+                            )
+                        )
+                    },
+                    placeholder = {
+                        Text(
+                            stringResource(
+                                R.string.model_name
+                            )
+                        )
+                    },
+                    trailingIcon = {
+
+                        if (isLoading) {
+
+                            CircularProgressIndicator(
+                                modifier =
+                                    Modifier.size(
+                                        20.dp
+                                    ),
+                                strokeWidth = 2.dp
+                            )
+
                         } else {
-                            "\$${String.format("%.6f", modelInfo.pricing?.averagePrice ?: 0.0)} / 1K tokens"
+
+                            ExposedDropdownMenuDefaults
+                                .TrailingIcon(
+                                    expanded =
+                                        isDropdownExpanded
+                                )
                         }
+                    },
+                    modifier =
+                        Modifier
+                            .menuAnchor()
+                            .fillMaxWidth(),
+                    singleLine = true,
+                    supportingText = {
+                        Text(
+                            stringResource(
+                                R.string.model_supporting
+                            )
+                        )
+                    }
+                )
+
+                ExposedDropdownMenu(
+                    expanded =
+                        isDropdownExpanded,
+                    onDismissRequest = {
+                        isDropdownExpanded =
+                            false
+                    }
+                ) {
+
+                    if (
+                        availableModels.isEmpty() &&
+                        !isLoading
+                    ) {
 
                         DropdownMenuItem(
                             text = {
-                                Column {
-                                    Text(
-                                        text = modelInfo.name ?: modelInfo.id,
-                                        style = MaterialTheme.typography.bodyLarge
-                                    )
-                                    Text(
-                                        text = priceText,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
+                                Text(
+                                    "لا توجد نماذج متاحة"
+                                )
                             },
                             onClick = {
-                                onModelChange(modelInfo.id)
-                                isDropdownExpanded = false
+                                isDropdownExpanded =
+                                    false
                             }
                         )
+
+                    } else {
+
+                        availableModels.forEach {
+                            modelInfo ->
+
+                            val priceText =
+                                if (
+                                    modelInfo
+                                        .pricing
+                                        ?.isFree == true
+                                ) {
+                                    "مجاني"
+                                } else {
+                                    "\$${String.format(
+                                        "%.6f",
+                                        modelInfo
+                                            .pricing
+                                            ?.averagePrice
+                                            ?: 0.0
+                                    )} / 1K tokens"
+                                }
+
+                            DropdownMenuItem(
+                                text = {
+                                    Column {
+
+                                        Text(
+                                            text =
+                                                modelInfo
+                                                    .name
+                                                    ?: modelInfo.id,
+                                            style =
+                                                MaterialTheme
+                                                    .typography
+                                                    .bodyLarge
+                                        )
+
+                                        Text(
+                                            text =
+                                                priceText,
+                                            style =
+                                                MaterialTheme
+                                                    .typography
+                                                    .bodySmall,
+                                            color =
+                                                MaterialTheme
+                                                    .colorScheme
+                                                    .onSurfaceVariant
+                                        )
+                                    }
+                                },
+                                onClick = {
+
+                                    onModelChange(
+                                        modelInfo.id
+                                    )
+
+                                    isDropdownExpanded =
+                                        false
+                                }
+                            )
+                        }
                     }
                 }
             }
+
+        } else {
+
+            OutlinedTextField(
+                value = model,
+                onValueChange =
+                    onModelChange,
+                label = {
+                    Text(
+                        stringResource(
+                            R.string.model
+                        )
+                    )
+                },
+                placeholder = {
+
+                    Text(
+                        if (
+                            clientType ==
+                                ClientType.GOOGLE_AI_STUDIO
+                        ) {
+                            "gemini-2.5-flash"
+                        } else {
+                            stringResource(
+                                R.string.model_name
+                            )
+                        }
+                    )
+                },
+                modifier =
+                    Modifier.fillMaxWidth(),
+                singleLine = true,
+                supportingText = {
+
+                    Text(
+                        if (
+                            clientType ==
+                                ClientType.GOOGLE_AI_STUDIO
+                        ) {
+                            stringResource(
+                                R.string.google_ai_studio_model_supporting
+                            )
+                        } else {
+                            stringResource(
+                                R.string.model_supporting
+                            )
+                        }
+                    }
+                }
+            )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(
+            modifier = Modifier.height(16.dp)
+        )
 
         Text(
-            text = stringResource(R.string.model_examples),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            text = when (clientType) {
+
+                ClientType.GOOGLE_AI_STUDIO ->
+                    stringResource(
+                        R.string.google_ai_studio_model_examples
+                    )
+
+                else ->
+                    stringResource(
+                        R.string.model_examples
+                    )
+            },
+            style =
+                MaterialTheme.typography.bodySmall,
+            color =
+                MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -577,32 +1053,48 @@ private fun WizardNavigationButtons(
         modifier = modifier
             .fillMaxWidth()
             .padding(20.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement =
+            Arrangement.spacedBy(12.dp)
     ) {
+
         OutlinedButton(
             onClick = onBack,
-            modifier = Modifier.weight(1f)
+            modifier =
+                Modifier.weight(1f)
         ) {
+
             Text(
-                text = if (currentStep == 0) {
-                    stringResource(R.string.cancel)
-                } else {
-                    stringResource(R.string.back)
-                }
+                text =
+                    if (currentStep == 0) {
+                        stringResource(
+                            R.string.cancel
+                        )
+                    } else {
+                        stringResource(
+                            R.string.back
+                        )
+                    }
             )
         }
 
         Button(
             onClick = onNext,
-            modifier = Modifier.weight(1f),
+            modifier =
+                Modifier.weight(1f),
             enabled = canProceed
         ) {
+
             Text(
-                text = if (isLastStep) {
-                    stringResource(R.string.finish)
-                } else {
-                    stringResource(R.string.next)
-                }
+                text =
+                    if (isLastStep) {
+                        stringResource(
+                            R.string.finish
+                        )
+                    } else {
+                        stringResource(
+                            R.string.next
+                        )
+                    }
             )
         }
     }
@@ -610,13 +1102,33 @@ private fun WizardNavigationButtons(
 
 private fun getApiHelpUrl(
     clientType: ClientType
-): String? = when (clientType) {
-    ClientType.OPENAI -> "https://platform.openai.com/account/api-keys"
-    ClientType.ANTHROPIC -> "https://console.anthropic.com/settings/keys"
-    ClientType.QWEN -> "https://bailian.console.aliyun.com/cn-beijing/?tab=api#/api"
-    ClientType.KIMI -> "https://platform.moonshot.cn/console/api-keys"
-    ClientType.MINIMAX -> "https://platform.minimaxi.com/user-center/basic-information/interface-key"
-    ClientType.DEEPSEEK -> "https://platform.deepseek.com/api_keys"
-    ClientType.OPEN_ROUTER -> "https://openrouter.ai/keys"
-    ClientType.CUSTOM -> null
-}
+): String? =
+    when (clientType) {
+
+        ClientType.OPENAI ->
+            "https://platform.openai.com/account/api-keys"
+
+        ClientType.ANTHROPIC ->
+            "https://console.anthropic.com/settings/keys"
+
+        ClientType.QWEN ->
+            "https://bailian.console.aliyun.com/cn-beijing/?tab=api#/api"
+
+        ClientType.KIMI ->
+            "https://platform.moonshot.cn/console/api-keys"
+
+        ClientType.MINIMAX ->
+            "https://platform.minimaxi.com/user-center/basic-information/interface-key"
+
+        ClientType.DEEPSEEK ->
+            "https://platform.deepseek.com/api_keys"
+
+        ClientType.GOOGLE_AI_STUDIO ->
+            "https://aistudio.google.com/apikey"
+
+        ClientType.OPEN_ROUTER ->
+            "https://openrouter.ai/keys"
+
+        ClientType.CUSTOM ->
+            null
+    }

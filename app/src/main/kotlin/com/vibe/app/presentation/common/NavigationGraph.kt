@@ -9,12 +9,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -38,9 +36,7 @@ import com.vibe.app.R
 import com.vibe.app.presentation.ui.chat.ChatScreen
 import com.vibe.app.presentation.ui.diagnostic.DiagnosticScreen
 import com.vibe.app.presentation.ui.home.HomeScreen
-import com.vibe.app.presentation.ui.setting.AboutScreen
 import com.vibe.app.presentation.ui.setting.LanguageViewModel
-import com.vibe.app.presentation.ui.setting.LicenseScreen
 import com.vibe.app.presentation.ui.setting.PlatformSettingScreen
 import com.vibe.app.presentation.ui.setting.SettingScreen
 import com.vibe.app.presentation.ui.setting.SettingViewModelV2
@@ -116,7 +112,6 @@ fun SetupNavGraph(
     }
 }
 
-
 fun NavGraphBuilder.languageSelectionNavigation(
     navController: NavHostController,
     languageViewModel: LanguageViewModel
@@ -146,7 +141,6 @@ fun NavGraphBuilder.languageSelectionNavigation(
         )
     }
 }
-
 
 @Composable
 private fun LanguageSelectionScreen(
@@ -273,7 +267,6 @@ private fun LanguageSelectionScreen(
     }
 }
 
-
 @Composable
 private fun LanguageSelectionItem(
     title: String,
@@ -317,7 +310,6 @@ private fun LanguageSelectionItem(
         )
     }
 }
-
 
 fun NavGraphBuilder.setupNavigation(
     navController: NavHostController
@@ -466,7 +458,6 @@ fun NavGraphBuilder.setupNavigation(
     }
 }
 
-
 fun NavGraphBuilder.homeScreenNavigation(
     navController: NavHostController
 ) {
@@ -531,7 +522,6 @@ fun NavGraphBuilder.homeScreenNavigation(
     }
 }
 
-
 fun NavGraphBuilder.chatScreenNavigation(
     navController: NavHostController
 ) {
@@ -591,7 +581,6 @@ fun NavGraphBuilder.chatScreenNavigation(
     }
 }
 
-
 fun NavGraphBuilder.diagnosticNavigation(
     navController: NavHostController
 ) {
@@ -615,7 +604,6 @@ fun NavGraphBuilder.diagnosticNavigation(
         )
     }
 }
-
 
 fun NavGraphBuilder.settingNavigation(
     navController: NavHostController
@@ -671,12 +659,6 @@ fun NavGraphBuilder.settingNavigation(
                                 platformUid
                             )
                     )
-                },
-
-                onNavigateToAboutPage = {
-                    navController.navigate(
-                        Route.ABOUT_PAGE
-                    )
                 }
             )
         }
@@ -695,34 +677,6 @@ fun NavGraphBuilder.settingNavigation(
         ) {
 
             PlatformSettingScreen(
-                onNavigationClick = {
-                    navController.navigateUp()
-                }
-            )
-        }
-
-        composable(
-            Route.ABOUT_PAGE
-        ) {
-
-            AboutScreen(
-                onNavigationClick = {
-                    navController.navigateUp()
-                },
-
-                onNavigationToLicense = {
-                    navController.navigate(
-                        Route.LICENSE
-                    )
-                }
-            )
-        }
-
-        composable(
-            Route.LICENSE
-        ) {
-
-            LicenseScreen(
                 onNavigationClick = {
                     navController.navigateUp()
                 }

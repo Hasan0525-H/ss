@@ -3,10 +3,10 @@ package com.vibe.app.data
 object ModelConstants {
 
     const val OPENROUTER_API_URL =
-        "https://openrouter.ai/api/"
+        "https://openrouter.ai/api"
 
     const val GOOGLE_AI_STUDIO_API_URL =
-        "https://generativelanguage.googleapis.com/v1beta/openai/"
+        "https://generativelanguage.googleapis.com/v1beta/openai"
 
     const val CUSTOM_API_URL =
         ""

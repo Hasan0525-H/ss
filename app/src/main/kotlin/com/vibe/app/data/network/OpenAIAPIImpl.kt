@@ -47,49 +47,61 @@ class OpenAIAPIImpl @Inject constructor(
     private var providerType: String =
         "OPEN_ROUTER"
 
-    override fun setToken(token: String?) {
-        this.token = token
+    override fun setToken(
+        token: String?
+    ) {
+        this.token =
+            token
+                ?.trim()
+                ?.removePrefix("Bearer ")
+                ?.trim()
+                ?.takeIf {
+                    it.isNotEmpty()
+                }
     }
 
-    override fun setAPIUrl(url: String) {
-        this.apiUrl = url.trim().trimEnd('/')
+    override fun setAPIUrl(
+        url: String
+    ) {
+        this.apiUrl =
+            url
+                .trim()
+                .trimEnd('/')
     }
 
     override fun setProvider(
         type: String,
         customUrl: String?
     ) {
-        providerType = type
-            .trim()
-            .uppercase()
+        providerType =
+            type
+                .trim()
+                .uppercase()
 
-        apiUrl = when (providerType) {
+        apiUrl =
+            when (providerType) {
 
-            "OPEN_ROUTER",
-            "OPENROUTER" -> {
-                OPENROUTER_API_URL
+                "OPEN_ROUTER",
+                "OPENROUTER" ->
+                    OPENROUTER_API_URL
+
+                "GOOGLE_AI_STUDIO",
+                "GOOGLE",
+                "GEMINI" ->
+                    GOOGLE_AI_STUDIO_API_URL
+
+                "CUSTOM" ->
+                    customUrl
+                        ?.trim()
+                        ?.trimEnd('/')
+                        ?: ""
+
+                else ->
+                    customUrl
+                        ?.trim()
+                        ?.trimEnd('/')
+                        ?: apiUrl
             }
-
-            "GOOGLE_AI_STUDIO",
-            "GOOGLE",
-            "GEMINI" -> {
-                GOOGLE_AI_STUDIO_API_URL
-            }
-
-            "CUSTOM" -> {
-                customUrl
-                    ?.trim()
-                    ?.trimEnd('/')
-                    ?: ""
-            }
-
-            else -> {
-                customUrl
-                    ?.trim()
-                    ?.trimEnd('/')
-                    ?: OPENROUTER_API_URL
-            }
-        }
     }
 
     override suspend fun fetchOpenRouterModels(
@@ -108,7 +120,16 @@ class OpenAIAPIImpl @Inject constructor(
 
                         header(
                             "Authorization",
-                            "Bearer $apiKey"
+                            if (
+                                apiKey.startsWith(
+                                    "Bearer ",
+                                    ignoreCase = true
+                                )
+                            ) {
+                                apiKey
+                            } else {
+                                "Bearer $apiKey"
+                            }
                         )
 
                         applyProviderHeaders(this)
@@ -116,15 +137,19 @@ class OpenAIAPIImpl @Inject constructor(
                     .body()
 
             val parsedResponse =
-                NetworkClient.json.decodeFromString<OpenRouterModelsResponse>(
-                    response
-                )
+                NetworkClient.json
+                    .decodeFromString<OpenRouterModelsResponse>(
+                        response
+                    )
 
             if (isFreeOnly) {
 
                 parsedResponse.data
                     .filter {
                         it.pricing?.isFree == true
+                    }
+                    .sortedBy {
+                        it.name ?: it.id
                     }
 
             } else {
@@ -139,10 +164,58 @@ class OpenAIAPIImpl @Inject constructor(
                     }
             }
 
-        } catch (e: Exception) {
+        } catch (
+            e: Exception
+        ) {
 
             emptyList()
         }
+    }
+
+    /*
+     * Google AI Studio's OpenAI-compatible API is:
+     *
+     * https://generativelanguage.googleapis.com/v1beta/openai
+     *
+     * Unlike OpenRouter, it does NOT use:
+     *
+     * /v1/chat/completions
+     *
+     * after the base URL.
+     *
+     * The correct Google endpoint is:
+     *
+     * /chat/completions
+     *
+     * OpenRouter continues to use:
+     *
+     * /v1/chat/completions
+     */
+    private fun buildChatCompletionsEndpoint(): String {
+
+        return when (providerType) {
+
+            "GOOGLE_AI_STUDIO",
+            "GOOGLE",
+            "GEMINI" -> {
+
+                "${apiUrl.trimEnd('/')}/chat/completions"
+            }
+
+            else -> {
+
+                buildEndpoint(
+                    "/v1/chat/completions"
+                )
+            }
+        }
+    }
+
+    private fun buildResponsesEndpoint(): String {
+
+        return buildEndpoint(
+            "/v1/responses"
+        )
     }
 
     private fun buildEndpoint(
@@ -156,16 +229,21 @@ class OpenAIAPIImpl @Inject constructor(
                 "/$path"
             }
 
-        return if (apiUrl.endsWith("/")) {
+        return if (
+            apiUrl.endsWith("/")
+        ) {
+
             "${apiUrl.removeSuffix("/")}$cleanPath"
+
         } else {
+
             "$apiUrl$cleanPath"
         }
     }
 
     private fun applyProviderHeaders(
         request:
-        io.ktor.client.request.HttpRequestBuilder
+            io.ktor.client.request.HttpRequestBuilder
     ) {
 
         when (providerType) {
@@ -188,10 +266,6 @@ class OpenAIAPIImpl @Inject constructor(
             "GOOGLE",
             "GEMINI" -> {
 
-                /*
-                 * Google recommends identifying the
-                 * client when using the Gemini API.
-                 */
                 request.header(
                     "x-goog-api-client",
                     "vibe-app/1.0"
@@ -204,13 +278,12 @@ class OpenAIAPIImpl @Inject constructor(
         request: QwenChatCompletionRequest,
         diagnosticContext:
             ModelRequestDiagnosticContext?,
-        trace: ModelExecutionTrace?,
+        trace:
+            ModelExecutionTrace?,
     ): Flow<ChatCompletionChunk> = flow {
 
         val endpoint =
-            buildEndpoint(
-                "/v1/chat/completions"
-            )
+            buildChatCompletionsEndpoint()
 
         val requestBody =
             NetworkClient.openAIJson
@@ -226,7 +299,9 @@ class OpenAIAPIImpl @Inject constructor(
                         ContentType.Application.Json
                     )
 
-                    setBody(requestBody)
+                    setBody(
+                        requestBody
+                    )
 
                     accept(
                         ContentType.Text.EventStream
@@ -237,22 +312,31 @@ class OpenAIAPIImpl @Inject constructor(
                     }
 
                     applyProviderHeaders(this)
+
                 }
                 .execute { response ->
 
-                    if (!response.status.isSuccess()) {
+                    if (
+                        !response.status.isSuccess()
+                    ) {
 
                         emit(
                             ChatCompletionChunk(
-                                error = ErrorDetail(
-                                    message =
-                                        response.body<String>(),
-                                    type =
-                                        "http_error",
-                                    code =
-                                        response.status.value
-                                            .toString()
-                                )
+                                error =
+                                    ErrorDetail(
+                                        message =
+                                            response
+                                                .body<String>(),
+
+                                        type =
+                                            "http_error",
+
+                                        code =
+                                            response
+                                                .status
+                                                .value
+                                                .toString()
+                                    )
                             )
                         )
 
@@ -273,7 +357,9 @@ class OpenAIAPIImpl @Inject constructor(
                             channel.readUTF8Line()
                                 ?: break
 
-                        if (line.isBlank()) {
+                        if (
+                            line.isBlank()
+                        ) {
 
                             handleChatCompletionSseEvent(
                                 endpoint,
@@ -288,7 +374,9 @@ class OpenAIAPIImpl @Inject constructor(
                         }
                     }
 
-                    if (eventLines.isNotEmpty()) {
+                    if (
+                        eventLines.isNotEmpty()
+                    ) {
 
                         handleChatCompletionSseEvent(
                             endpoint,
@@ -297,17 +385,21 @@ class OpenAIAPIImpl @Inject constructor(
                     }
                 }
 
-        } catch (e: Exception) {
+        } catch (
+            e: Exception
+        ) {
 
             emit(
                 ChatCompletionChunk(
-                    error = ErrorDetail(
-                        message =
-                            e.message
-                                ?: "Unknown network error",
-                        type =
-                            "network_error"
-                    )
+                    error =
+                        ErrorDetail(
+                            message =
+                                e.message
+                                    ?: "Unknown network error",
+
+                            type =
+                                "network_error"
+                        )
                 )
             )
         }
@@ -317,13 +409,12 @@ class OpenAIAPIImpl @Inject constructor(
         request: QwenChatCompletionRequest,
         diagnosticContext:
             ModelRequestDiagnosticContext?,
-        trace: ModelExecutionTrace?,
+        trace:
+            ModelExecutionTrace?,
     ): QwenChatCompletionResponse {
 
         val endpoint =
-            buildEndpoint(
-                "/v1/chat/completions"
-            )
+            buildChatCompletionsEndpoint()
 
         val requestBody =
             NetworkClient.openAIJson
@@ -343,27 +434,36 @@ class OpenAIAPIImpl @Inject constructor(
                         ContentType.Application.Json
                     )
 
-                    setBody(requestBody)
+                    setBody(
+                        requestBody
+                    )
 
                     token?.let {
                         bearerAuth(it)
                     }
 
                     applyProviderHeaders(this)
+
                 }
                 .execute { response ->
 
                     val body =
                         response.body<String>()
 
-                    if (!response.status.isSuccess()) {
+                    if (
+                        !response.status.isSuccess()
+                    ) {
 
                         return@execute QwenChatCompletionResponse(
                             error =
                                 com.vibe.app.data.dto.qwen.response.QwenErrorDetail(
-                                    message = body,
+                                    message =
+                                        body,
+
                                     code =
-                                        response.status.value
+                                        response
+                                            .status
+                                            .value
                                             .toString()
                                 )
                         )
@@ -375,7 +475,9 @@ class OpenAIAPIImpl @Inject constructor(
                         )
                 }
 
-        } catch (e: Exception) {
+        } catch (
+            e: Exception
+        ) {
 
             QwenChatCompletionResponse(
                 error =
@@ -383,6 +485,7 @@ class OpenAIAPIImpl @Inject constructor(
                         message =
                             e.message
                                 ?: "Unknown error",
+
                         code =
                             "network_error"
                     )
@@ -394,13 +497,12 @@ class OpenAIAPIImpl @Inject constructor(
         request: ChatCompletionRequest,
         diagnosticContext:
             ModelRequestDiagnosticContext?,
-        trace: ModelExecutionTrace?,
+        trace:
+            ModelExecutionTrace?,
     ): Flow<ChatCompletionChunk> = flow {
 
         val endpoint =
-            buildEndpoint(
-                "/v1/chat/completions"
-            )
+            buildChatCompletionsEndpoint()
 
         val requestBody =
             NetworkClient.openAIJson
@@ -416,7 +518,9 @@ class OpenAIAPIImpl @Inject constructor(
                         ContentType.Application.Json
                     )
 
-                    setBody(requestBody)
+                    setBody(
+                        requestBody
+                    )
 
                     accept(
                         ContentType.Text.EventStream
@@ -427,22 +531,31 @@ class OpenAIAPIImpl @Inject constructor(
                     }
 
                     applyProviderHeaders(this)
+
                 }
                 .execute { response ->
 
-                    if (!response.status.isSuccess()) {
+                    if (
+                        !response.status.isSuccess()
+                    ) {
 
                         emit(
                             ChatCompletionChunk(
-                                error = ErrorDetail(
-                                    message =
-                                        response.body<String>(),
-                                    type =
-                                        "http_error",
-                                    code =
-                                        response.status.value
-                                            .toString()
-                                )
+                                error =
+                                    ErrorDetail(
+                                        message =
+                                            response
+                                                .body<String>(),
+
+                                        type =
+                                            "http_error",
+
+                                        code =
+                                            response
+                                                .status
+                                                .value
+                                                .toString()
+                                    )
                             )
                         )
 
@@ -463,7 +576,9 @@ class OpenAIAPIImpl @Inject constructor(
                             channel.readUTF8Line()
                                 ?: break
 
-                        if (line.isBlank()) {
+                        if (
+                            line.isBlank()
+                        ) {
 
                             handleChatCompletionSseEvent(
                                 endpoint,
@@ -478,7 +593,9 @@ class OpenAIAPIImpl @Inject constructor(
                         }
                     }
 
-                    if (eventLines.isNotEmpty()) {
+                    if (
+                        eventLines.isNotEmpty()
+                    ) {
 
                         handleChatCompletionSseEvent(
                             endpoint,
@@ -487,17 +604,21 @@ class OpenAIAPIImpl @Inject constructor(
                     }
                 }
 
-        } catch (e: Exception) {
+        } catch (
+            e: Exception
+        ) {
 
             emit(
                 ChatCompletionChunk(
-                    error = ErrorDetail(
-                        message =
-                            e.message
-                                ?: "Unknown network error",
-                        type =
-                            "network_error"
-                    )
+                    error =
+                        ErrorDetail(
+                            message =
+                                e.message
+                                    ?: "Unknown network error",
+
+                            type =
+                                "network_error"
+                        )
                 )
             )
         }
@@ -507,13 +628,12 @@ class OpenAIAPIImpl @Inject constructor(
         request: ResponsesRequest,
         diagnosticContext:
             ModelRequestDiagnosticContext?,
-        trace: ModelExecutionTrace?,
+        trace:
+            ModelExecutionTrace?,
     ): Flow<ResponsesStreamEvent> = flow {
 
         val endpoint =
-            buildEndpoint(
-                "/v1/responses"
-            )
+            buildResponsesEndpoint()
 
         val requestBody =
             NetworkClient.openAIJson
@@ -529,7 +649,9 @@ class OpenAIAPIImpl @Inject constructor(
                         ContentType.Application.Json
                     )
 
-                    setBody(requestBody)
+                    setBody(
+                        requestBody
+                    )
 
                     accept(
                         ContentType.Text.EventStream
@@ -543,6 +665,27 @@ class OpenAIAPIImpl @Inject constructor(
                 }
                 .execute { response ->
 
+                    if (
+                        !response.status.isSuccess()
+                    ) {
+
+                        emit(
+                            ResponseErrorEvent(
+                                message =
+                                    response
+                                        .body<String>(),
+
+                                code =
+                                    response
+                                        .status
+                                        .value
+                                        .toString()
+                            )
+                        )
+
+                        return@execute
+                    }
+
                     val channel =
                         response.bodyAsChannel()
 
@@ -554,15 +697,23 @@ class OpenAIAPIImpl @Inject constructor(
                             channel.readUTF8Line()
                                 ?: break
 
-                        if (line.isBlank()) {
+                        if (
+                            line.isBlank()
+                        ) {
                             continue
                         }
 
-                        if (line.startsWith("data:")) {
+                        if (
+                            line.startsWith(
+                                "data:"
+                            )
+                        ) {
 
                             val data =
                                 line
-                                    .removePrefix("data:")
+                                    .removePrefix(
+                                        "data:"
+                                    )
                                     .trim()
 
                             if (
@@ -582,21 +733,26 @@ class OpenAIAPIImpl @Inject constructor(
                                     emit(event)
 
                                 } catch (_: Exception) {
-                                    // Ignore unsupported
-                                    // response event.
+                                    /*
+                                     * Ignore unsupported
+                                     * response events.
+                                     */
                                 }
                             }
                         }
                     }
                 }
 
-        } catch (e: Exception) {
+        } catch (
+            e: Exception
+        ) {
 
             emit(
                 ResponseErrorEvent(
                     message =
                         e.message
                             ?: "Unknown error",
+
                     code =
                         "network_error"
                 )
@@ -604,10 +760,11 @@ class OpenAIAPIImpl @Inject constructor(
         }
     }
 
-    private suspend fun FlowCollector<ChatCompletionChunk>.handleChatCompletionSseEvent(
-        endpoint: String,
-        eventLines: List<String>
-    ) {
+    private suspend fun FlowCollector<ChatCompletionChunk>
+        .handleChatCompletionSseEvent(
+            endpoint: String,
+            eventLines: List<String>
+        ) {
 
         val data =
             eventLines
@@ -636,7 +793,9 @@ class OpenAIAPIImpl @Inject constructor(
 
             emit(chunk)
 
-        } catch (e: Exception) {
+        } catch (
+            e: Exception
+        ) {
 
             try {
 
@@ -649,49 +808,81 @@ class OpenAIAPIImpl @Inject constructor(
                     val fixedData =
                         data.replace(
                             "\"tool_calls\"",
-                            "\"delta"
+                            "\"delta\":{\"tool_calls\""
                         )
 
-                    val fallbackChunk =
-                        NetworkClient.openAIJson
-                            .decodeFromString<ChatCompletionChunk>(
-                                fixedData
-                            )
+                    try {
 
-                    emit(fallbackChunk)
+                        val fallbackChunk =
+                            NetworkClient.openAIJson
+                                .decodeFromString<ChatCompletionChunk>(
+                                    fixedData
+                                )
+
+                        emit(
+                            fallbackChunk
+                        )
+
+                    } catch (_: Exception) {
+
+                        emit(
+                            ChatCompletionChunk(
+                                error =
+                                    ErrorDetail(
+                                        message =
+                                            e.message
+                                                ?: "Failed parsing tool call event",
+
+                                        type =
+                                            "parse_error",
+
+                                        code =
+                                            "invalid_tool_stream_chunk"
+                                    )
+                            )
+                        )
+                    }
 
                 } else {
 
                     emit(
                         ChatCompletionChunk(
-                            error = ErrorDetail(
-                                message =
-                                    e.message
-                                        ?: "Failed parsing SSE event",
-                                type =
-                                    "parse_error",
-                                code =
-                                    "invalid_stream_chunk"
-                            )
+                            error =
+                                ErrorDetail(
+                                    message =
+                                        e.message
+                                            ?: "Failed parsing SSE event",
+
+                                    type =
+                                        "parse_error",
+
+                                    code =
+                                        "invalid_stream_chunk"
+                                )
                         )
                     )
                 }
 
-            } catch (innerEx: Exception) {
+            } catch (
+                innerEx: Exception
+            ) {
 
-                try {
+                emit(
+                    ChatCompletionChunk(
+                        error =
+                            ErrorDetail(
+                                message =
+                                    innerEx.message
+                                        ?: "Failed parsing stream event",
 
-                    val fallbackChunk =
-                        NetworkClient.openAIJson
-                            .decodeFromString<ChatCompletionChunk>(
-                                "{\"choices\":[]}"
+                                type =
+                                    "parse_error",
+
+                                code =
+                                    "invalid_stream_chunk"
                             )
-
-                    emit(fallbackChunk)
-
-                } catch (_: Exception) {
-                    // Ignore malformed fallback.
-                }
+                    )
+                )
             }
         }
     }
@@ -702,14 +893,18 @@ class OpenAIAPIImpl @Inject constructor(
             "https://openrouter.ai/api"
 
         /*
-         * Google AI Studio / Gemini
+         * Google AI Studio official OpenAI-compatible
+         * Gemini endpoint.
          *
-         * This is Google's official OpenAI-compatible
-         * endpoint. Chat Completions and streaming are
-         * supported through this endpoint.
+         * IMPORTANT:
+         *
+         * Google endpoint:
+         * /v1beta/openai/chat/completions
+         *
+         * OpenRouter endpoint:
+         * /api/v1/chat/completions
          */
         private const val GOOGLE_AI_STUDIO_API_URL =
             "https://generativelanguage.googleapis.com/v1beta/openai"
-
     }
 }

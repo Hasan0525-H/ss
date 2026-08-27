@@ -6,8 +6,13 @@ import androidx.lifecycle.viewModelScope
 import com.vibe.app.data.ModelConstants
 import com.vibe.app.data.database.entity.PlatformV2
 import com.vibe.app.data.dto.OpenRouterModel
+import com.vibe.app.data.dto.qwen.request.QwenChatCompletionRequest
+import com.vibe.app.data.dto.qwen.request.QwenChatMessage
+import com.vibe.app.data.dto.qwen.request.qwenTextContent
 import com.vibe.app.data.model.ClientType
+import com.vibe.app.data.network.OpenAIAPI
 import com.vibe.app.data.repository.SettingRepository
+import com.vibe.app.feature.agent.service.AgentErrorMessageFormatter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -20,134 +25,59 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 sealed class SaveStatus {
-
-    data object Idle :
-        SaveStatus()
-
-    data object Saving :
-        SaveStatus()
-
-    data object Success :
-        SaveStatus()
-
-    data class Error(
-        val message: String,
-    ) : SaveStatus()
+    data object Idle : SaveStatus()
+    data object Saving : SaveStatus()
+    data object Success : SaveStatus()
+    data class Error(val message: String) : SaveStatus()
 }
 
 sealed class ModelsFetchStatus {
-
-    data object Idle :
-        ModelsFetchStatus()
-
-    data object Loading :
-        ModelsFetchStatus()
-
-    data class Success(
-        val models: List<OpenRouterModel>,
-    ) : ModelsFetchStatus()
-
-    data class Error(
-        val message: String,
-    ) : ModelsFetchStatus()
+    data object Idle : ModelsFetchStatus()
+    data object Loading : ModelsFetchStatus()
+    data class Success(val models: List<OpenRouterModel>) : ModelsFetchStatus()
+    data class Error(val message: String) : ModelsFetchStatus()
 }
 
 @HiltViewModel
 class SetupViewModelV2 @Inject constructor(
     private val settingRepository: SettingRepository,
+    private val openAIAPI: OpenAIAPI,
 ) : ViewModel() {
 
-    private val _platforms =
-        MutableStateFlow<List<PlatformV2>>(
-            emptyList()
-        )
+    private val _platforms = MutableStateFlow<List<PlatformV2>>(emptyList())
+    val platforms: StateFlow<List<PlatformV2>> = _platforms.asStateFlow()
 
-    val platforms:
-        StateFlow<List<PlatformV2>> =
-        _platforms.asStateFlow()
+    private val _wizardStep = MutableStateFlow(WIZARD_STEP_BASICS)
+    val wizardStep: StateFlow<Int> = _wizardStep.asStateFlow()
 
-    private val _wizardStep =
-        MutableStateFlow(
-            WIZARD_STEP_BASICS
-        )
+    private val _selectedClientType = MutableStateFlow<ClientType?>(null)
+    val selectedClientType: StateFlow<ClientType?> = _selectedClientType.asStateFlow()
 
-    val wizardStep:
-        StateFlow<Int> =
-        _wizardStep.asStateFlow()
+    private val _platformName = MutableStateFlow("")
+    val platformName: StateFlow<String> = _platformName.asStateFlow()
 
-    private val _selectedClientType =
-        MutableStateFlow<ClientType?>(
-            null
-        )
+    private val _apiUrl = MutableStateFlow("")
+    val apiUrl: StateFlow<String> = _apiUrl.asStateFlow()
 
-    val selectedClientType:
-        StateFlow<ClientType?> =
-        _selectedClientType.asStateFlow()
+    private val _apiKey = MutableStateFlow("")
+    val apiKey: StateFlow<String> = _apiKey.asStateFlow()
 
-    private val _platformName =
-        MutableStateFlow("")
+    private val _model = MutableStateFlow("")
+    val model: StateFlow<String> = _model.asStateFlow()
 
-    val platformName:
-        StateFlow<String> =
-        _platformName.asStateFlow()
+    private val _isFreePlan = MutableStateFlow(true)
+    val isFreePlan: StateFlow<Boolean> = _isFreePlan.asStateFlow()
 
-    private val _apiUrl =
-        MutableStateFlow("")
-
-    val apiUrl:
-        StateFlow<String> =
-        _apiUrl.asStateFlow()
-
-    private val _apiKey =
-        MutableStateFlow("")
-
-    val apiKey:
-        StateFlow<String> =
-        _apiKey.asStateFlow()
-
-    private val _model =
-        MutableStateFlow("")
-
-    val model:
-        StateFlow<String> =
-        _model.asStateFlow()
-
-    /*
-     * OpenRouter only.
-     */
-    private val _isFreePlan =
-        MutableStateFlow(true)
-
-    val isFreePlan:
-        StateFlow<Boolean> =
-        _isFreePlan.asStateFlow()
-
-    /*
-     * OpenRouter dynamic model loading only.
-     */
     private val _modelsFetchStatus =
-        MutableStateFlow<ModelsFetchStatus>(
-            ModelsFetchStatus.Idle
-        )
-
-    val modelsFetchStatus:
-        StateFlow<ModelsFetchStatus> =
+        MutableStateFlow<ModelsFetchStatus>(ModelsFetchStatus.Idle)
+    val modelsFetchStatus: StateFlow<ModelsFetchStatus> =
         _modelsFetchStatus.asStateFlow()
 
-    private val _saveStatus =
-        MutableStateFlow<SaveStatus>(
-            SaveStatus.Idle
-        )
+    private val _saveStatus = MutableStateFlow<SaveStatus>(SaveStatus.Idle)
+    val saveStatus: StateFlow<SaveStatus> = _saveStatus.asStateFlow()
 
-    val saveStatus:
-        StateFlow<SaveStatus> =
-        _saveStatus.asStateFlow()
-
-    private val _switchedPlatformEvent =
-        MutableSharedFlow<String>()
-
-    val switchedPlatformEvent:
-        SharedFlow<String> =
+    private val _switchedPlatformEvent = MutableSharedFlow<String>()
+    val switchedPlatformEvent: SharedFlow<String> =
         _switchedPlatformEvent.asSharedFlow()
 
     init {
@@ -155,919 +85,395 @@ class SetupViewModelV2 @Inject constructor(
     }
 
     private fun loadPlatforms() {
-
         viewModelScope.launch {
-
             try {
-
-                _platforms.value =
-                    settingRepository
-                        .fetchPlatformV2s()
-
-            } catch (
-                e: Exception
-            ) {
-
-                Log.e(
-                    TAG,
-                    "Failed to load platforms",
-                    e,
-                )
+                _platforms.value = settingRepository.fetchPlatformV2s()
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to load platforms", e)
             }
         }
     }
 
-    /*
-     * =========================================================
-     * PROVIDER SELECTION
-     * =========================================================
-     *
-     * Visible setup providers:
-     *
-     * OPEN_ROUTER
-     * GOOGLE_AI_STUDIO
-     * CUSTOM
-     *
-     * Other enum values remain for compatibility.
-     */
-    fun selectClientType(
-        clientType: ClientType,
-    ) {
-
-        _selectedClientType.value =
-            clientType
-
-        _platformName.value =
-            getDefaultPlatformName(
-                clientType
-            )
-
-        _apiUrl.value =
-            getDefaultApiUrl(
-                clientType
-            )
-
-        _apiKey.value =
-            ""
-
-        _model.value =
-            getDefaultModel(
-                clientType
-            )
-
-        /*
-         * Free/Paid filtering belongs only
-         * to OpenRouter.
-         */
-        _isFreePlan.value =
-            clientType ==
-                ClientType.OPEN_ROUTER
-
-        _modelsFetchStatus.value =
-            ModelsFetchStatus.Idle
-
-        _saveStatus.value =
-            SaveStatus.Idle
-
-        _wizardStep.value =
-            WIZARD_STEP_BASICS
+    fun selectClientType(clientType: ClientType) {
+        _selectedClientType.value = clientType
+        _platformName.value = getDefaultPlatformName(clientType)
+        _apiUrl.value = getDefaultApiUrl(clientType)
+        _apiKey.value = ""
+        _model.value = getDefaultModel(clientType)
+        _isFreePlan.value = clientType == ClientType.OPEN_ROUTER
+        _modelsFetchStatus.value = ModelsFetchStatus.Idle
+        _saveStatus.value = SaveStatus.Idle
+        _wizardStep.value = WIZARD_STEP_BASICS
     }
 
-    fun updatePlatformName(
-        name: String,
-    ) {
-
-        _platformName.value =
-            name
+    fun updatePlatformName(name: String) {
+        _platformName.value = name
     }
 
-    fun updateApiUrl(
-        url: String,
-    ) {
-
-        _apiUrl.value =
-            url
+    fun updateApiUrl(url: String) {
+        _apiUrl.value = url
     }
 
-    fun updateApiKey(
-        key: String,
-    ) {
-
-        _apiKey.value =
-            key
+    fun updateApiKey(key: String) {
+        _apiKey.value = key
     }
 
-    fun updateModel(
-        modelName: String,
-    ) {
-
-        _model.value =
-            modelName
+    fun updateModel(modelName: String) {
+        _model.value = modelName
     }
 
-    /*
-     * =========================================================
-     * OPENROUTER FREE / PAID
-     * =========================================================
-     */
-    fun updatePlanType(
-        isFree: Boolean,
-    ) {
+    fun updatePlanType(isFree: Boolean) {
+        if (_selectedClientType.value != ClientType.OPEN_ROUTER) return
 
-        /*
-         * Ignore for Google AI Studio
-         * and Custom.
-         */
-        if (
-            _selectedClientType.value !=
-            ClientType.OPEN_ROUTER
-        ) {
-
-            return
-        }
-
-        _isFreePlan.value =
-            isFree
-
-        if (
-            _apiKey.value
-                .isNotBlank()
-        ) {
-
+        _isFreePlan.value = isFree
+        if (_apiKey.value.isNotBlank()) {
             fetchModels()
         }
     }
 
-    /*
-     * =========================================================
-     * OPENROUTER MODELS
-     * =========================================================
+    /**
+     * OpenRouter is the only provider that dynamically loads a model catalog.
      */
     fun fetchModels() {
-
-        /*
-         * Never fetch OpenRouter models for
-         * Google AI Studio or Custom.
-         */
-        if (
-            _selectedClientType.value !=
-            ClientType.OPEN_ROUTER
-        ) {
-
-            _modelsFetchStatus.value =
-                ModelsFetchStatus.Idle
-
+        if (_selectedClientType.value != ClientType.OPEN_ROUTER) {
+            _modelsFetchStatus.value = ModelsFetchStatus.Idle
             return
         }
 
-        val currentApiKey =
-            normalizeApiKey(
-                _apiKey.value
+        val currentApiKey = normalizeApiKey(_apiKey.value)
+        if (currentApiKey.isNullOrBlank()) {
+            _modelsFetchStatus.value = ModelsFetchStatus.Error(
+                "OpenRouter API key is required"
             )
-
-        if (
-            currentApiKey
-                .isNullOrBlank()
-        ) {
-
-            _modelsFetchStatus.value =
-                ModelsFetchStatus.Error(
-                    "OpenRouter API key is required"
-                )
-
             return
         }
 
         viewModelScope.launch {
-
-            _modelsFetchStatus.value =
-                ModelsFetchStatus.Loading
+            _modelsFetchStatus.value = ModelsFetchStatus.Loading
 
             try {
-
-                val fetchedModels =
-                    settingRepository
-                        .fetchOpenRouterModels(
-                            apiKey =
-                                currentApiKey,
-
-                            isFreeOnly =
-                                _isFreePlan.value,
-                        )
-
-                _modelsFetchStatus.value =
-                    ModelsFetchStatus.Success(
-                        fetchedModels
-                    )
-
-                /*
-                 * =================================================
-                 * IMPORTANT:
-                 * Prefer a Tools-capable model automatically.
-                 * =================================================
-                 *
-                 * Keep the user's current selection if it still
-                 * exists in the newly fetched Free/Paid list.
-                 *
-                 * If the current model is no longer available:
-                 *
-                 * 1. Prefer the first model whose
-                 *    supported_parameters contains "tools".
-                 *
-                 * 2. If there is no Tools-capable model in the
-                 *    current list, use the first available model
-                 *    so normal text chat remains usable.
-                 *
-                 * We do NOT silently replace an existing valid
-                 * user selection.
-                 */
-                if (
-                    fetchedModels.isNotEmpty()
-                ) {
-
-                    val currentModel =
-                        _model.value
-                            .trim()
-
-                    val currentModelExists =
-                        fetchedModels.any {
-                            it.id ==
-                                currentModel
-                        }
-
-                    if (
-                        !currentModelExists
-                    ) {
-
-                        val preferredModel =
-                            fetchedModels
-                                .firstOrNull {
-                                    it.supportsTools
-                                }
-                                ?: fetchedModels
-                                    .first()
-
-                        _model.value =
-                            preferredModel.id
-                    }
-                }
-
-            } catch (
-                e: Exception
-            ) {
-
-                Log.e(
-                    TAG,
-                    "Failed to fetch OpenRouter models",
-                    e,
+                val fetchedModels = settingRepository.fetchOpenRouterModels(
+                    apiKey = currentApiKey,
+                    isFreeOnly = _isFreePlan.value,
                 )
 
-                _modelsFetchStatus.value =
-                    ModelsFetchStatus.Error(
-                        e.message
-                            ?: "Failed to fetch model list"
-                    )
+                _modelsFetchStatus.value = ModelsFetchStatus.Success(fetchedModels)
+
+                if (fetchedModels.isNotEmpty()) {
+                    val currentModel = _model.value.trim()
+                    val currentModelExists = fetchedModels.any {
+                        it.id == currentModel
+                    }
+
+                    if (!currentModelExists) {
+                        val preferredModel = fetchedModels.firstOrNull {
+                            it.supportsTools
+                        } ?: fetchedModels.first()
+
+                        _model.value = preferredModel.id
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to fetch OpenRouter models", e)
+                _modelsFetchStatus.value = ModelsFetchStatus.Error(
+                    e.message ?: "Failed to fetch model list"
+                )
             }
         }
     }
 
-    /*
-     * =========================================================
-     * WIZARD NAVIGATION
-     * =========================================================
-     */
     fun nextWizardStep() {
+        if (!canProceedFromStep(_wizardStep.value)) return
 
         if (
-            !canProceedFromStep(
-                _wizardStep.value
-            )
+            _wizardStep.value == WIZARD_STEP_API_KEY &&
+            _selectedClientType.value == ClientType.OPEN_ROUTER
         ) {
-
-            return
-        }
-
-        /*
-         * Only OpenRouter fetches a dynamic
-         * list of models.
-         *
-         * Google AI Studio:
-         * manual Gemini model ID.
-         *
-         * Custom:
-         * manual model ID.
-         */
-        if (
-            _wizardStep.value ==
-            WIZARD_STEP_API_KEY &&
-            _selectedClientType.value ==
-            ClientType.OPEN_ROUTER
-        ) {
-
             fetchModels()
         }
 
         _wizardStep.update {
-
-            minOf(
-                WIZARD_TOTAL_STEPS - 1,
-                it + 1,
-            )
+            minOf(WIZARD_TOTAL_STEPS - 1, it + 1)
         }
     }
 
     fun previousWizardStep() {
-
         _wizardStep.update {
-
-            maxOf(
-                WIZARD_STEP_BASICS,
-                it - 1,
-            )
+            maxOf(WIZARD_STEP_BASICS, it - 1)
         }
     }
 
     fun resetWizard() {
+        _wizardStep.value = WIZARD_STEP_BASICS
+        _selectedClientType.value = null
+        _platformName.value = ""
+        _apiUrl.value = ""
+        _apiKey.value = ""
+        _model.value = ""
+        _isFreePlan.value = true
+        _modelsFetchStatus.value = ModelsFetchStatus.Idle
 
-        _wizardStep.value =
-            WIZARD_STEP_BASICS
-
-        _selectedClientType.value =
-            null
-
-        _platformName.value =
-            ""
-
-        _apiUrl.value =
-            ""
-
-        _apiKey.value =
-            ""
-
-        _model.value =
-            ""
-
-        _isFreePlan.value =
-            true
-
-        _modelsFetchStatus.value =
-            ModelsFetchStatus.Idle
-
-        /*
-         * IMPORTANT:
-         *
-         * Do not reset SaveStatus here.
-         *
-         * SetupPlatformWizardScreen waits for
-         * SaveStatus.Success and then calls
-         * clearSaveStatus().
-         */
+        // SaveStatus intentionally remains unchanged. The screen consumes
+        // Success/Error and then calls clearSaveStatus().
     }
 
-    /*
-     * =========================================================
-     * SAVE PLATFORM
-     * =========================================================
+    /**
+     * Saves and enables a provider only after a real Chat Completions request
+     * proves that API URL + API key + Model ID work together.
+     *
+     * This prevents an invalid provider from replacing the currently working
+     * provider and moves 401/404/model errors from the chat screen to setup.
      */
     fun savePlatform() {
+        if (_saveStatus.value == SaveStatus.Saving) return
 
-        /*
-         * Prevent duplicate save requests.
-         */
-        if (
-            _saveStatus.value ==
-            SaveStatus.Saving
-        ) {
+        val clientType = _selectedClientType.value ?: return
+        val cleanName = _platformName.value.trim()
+        val cleanApiUrl = _apiUrl.value.trim().trimEnd('/')
+        val cleanModel = _model.value.trim()
+        val cleanApiKey = normalizeApiKey(_apiKey.value)
 
+        if (cleanName.isBlank()) {
+            _saveStatus.value = SaveStatus.Error("Platform name is required")
             return
         }
 
-        val clientType =
-            _selectedClientType.value
-                ?: return
+        if (cleanApiUrl.isBlank()) {
+            _saveStatus.value = SaveStatus.Error("API URL is required")
+            return
+        }
 
-        val cleanName =
-            _platformName.value
-                .trim()
-
-        val cleanApiUrl =
-            _apiUrl.value
-                .trim()
-                .trimEnd('/')
-
-        val cleanModel =
-            _model.value
-                .trim()
-
-        val cleanApiKey =
-            normalizeApiKey(
-                _apiKey.value
-            )
-
-        /*
-         * Validate required fields.
-         */
-        if (
-            cleanName.isBlank()
-        ) {
-
-            _saveStatus.value =
-                SaveStatus.Error(
-                    "Platform name is required"
-                )
-
+        if (cleanModel.isBlank()) {
+            _saveStatus.value = SaveStatus.Error("Model ID is required")
             return
         }
 
         if (
-            cleanApiUrl.isBlank()
-        ) {
-
-            _saveStatus.value =
-                SaveStatus.Error(
-                    "API URL is required"
-                )
-
-            return
-        }
-
-        if (
-            cleanModel.isBlank()
-        ) {
-
-            _saveStatus.value =
-                SaveStatus.Error(
-                    "Model ID is required"
-                )
-
-            return
-        }
-
-        /*
-         * OpenRouter and Google AI Studio
-         * require an API key.
-         *
-         * Custom OpenAI-compatible APIs may
-         * work without authentication.
-         */
-        if (
-            clientType !=
-            ClientType.CUSTOM &&
+            clientType != ClientType.CUSTOM &&
             cleanApiKey.isNullOrBlank()
         ) {
-
-            _saveStatus.value =
-                SaveStatus.Error(
-                    "API key is required"
-                )
-
+            _saveStatus.value = SaveStatus.Error("API key is required")
             return
         }
 
         viewModelScope.launch {
-
-            _saveStatus.value =
-                SaveStatus.Saving
+            _saveStatus.value = SaveStatus.Saving
 
             try {
+                // Critical ordering: validate before disabling the current
+                // provider or writing anything to the database.
+                val connectionError = validateProviderConnection(
+                    clientType = clientType,
+                    apiUrl = cleanApiUrl,
+                    apiKey = cleanApiKey,
+                    model = cleanModel,
+                )
 
-                val platform =
-                    PlatformV2(
+                if (connectionError != null) {
+                    _saveStatus.value = SaveStatus.Error(connectionError)
+                    return@launch
+                }
 
-                        name =
-                            cleanName,
+                val platform = PlatformV2(
+                    name = cleanName,
+                    compatibleType = clientType,
+                    enabled = true,
+                    apiUrl = cleanApiUrl,
+                    token = cleanApiKey,
+                    model = cleanModel,
+                    isFree = if (clientType == ClientType.OPEN_ROUTER) {
+                        _isFreePlan.value
+                    } else {
+                        null
+                    },
+                    temperature = 1.0f,
+                    topP = 1.0f,
+                    systemPrompt = null,
+                    stream = true,
+                    reasoning = false,
+                    timeout = 30,
+                )
 
-                        compatibleType =
-                            clientType,
+                val allPlatforms = settingRepository.fetchPlatformV2s()
+                val othersEnabled = allPlatforms.filter { it.enabled }
 
-                        enabled =
-                            true,
-
-                        apiUrl =
-                            cleanApiUrl,
-
-                        /*
-                         * Stored without "Bearer ".
-                         *
-                         * The networking layer adds
-                         * Authorization: Bearer itself.
-                         */
-                        token =
-                            cleanApiKey,
-
-                        /*
-                         * Exact selected model ID.
-                         */
-                        model =
-                            cleanModel,
-
-                        /*
-                         * Free/Paid applies only
-                         * to OpenRouter.
-                         */
-                        isFree =
-                            if (
-                                clientType ==
-                                ClientType.OPEN_ROUTER
-                            ) {
-
-                                _isFreePlan.value
-
-                            } else {
-
-                                null
-                            },
-
-                        temperature =
-                            1.0f,
-
-                        topP =
-                            1.0f,
-
-                        systemPrompt =
-                            null,
-
-                        stream =
-                            true,
-
-                        reasoning =
-                            false,
-
-                        timeout =
-                            30,
-                    )
-
-                val allPlatforms =
-                    settingRepository
-                        .fetchPlatformV2s()
-
-                val othersEnabled =
-                    allPlatforms
-                        .filter {
-                            it.enabled
-                        }
-
-                /*
-                 * Only one provider can be active.
-                 */
-                othersEnabled
-                    .forEach {
-                        existingPlatform ->
-
-                        settingRepository
-                            .updatePlatformV2(
-                                existingPlatform.copy(
-                                    enabled =
-                                        false
-                                )
-                            )
-                    }
-
-                settingRepository
-                    .addPlatformV2(
-                        platform
-                    )
-
-                if (
-                    othersEnabled
-                        .isNotEmpty()
-                ) {
-
-                    _switchedPlatformEvent.emit(
-                        platform.name
+                othersEnabled.forEach { existingPlatform ->
+                    settingRepository.updatePlatformV2(
+                        existingPlatform.copy(enabled = false)
                     )
                 }
 
-                /*
-                 * Refresh immediately before
-                 * reporting Success.
-                 */
-                _platforms.value =
-                    settingRepository
-                        .fetchPlatformV2s()
+                settingRepository.addPlatformV2(platform)
 
-                /*
-                 * SetupPlatformWizardScreen
-                 * observes this value.
-                 */
-                _saveStatus.value =
-                    SaveStatus.Success
+                if (othersEnabled.isNotEmpty()) {
+                    _switchedPlatformEvent.emit(platform.name)
+                }
 
-                /*
-                 * Reset form fields.
-                 *
-                 * SaveStatus remains Success until
-                 * clearSaveStatus() is called.
-                 */
+                _platforms.value = settingRepository.fetchPlatformV2s()
+                _saveStatus.value = SaveStatus.Success
                 resetWizard()
-
-            } catch (
-                e: Exception
-            ) {
-
-                Log.e(
-                    TAG,
-                    "Failed to save platform",
-                    e,
-                )
-
-                _saveStatus.value =
-                    SaveStatus.Error(
-                        e.message
-                            ?: "Unknown error"
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to save platform", e)
+                _saveStatus.value = SaveStatus.Error(
+                    AgentErrorMessageFormatter.format(
+                        e.message ?: "Unknown error"
                     )
+                )
             }
+        }
+    }
+
+    /**
+     * Returns null on success; otherwise returns a localized user-facing
+     * provider/network error.
+     *
+     * It intentionally uses the same OpenAI-compatible networking path as the
+     * Agent runtime so setup validates the exact endpoint that chat will use.
+     */
+    private suspend fun validateProviderConnection(
+        clientType: ClientType,
+        apiUrl: String,
+        apiKey: String?,
+        model: String,
+    ): String? {
+        return try {
+            openAIAPI.setToken(apiKey)
+            openAIAPI.setAPIUrl(apiUrl)
+            openAIAPI.setProvider(
+                type = clientType.name,
+                customUrl = apiUrl,
+            )
+
+            val response = openAIAPI.completeQwenChatCompletion(
+                request = QwenChatCompletionRequest(
+                    model = model,
+                    messages = listOf(
+                        QwenChatMessage(
+                            role = "user",
+                            content = qwenTextContent("Reply with OK."),
+                        )
+                    ),
+                    stream = false,
+                )
+            )
+
+            val error = response.error
+            if (error == null) {
+                null
+            } else {
+                val rawError = buildString {
+                    val code = error.code ?: error.type ?: "error"
+                    if (code.all { it.isDigit() }) {
+                        append("HTTP ")
+                        append(code)
+                        append(": ")
+                    } else {
+                        append(code)
+                        append(": ")
+                    }
+                    append(error.message)
+                }
+
+                AgentErrorMessageFormatter.format(rawError)
+            }
+        } catch (e: Exception) {
+            AgentErrorMessageFormatter.format(
+                e.message ?: "Unknown network error"
+            )
         }
     }
 
     fun clearSaveStatus() {
-
-        _saveStatus.value =
-            SaveStatus.Idle
+        _saveStatus.value = SaveStatus.Idle
     }
 
-    fun deletePlatform(
-        platform: PlatformV2,
-    ) {
-
+    fun deletePlatform(platform: PlatformV2) {
         viewModelScope.launch {
-
             try {
-
-                settingRepository
-                    .deletePlatformV2(
-                        platform
-                    )
-
-                _platforms.value =
-                    settingRepository
-                        .fetchPlatformV2s()
-
-            } catch (
-                e: Exception
-            ) {
-
-                Log.e(
-                    TAG,
-                    "Failed to delete platform",
-                    e,
-                )
+                settingRepository.deletePlatformV2(platform)
+                _platforms.value = settingRepository.fetchPlatformV2s()
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to delete platform", e)
             }
         }
     }
 
-    /*
-     * =========================================================
-     * WIZARD VALIDATION
-     * =========================================================
-     */
-    fun canProceedFromStep(
-        step: Int,
-    ): Boolean =
-
+    fun canProceedFromStep(step: Int): Boolean =
         when (step) {
-
             WIZARD_STEP_BASICS ->
+                _platformName.value.isNotBlank() &&
+                    _apiUrl.value.isNotBlank()
 
-                _platformName.value
-                    .isNotBlank() &&
-                    _apiUrl.value
-                        .isNotBlank()
-
-            /*
-             * Custom API key is optional.
-             */
             WIZARD_STEP_API_KEY ->
-
-                _selectedClientType.value ==
-                    ClientType.CUSTOM ||
-                    _apiKey.value
-                        .isNotBlank()
+                _selectedClientType.value == ClientType.CUSTOM ||
+                    _apiKey.value.isNotBlank()
 
             WIZARD_STEP_MODEL ->
+                _model.value.isNotBlank()
 
-                _model.value
-                    .isNotBlank()
-
-            else ->
-
-                false
+            else -> false
         }
 
-    fun isSetupComplete(): Boolean =
+    fun isSetupComplete(): Boolean = _platforms.value.isNotEmpty()
 
-        _platforms.value
-            .isNotEmpty()
-
-    /*
-     * =========================================================
-     * DEFAULT PLATFORM NAME
-     * =========================================================
-     */
-    private fun getDefaultPlatformName(
-        clientType: ClientType,
-    ): String =
-
+    private fun getDefaultPlatformName(clientType: ClientType): String =
         when (clientType) {
-
-            ClientType.OPEN_ROUTER ->
-
-                "OpenRouter"
-
-            ClientType.GOOGLE_AI_STUDIO ->
-
-                "Google AI Studio"
-
-            ClientType.CUSTOM ->
-
-                "Custom API"
-
-            /*
-             * Compatibility with old saved types.
-             */
-            ClientType.OPENAI ->
-
-                "OpenAI"
-
-            ClientType.ANTHROPIC ->
-
-                "Anthropic"
-
-            ClientType.QWEN ->
-
-                "Qwen"
-
-            ClientType.KIMI ->
-
-                "Kimi"
-
-            ClientType.MINIMAX ->
-
-                "MiniMax"
-
-            ClientType.DEEPSEEK ->
-
-                "DeepSeek"
+            ClientType.OPEN_ROUTER -> "OpenRouter"
+            ClientType.GOOGLE_AI_STUDIO -> "Google AI Studio"
+            ClientType.CUSTOM -> "Custom API"
+            ClientType.OPENAI -> "OpenAI"
+            ClientType.ANTHROPIC -> "Anthropic"
+            ClientType.QWEN -> "Qwen"
+            ClientType.KIMI -> "Kimi"
+            ClientType.MINIMAX -> "MiniMax"
+            ClientType.DEEPSEEK -> "DeepSeek"
         }
 
-    /*
-     * =========================================================
-     * DEFAULT API URL
-     * =========================================================
-     */
-    private fun getDefaultApiUrl(
-        clientType: ClientType,
-    ): String =
-
+    private fun getDefaultApiUrl(clientType: ClientType): String =
         when (clientType) {
-
-            ClientType.OPEN_ROUTER ->
-
-                ModelConstants
-                    .OPENROUTER_API_URL
-
-            ClientType.GOOGLE_AI_STUDIO ->
-
-                ModelConstants
-                    .GOOGLE_AI_STUDIO_API_URL
-
-            ClientType.CUSTOM ->
-
-                ModelConstants
-                    .CUSTOM_API_URL
-
-            else ->
-
-                ""
+            ClientType.OPEN_ROUTER -> ModelConstants.OPENROUTER_API_URL
+            ClientType.GOOGLE_AI_STUDIO -> ModelConstants.GOOGLE_AI_STUDIO_API_URL
+            ClientType.CUSTOM -> ModelConstants.CUSTOM_API_URL
+            else -> ""
         }
 
-    /*
-     * =========================================================
-     * DEFAULT MODEL
-     * =========================================================
-     */
-    private fun getDefaultModel(
-        clientType: ClientType,
-    ): String =
-
+    private fun getDefaultModel(clientType: ClientType): String =
         when (clientType) {
-
-            /*
-             * When the OpenRouter model list
-             * loads, fetchModels() replaces this
-             * if it is not available.
-             *
-             * The replacement now prefers a
-             * Tools-capable model.
-             */
-            ClientType.OPEN_ROUTER ->
-
-                "google/gemini-2.5-pro"
-
-            ClientType.GOOGLE_AI_STUDIO ->
-
-                "gemini-2.5-flash"
-
-            /*
-             * Custom requires manual model ID.
-             */
-            ClientType.CUSTOM ->
-
-                ""
-
-            /*
-             * Compatibility only.
-             */
-            ClientType.OPENAI ->
-
-                "gpt-4o"
-
-            ClientType.ANTHROPIC ->
-
-                "claude-3-5-sonnet"
-
-            ClientType.QWEN ->
-
-                "qwen-max"
-
-            ClientType.KIMI ->
-
-                "moonshot-v1-8k"
-
-            ClientType.MINIMAX ->
-
-                "abab6.5s-chat"
-
-            ClientType.DEEPSEEK ->
-
-                "deepseek-chat"
+            ClientType.OPEN_ROUTER -> "google/gemini-2.5-pro"
+            ClientType.GOOGLE_AI_STUDIO -> "gemini-2.5-flash"
+            ClientType.CUSTOM -> ""
+            ClientType.OPENAI -> "gpt-4o"
+            ClientType.ANTHROPIC -> "claude-3-5-sonnet"
+            ClientType.QWEN -> "qwen-max"
+            ClientType.KIMI -> "moonshot-v1-8k"
+            ClientType.MINIMAX -> "abab6.5s-chat"
+            ClientType.DEEPSEEK -> "deepseek-chat"
         }
 
-    /*
-     * Remove an optional "Bearer " prefix.
-     *
-     * The networking layer adds the Bearer
-     * prefix when sending the request.
-     */
-    private fun normalizeApiKey(
-        rawApiKey: String,
-    ): String? {
+    private fun normalizeApiKey(rawApiKey: String): String? {
+        val trimmed = rawApiKey.trim()
+        if (trimmed.isBlank()) return null
 
-        val trimmed =
-            rawApiKey
-                .trim()
-
-        if (
-            trimmed.isBlank()
+        val normalized = if (
+            trimmed.startsWith(
+                prefix = "Bearer ",
+                ignoreCase = true,
+            )
         ) {
-
-            return null
+            trimmed.substring("Bearer ".length).trim()
+        } else {
+            trimmed
         }
 
-        val normalized =
-
-            if (
-                trimmed.startsWith(
-                    prefix =
-                        "Bearer ",
-
-                    ignoreCase =
-                        true,
-                )
-            ) {
-
-                trimmed
-                    .substring(
-                        "Bearer ".length
-                    )
-                    .trim()
-
-            } else {
-
-                trimmed
-            }
-
-        return normalized
-            .takeIf {
-                it.isNotBlank()
-            }
+        return normalized.takeIf { it.isNotBlank() }
     }
 
     companion object {
+        private const val TAG = "SetupViewModelV2"
 
-        private const val TAG =
-            "SetupViewModelV2"
-
-        const val WIZARD_STEP_BASICS =
-            0
-
-        const val WIZARD_STEP_API_KEY =
-            1
-
-        const val WIZARD_STEP_MODEL =
-            2
-
-        const val WIZARD_TOTAL_STEPS =
-            3
+        const val WIZARD_STEP_BASICS = 0
+        const val WIZARD_STEP_API_KEY = 1
+        const val WIZARD_STEP_MODEL = 2
+        const val WIZARD_TOTAL_STEPS = 3
     }
 }

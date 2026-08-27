@@ -205,8 +205,9 @@
 
     <string name="reset">إعادة تعيين</string>
 
+    <!-- Fixed: removed invalid escape sequence -->
     <string name="api_url_cautions">
-        يجب أن ينتهي عنوان URL بـ '/'.
+        يجب أن ينتهي عنوان URL بشرطة مائلة /.
     </string>
 
     <string name="bug_report">

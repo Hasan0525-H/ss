@@ -16,6 +16,4 @@ object Route {
     const val SETTING_ROUTE = "setting_route"
     const val SETTINGS = "settings"
     const val PLATFORM_SETTINGS = "platform_settings/{platformUid}"
-    const val ABOUT_PAGE = "about"
-    const val LICENSE = "license"
 }

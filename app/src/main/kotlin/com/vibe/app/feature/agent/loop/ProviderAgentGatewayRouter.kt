@@ -30,33 +30,15 @@ class ProviderAgentGatewayRouter @Inject constructor(
             ClientType.OPENAI ->
                 openAiGateway.streamTurn(request)
 
-            /*
-             * OpenRouter uses the OpenAI-compatible
-             * Chat Completions API.
-             */
             ClientType.OPEN_ROUTER ->
                 qwenGateway.streamTurn(request)
 
-            /*
-             * Google AI Studio uses Google's official
-             * OpenAI-compatible Gemini endpoint.
-             *
-             * The API URL and API key are taken from
-             * the selected Google AI Studio platform.
-             */
             ClientType.GOOGLE_AI_STUDIO ->
                 qwenGateway.streamTurn(request)
 
-            /*
-             * Custom providers use the OpenAI-compatible
-             * Chat Completions path.
-             */
             ClientType.CUSTOM ->
                 qwenGateway.streamTurn(request)
 
-            /*
-             * Providers that use the Responses gateway.
-             */
             ClientType.ANTHROPIC,
             ClientType.MINIMAX,
             ClientType.DEEPSEEK ->

@@ -79,6 +79,14 @@ class OpenAIAPIImpl @Inject constructor(
                 .trim()
                 .uppercase()
 
+        val normalizedCustomUrl =
+            customUrl
+                ?.trim()
+                ?.trimEnd('/')
+                ?.takeIf {
+                    it.isNotEmpty()
+                }
+
         apiUrl =
             when (providerType) {
 
@@ -86,23 +94,29 @@ class OpenAIAPIImpl @Inject constructor(
                 "OPENROUTER" ->
                     OPENROUTER_API_URL
 
+                /*
+                 * Google AI Studio uses the OpenAI-compatible
+                 * endpoint:
+                 *
+                 * https://generativelanguage.googleapis.com/v1beta/openai
+                 *
+                 * Prefer the URL saved in PlatformV2.
+                 * If it is missing, use the default URL.
+                 */
                 "GOOGLE_AI_STUDIO",
                 "GOOGLE",
                 "GEMINI" ->
-                    GOOGLE_AI_STUDIO_API_URL
+                    normalizedCustomUrl
+                        ?: GOOGLE_AI_STUDIO_API_URL
 
                 "CUSTOM" ->
-                    customUrl
-                        ?.trim()
-                        ?.trimEnd('/')
+                    normalizedCustomUrl
                         ?: ""
 
                 else ->
-                    customUrl
-                        ?.trim()
-                        ?.trimEnd('/')
+                    normalizedCustomUrl
                         ?: apiUrl
-            }
+        }
     }
 
     override suspend fun fetchOpenRouterModels(
@@ -181,6 +195,18 @@ class OpenAIAPIImpl @Inject constructor(
         }
     }
 
+    /**
+     * بناء endpoint الخاص بـ Chat Completions.
+     *
+     * OpenRouter:
+     * https://openrouter.ai/api/v1/chat/completions
+     *
+     * Google AI Studio:
+     * https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
+     *
+     * Custom:
+     * يعتمد على الرابط الذي أدخله المستخدم.
+     */
     private fun buildChatCompletionsEndpoint(): String {
 
         return when (providerType) {
@@ -190,11 +216,10 @@ class OpenAIAPIImpl @Inject constructor(
             "GEMINI" -> {
 
                 /*
-                 * Google AI Studio OpenAI-compatible endpoint:
-                 *
-                 * https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
+                 * apiUrl هنا هو الرابط المحفوظ في PlatformV2
+                 * أو GOOGLE_AI_STUDIO_API_URL كـ fallback.
                  */
-                "${GOOGLE_AI_STUDIO_API_URL}/chat/completions"
+                "${apiUrl.trimEnd('/')}/chat/completions"
             }
 
             else -> {

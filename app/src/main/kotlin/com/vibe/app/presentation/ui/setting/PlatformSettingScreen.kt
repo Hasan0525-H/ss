@@ -97,11 +97,23 @@ fun PlatformSettingScreen(
             R.string.switched_platform_hint
         )
 
+    /*
+     * OpenRouter is the only provider that
+     * loads its model list from OpenRouter.
+     *
+     * Google AI Studio is completely independent
+     * and must never call OpenRouter here.
+     */
     LaunchedEffect(
+        platform?.compatibleType,
         isFreeFilter,
         platform?.token
     ) {
-        if (!platform?.token.isNullOrBlank()) {
+        if (
+            platform?.compatibleType ==
+            ClientType.OPEN_ROUTER &&
+            !platform?.token.isNullOrBlank()
+        ) {
             settingViewModel.loadModels(
                 isFreeFilter
             )
@@ -112,6 +124,7 @@ fun PlatformSettingScreen(
         settingViewModel
             .switchedPlatformEvent
             .collect { name ->
+
                 Toast.makeText(
                     context,
                     switchedHint.format(name),
@@ -127,6 +140,14 @@ fun PlatformSettingScreen(
     }
 
     platform?.let { platformData ->
+
+        val isGoogleAIStudio =
+            platformData.compatibleType ==
+                ClientType.GOOGLE_AI_STUDIO
+
+        val isOpenRouter =
+            platformData.compatibleType ==
+                ClientType.OPEN_ROUTER
 
         Scaffold(
             modifier = modifier,
@@ -166,8 +187,10 @@ fun PlatformSettingScreen(
                         stringResource(
                             R.string.enable_api
                         ),
+
                     isChecked =
                         platformData.enabled,
+
                     onCheckedChange = {
                         settingViewModel
                             .toggleEnabled()
@@ -225,9 +248,15 @@ fun PlatformSettingScreen(
                         Modifier.height(64.dp),
 
                     title =
-                        stringResource(
-                            R.string.api_key
-                        ),
+                        if (isGoogleAIStudio) {
+                            stringResource(
+                                R.string.google_ai_studio_api_key
+                            )
+                        } else {
+                            stringResource(
+                                R.string.api_key
+                            )
+                        },
 
                     description =
                         if (
@@ -264,9 +293,15 @@ fun PlatformSettingScreen(
 
                     Text(
                         text =
-                            stringResource(
-                                R.string.api_model
-                            ),
+                            if (isGoogleAIStudio) {
+                                stringResource(
+                                    R.string.google_ai_studio_model_description
+                                )
+                            } else {
+                                stringResource(
+                                    R.string.api_model
+                                )
+                            },
 
                         style =
                             MaterialTheme
@@ -279,73 +314,263 @@ fun PlatformSettingScreen(
                             )
                     )
 
-                    Row(
-                        modifier =
-                            Modifier.fillMaxWidth(),
+                    /*
+                     * OpenRouter:
+                     * show Free/Paid filters and
+                     * dynamically loaded models.
+                     *
+                     * Google AI Studio:
+                     * do not show OpenRouter filters.
+                     * The Gemini model is configured
+                     * directly.
+                     */
+                    if (isOpenRouter) {
 
-                        horizontalArrangement =
-                            Arrangement.spacedBy(
-                                8.dp
+                        Row(
+                            modifier =
+                                Modifier.fillMaxWidth(),
+
+                            horizontalArrangement =
+                                Arrangement.spacedBy(
+                                    8.dp
+                                )
+                        ) {
+
+                            FilterChip(
+                                selected =
+                                    isFreeFilter,
+
+                                onClick = {
+                                    isFreeFilter =
+                                        true
+                                },
+
+                                label = {
+                                    Text(
+                                        "مجاني (Free)"
+                                    )
+                                },
+
+                                enabled =
+                                    platformData.enabled
                             )
-                    ) {
 
-                        FilterChip(
-                            selected =
-                                isFreeFilter,
+                            FilterChip(
+                                selected =
+                                    !isFreeFilter,
 
-                            onClick = {
-                                isFreeFilter = true
-                            },
+                                onClick = {
+                                    isFreeFilter =
+                                        false
+                                },
 
-                            label = {
-                                Text(
-                                    "مجاني (Free)"
-                                )
-                            },
+                                label = {
+                                    Text(
+                                        "مدفوع (Paid)"
+                                    )
+                                },
 
-                            enabled =
-                                platformData.enabled
-                        )
+                                enabled =
+                                    platformData.enabled
+                            )
 
-                        FilterChip(
-                            selected =
-                                !isFreeFilter,
+                            Spacer(
+                                modifier =
+                                    Modifier.height(8.dp)
+                            )
+                        }
 
-                            onClick = {
-                                isFreeFilter = false
-                            },
+                        ExposedDropdownMenuBox(
+                            expanded =
+                                isDropdownExpanded &&
+                                    platformData.enabled,
 
-                            label = {
-                                Text(
-                                    "مدفوع (Paid)"
-                                )
-                            },
+                            onExpandedChange = {
+                                if (
+                                    platformData.enabled
+                                ) {
+                                    isDropdownExpanded =
+                                        !isDropdownExpanded
+                                }
+                            }
+                        ) {
 
-                            enabled =
-                                platformData.enabled
-                        )
-                    }
+                            OutlinedTextField(
+                                value =
+                                    platformData.model,
 
-                    Spacer(
-                        modifier =
-                            Modifier.height(8.dp)
-                    )
+                                onValueChange = {},
 
-                    ExposedDropdownMenuBox(
-                        expanded =
-                            isDropdownExpanded &&
-                                platformData.enabled,
+                                readOnly = true,
 
-                        onExpandedChange = {
-                            if (
-                                platformData.enabled
+                                enabled =
+                                    platformData.enabled,
+
+                                label = {
+                                    Text(
+                                        stringResource(
+                                            R.string.api_model
+                                        )
+                                    )
+                                },
+
+                                placeholder = {
+                                    Text(
+                                        stringResource(
+                                            R.string.model_name
+                                        )
+                                    )
+                                },
+
+                                trailingIcon = {
+
+                                    if (
+                                        isLoadingModels
+                                    ) {
+
+                                        CircularProgressIndicator(
+                                            modifier =
+                                                Modifier.size(
+                                                    20.dp
+                                                ),
+
+                                            strokeWidth =
+                                                2.dp
+                                        )
+
+                                    } else {
+
+                                        ExposedDropdownMenuDefaults
+                                            .TrailingIcon(
+                                                expanded =
+                                                    isDropdownExpanded
+                                            )
+                                    }
+                                },
+
+                                modifier =
+                                    Modifier
+                                        .menuAnchor()
+                                        .fillMaxWidth(),
+
+                                singleLine = true
+                            )
+
+                            ExposedDropdownMenu(
+                                expanded =
+                                    isDropdownExpanded &&
+                                        platformData.enabled,
+
+                                onDismissRequest = {
+                                    isDropdownExpanded =
+                                        false
+                                }
                             ) {
-                                isDropdownExpanded =
-                                    !isDropdownExpanded
+
+                                if (
+                                    availableModels.isEmpty() &&
+                                    !isLoadingModels
+                                ) {
+
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                "لا توجد نماذج متاحة"
+                                            )
+                                        },
+
+                                        onClick = {
+                                            isDropdownExpanded =
+                                                false
+                                        }
+                                    )
+
+                                } else {
+
+                                    availableModels
+                                        .forEach { modelInfo ->
+
+                                            val priceText =
+                                                if (
+                                                    modelInfo
+                                                        .pricing
+                                                        ?.isFree ==
+                                                    true
+                                                ) {
+
+                                                    "مجاني"
+
+                                                } else {
+
+                                                    val price =
+                                                        modelInfo
+                                                            .pricing
+                                                            ?.averagePrice
+                                                            ?: 0.0
+
+                                                    "$" +
+                                                        String.format(
+                                                            "%.6f",
+                                                            price
+                                                        ) +
+                                                        " / 1K tokens"
+                                                }
+
+                                            DropdownMenuItem(
+
+                                                text = {
+
+                                                    Column {
+
+                                                        Text(
+                                                            text =
+                                                                modelInfo
+                                                                    .name
+                                                                    ?: modelInfo.id
+                                                        )
+
+                                                        Text(
+                                                            text =
+                                                                priceText,
+
+                                                            style =
+                                                                MaterialTheme
+                                                                    .typography
+                                                                    .bodySmall,
+
+                                                            color =
+                                                                MaterialTheme
+                                                                    .colorScheme
+                                                                    .onSurfaceVariant
+                                                        )
+                                                    }
+                                                },
+
+                                                onClick = {
+
+                                                    settingViewModel
+                                                        .updateApiModel(
+                                                            modelInfo.id
+                                                        )
+
+                                                    isDropdownExpanded =
+                                                        false
+                                                }
+                                            )
+                                        }
+                                }
                             }
                         }
-                    ) {
 
+                    } else {
+
+                        /*
+                         * Google AI Studio and Custom APIs
+                         * use a manually configured model.
+                         *
+                         * This avoids treating Google as
+                         * an OpenRouter model provider.
+                         */
                         OutlinedTextField(
                             value =
                                 platformData.model,
@@ -368,137 +593,19 @@ fun PlatformSettingScreen(
                             placeholder = {
                                 Text(
                                     stringResource(
-                                        R.string.model_name
+                                        if (isGoogleAIStudio) {
+                                            R.string.google_ai_studio_model_examples
+                                        } else {
+                                            R.string.model_name
+                                        }
                                     )
-                                )
-                            },
-
-                            trailingIcon = {
-                                if (
-                                    isLoadingModels
-                                ) {
-                                    CircularProgressIndicator(
-                                        modifier =
-                                            Modifier.size(
-                                                20.dp
-                                            ),
-                                        strokeWidth = 2.dp
-                                    )
-                                } else {
-                                    ExposedDropdownMenuDefaults
-                                        .TrailingIcon(
-                                            expanded =
-                                                isDropdownExpanded
-                                        )
-                                }
-                            },
+                                },
 
                             modifier =
-                                Modifier
-                                    .menuAnchor()
-                                    .fillMaxWidth(),
+                                Modifier.fillMaxWidth(),
 
                             singleLine = true
                         )
-
-                        ExposedDropdownMenu(
-                            expanded =
-                                isDropdownExpanded &&
-                                    platformData.enabled,
-
-                            onDismissRequest = {
-                                isDropdownExpanded =
-                                    false
-                            }
-                        ) {
-
-                            if (
-                                availableModels.isEmpty() &&
-                                !isLoadingModels
-                            ) {
-
-                                DropdownMenuItem(
-                                    text = {
-                                        Text(
-                                            "لا توجد نماذج متاحة"
-                                        )
-                                    },
-
-                                    onClick = {
-                                        isDropdownExpanded =
-                                            false
-                                    }
-                                )
-
-                            } else {
-
-                                availableModels
-                                    .forEach { modelInfo ->
-
-                                        val priceText =
-                                            if (
-                                                modelInfo.pricing
-                                                    ?.isFree == true
-                                            ) {
-                                                "مجاني"
-                                            } else {
-                                                val price =
-                                                    modelInfo
-                                                        .pricing
-                                                        ?.averagePrice
-                                                        ?: 0.0
-
-                                                "$" +
-                                                    String.format(
-                                                        "%.6f",
-                                                        price
-                                                    ) +
-                                                    " / 1K tokens"
-                                            }
-
-                                        DropdownMenuItem(
-
-                                            text = {
-                                                Column {
-
-                                                    Text(
-                                                        text =
-                                                            modelInfo
-                                                                .name
-                                                                ?: modelInfo.id
-                                                    )
-
-                                                    Text(
-                                                        text =
-                                                            priceText,
-
-                                                        style =
-                                                            MaterialTheme
-                                                                .typography
-                                                                .bodySmall,
-
-                                                        color =
-                                                            MaterialTheme
-                                                                .colorScheme
-                                                                .onSurfaceVariant
-                                                    )
-                                                }
-                                            },
-
-                                            onClick = {
-
-                                                settingViewModel
-                                                    .updateApiModel(
-                                                        modelInfo.id
-                                                    )
-
-                                                isDropdownExpanded =
-                                                    false
-                                            }
-                                        )
-                                    }
-                            }
-                        }
                     }
                 }
 
@@ -567,8 +674,10 @@ fun PlatformSettingScreen(
                 PlatformNameDialog(
                     dialogState =
                         dialogState,
+
                     initialValue =
                         platformData.name,
+
                     settingViewModel =
                         settingViewModel
                 )
@@ -576,8 +685,10 @@ fun PlatformSettingScreen(
                 APIUrlDialog(
                     dialogState =
                         dialogState,
+
                     initialValue =
                         platformData.apiUrl,
+
                     settingViewModel =
                         settingViewModel
                 )
@@ -585,6 +696,7 @@ fun PlatformSettingScreen(
                 APIKeyDialog(
                     dialogState =
                         dialogState,
+
                     settingViewModel =
                         settingViewModel
                 )
@@ -592,8 +704,10 @@ fun PlatformSettingScreen(
                 ModelDialog(
                     dialogState =
                         dialogState,
+
                     model =
                         platformData.model,
+
                     settingViewModel =
                         settingViewModel
                 )
@@ -601,8 +715,10 @@ fun PlatformSettingScreen(
                 TemperatureDialog(
                     dialogState =
                         dialogState,
+
                     temperature =
                         platformData.temperature,
+
                     settingViewModel =
                         settingViewModel
                 )
@@ -610,8 +726,10 @@ fun PlatformSettingScreen(
                 TopPDialog(
                     dialogState =
                         dialogState,
+
                     topP =
                         platformData.topP,
+
                     settingViewModel =
                         settingViewModel
                 )
@@ -619,6 +737,7 @@ fun PlatformSettingScreen(
                 DeletePlatformDialog(
                     dialogState =
                         dialogState,
+
                     settingViewModel =
                         settingViewModel
                 )

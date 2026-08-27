@@ -52,6 +52,13 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
                 .toQwenChatCompletionsBaseUrl()
         )
 
+        /*
+         * Set the provider AFTER setAPIUrl.
+         *
+         * This is important for Google AI Studio:
+         * OpenAIAPIImpl selects the Google endpoint
+         * from ClientType.GOOGLE_AI_STUDIO.
+         */
         openAIAPI.setProvider(
             type = request.platform.compatibleType.name,
             customUrl = request.platform.apiUrl,
@@ -159,8 +166,6 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
             false
 
         /*
-         * IMPORTANT:
-         *
          * Do NOT use an OpenRouter fallback such as:
          *
          *     openrouter/free
@@ -169,12 +174,8 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
          *
          * The selected model must be sent directly.
          *
-         * If OpenRouter returns 429/rate-limit,
-         * we propagate the error once instead of
-         * silently switching to another free-model route.
-         *
-         * This prevents repeated free-tier requests
-         * and makes the actual provider error visible.
+         * This also applies to Google AI Studio:
+         * the selected Gemini model is sent directly.
          */
 
         openAIAPI
@@ -620,9 +621,11 @@ class QwenChatCompletionsAgentGateway @Inject constructor(
         /*
          * Use the complete conversation here.
          *
-         * Qwen/OpenAI-compatible Chat Completions
+         * OpenAI-compatible Chat Completions
          * endpoints are stateless, so every request
          * must contain the accumulated conversation.
+         *
+         * This applies to Google AI Studio as well.
          */
         request.fullConversation
             .forEach { item ->
@@ -762,6 +765,16 @@ internal fun AgentModelRequest.toQwenToolChoice(): String? {
     }
 }
 
+/*
+ * Converts provider URLs to the base URL expected by
+ * the OpenAI-compatible Qwen/Google gateway.
+ *
+ * Google AI Studio already uses:
+ *
+ * https://generativelanguage.googleapis.com/v1beta/openai
+ *
+ * so it must NOT receive an additional /v1 segment.
+ */
 private fun String.toQwenChatCompletionsBaseUrl(): String {
 
     val trimmed =

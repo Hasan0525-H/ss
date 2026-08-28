@@ -1,6 +1,7 @@
 package com.vibe.app.presentation.ui.chat
 
 import android.net.Uri
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -22,8 +23,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -40,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -130,29 +135,168 @@ fun OpponentChatBubble(
     onCopyClick: () -> Unit = {},
     onSelectClick: () -> Unit = {},
 ) {
+    var isExpanded by remember { mutableStateOf(false) }
+    var isFullscreen by remember { mutableStateOf(false) }
+    val rotation by animateFloatAsState(
+        targetValue = if (isExpanded) 180f else 0f,
+        label = "assistant_expand_rotation",
+    )
+
+    val compactPreview = remember(text, isLoading) {
+        text
+            .lineSequence()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .joinToString(" ")
+            .ifBlank { if (isLoading) "…" else "" }
+    }
+
     Column(
-        modifier = modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = modifier.padding(horizontal = 4.dp, vertical = 1.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = if (isLoading) loadingMinHeight else 0.dp),
-            shape = RoundedCornerShape(20.dp),
+                .heightIn(min = if (isLoading && isExpanded) loadingMinHeight else 0.dp),
+            shape = RoundedCornerShape(14.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface,
                 contentColor = MaterialTheme.colorScheme.onSurface,
             ),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp),
         ) {
             Column {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 14.dp, end = 14.dp, top = 12.dp),
+                        .padding(start = 10.dp, end = 6.dp, top = 7.dp, bottom = 5.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                ) {
+                    Surface(
+                        modifier = Modifier.size(24.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Outlined.AutoAwesome,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(15.dp),
+                            )
+                        }
+                    }
+                    Text(
+                        text = if (isError) "AI • Error" else "AI",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (isError) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(12.dp),
+                            strokeWidth = 1.7.dp,
+                        )
+                    }
+                    IconButton(
+                        onClick = { isFullscreen = true },
+                        modifier = Modifier.size(30.dp),
+                    ) {
+                        Text(
+                            text = "⛶",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    IconButton(
+                        onClick = { isExpanded = !isExpanded },
+                        modifier = Modifier.size(30.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.KeyboardArrowDown,
+                            contentDescription = stringResource(
+                                if (isExpanded) R.string.collapse else R.string.expand
+                            ),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .size(19.dp)
+                                .rotate(rotation),
+                        )
+                    }
+                }
+
+                if (isExpanded) {
+                    val displayText = if (isLoading) text.trimIndent() + " ●" else text.trimIndent()
+                    Markdown(
+                        content = displayText,
+                        modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 10.dp),
+                        colors = chatMarkdownColors(),
+                        typography = chatMarkdownTypography(),
+                        padding = chatMarkdownPadding(),
+                        components = chatMarkdownComponents(),
+                    )
+                } else if (compactPreview.isNotBlank()) {
+                    Text(
+                        text = compactPreview,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(start = 10.dp, end = 10.dp, bottom = 8.dp),
+                    )
+                }
+            }
+        }
+
+        if (isExpanded && !isLoading && !isError) {
+            Row(
+                modifier = Modifier.padding(start = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(1.dp),
+            ) {
+                CopyTextIcon(onCopyClick)
+                SelectTextIcon(onSelectClick)
+            }
+        }
+    }
+
+    if (isFullscreen) {
+        FullscreenAssistantPreview(
+            text = text,
+            isLoading = isLoading,
+            isError = isError,
+            onDismissRequest = { isFullscreen = false },
+        )
+    }
+}
+
+@Composable
+private fun FullscreenAssistantPreview(
+    text: String,
+    isLoading: Boolean,
+    isError: Boolean,
+    onDismissRequest: () -> Unit,
+) {
+    Dialog(
+        onDismissRequest = onDismissRequest,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background,
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Surface(
                         modifier = Modifier.size(30.dp),
@@ -168,43 +312,45 @@ fun OpponentChatBubble(
                             )
                         }
                     }
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = if (isError) "AI • Error" else "AI",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = if (isError) {
-                            MaterialTheme.colorScheme.error
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
+                        style = MaterialTheme.typography.titleMedium,
+                        color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f),
                     )
                     if (isLoading) {
-                        Spacer(Modifier.width(2.dp))
                         CircularProgressIndicator(
-                            modifier = Modifier.size(14.dp),
+                            modifier = Modifier.size(15.dp),
                             strokeWidth = 2.dp,
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                    }
+                    IconButton(onClick = onDismissRequest) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = stringResource(R.string.collapse),
                         )
                     }
                 }
 
-                val displayText = if (isLoading) text.trimIndent() + " ●" else text.trimIndent()
-                Markdown(
-                    content = displayText,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                    colors = chatMarkdownColors(),
-                    typography = chatMarkdownTypography(),
-                    padding = chatMarkdownPadding(),
-                    components = chatMarkdownComponents(),
-                )
-            }
-        }
-
-        if (!isLoading && !isError) {
-            Row(
-                modifier = Modifier.padding(start = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                CopyTextIcon(onCopyClick)
-                SelectTextIcon(onSelectClick)
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 18.dp, vertical = 8.dp),
+                ) {
+                    val displayText = if (isLoading) text.trimIndent() + " ●" else text.trimIndent()
+                    Markdown(
+                        content = displayText,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = chatMarkdownColors(),
+                        typography = chatMarkdownTypography(),
+                        padding = chatMarkdownPadding(),
+                        components = chatMarkdownComponents(),
+                    )
+                }
             }
         }
     }
@@ -214,29 +360,29 @@ fun OpponentChatBubble(
 fun VibeAppIcon(loading: Boolean) {
     Surface(
         modifier = Modifier
-            .padding(start = 8.dp)
-            .size(42.dp)
+            .padding(start = 4.dp)
+            .size(34.dp)
             .shadow(
-                elevation = 4.dp,
-                shape = RoundedCornerShape(14.dp),
-                ambientColor = Color.Black.copy(alpha = 0.08f),
-                spotColor = Color.Black.copy(alpha = 0.12f),
+                elevation = 2.dp,
+                shape = RoundedCornerShape(11.dp),
+                ambientColor = Color.Black.copy(alpha = 0.06f),
+                spotColor = Color.Black.copy(alpha = 0.09f),
             ),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(11.dp),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Box(contentAlignment = Alignment.Center) {
             if (loading) {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(36.dp),
-                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(29.dp),
+                    strokeWidth = 1.7.dp,
                 )
             }
             Image(
                 painter = painterResource(R.drawable.ic_vibe),
                 contentDescription = null,
-                modifier = Modifier.size(32.dp),
+                modifier = Modifier.size(25.dp),
             )
         }
     }
@@ -244,11 +390,11 @@ fun VibeAppIcon(loading: Boolean) {
 
 @Composable
 private fun CopyTextIcon(onCopyClick: () -> Unit) {
-    IconButton(onClick = onCopyClick, modifier = Modifier.size(38.dp)) {
+    IconButton(onClick = onCopyClick, modifier = Modifier.size(34.dp)) {
         Icon(
             imageVector = ImageVector.vectorResource(id = R.drawable.ic_copy),
             contentDescription = stringResource(R.string.copy_text),
-            modifier = Modifier.size(17.dp),
+            modifier = Modifier.size(16.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
@@ -256,11 +402,11 @@ private fun CopyTextIcon(onCopyClick: () -> Unit) {
 
 @Composable
 private fun SelectTextIcon(onSelectClick: () -> Unit) {
-    IconButton(onClick = onSelectClick, modifier = Modifier.size(38.dp)) {
+    IconButton(onClick = onSelectClick, modifier = Modifier.size(34.dp)) {
         Icon(
             imageVector = ImageVector.vectorResource(id = R.drawable.ic_select),
             contentDescription = null,
-            modifier = Modifier.size(17.dp),
+            modifier = Modifier.size(16.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }

@@ -35,9 +35,17 @@ import com.vibe.app.feature.agent.AgentStepType
 import com.vibe.app.feature.agent.AgentToolStatus
 import com.vibe.app.feature.agent.ToolCallInfo
 
+private const val LIVE_THINKING_VISIBLE_CHARS = 8_000
+private const val LATEST_LINE_SCAN_CHARS = 2_000
+
 /**
  * Compact activity cards used while the application-building agent is working.
  * Details stay one tap away without taking over the chat screen.
+ *
+ * Live reasoning can be very long (especially DeepSeek reasoning models), so
+ * the UI intentionally renders only a bounded tail while the model is still
+ * streaming. The complete persisted content remains available after the step
+ * finishes. This avoids large temporary allocations on every streamed token.
  */
 @Composable
 fun AgentStepBubble(
@@ -180,8 +188,13 @@ private fun ThinkingStep(
         label = "thinking_expand_rotation",
     )
 
+    // Do not call lines() here. DeepSeek can stream thousands of reasoning
+    // chunks, and lines() allocates a complete list on every recomposition.
     val latestLine = remember(step.content) {
-        step.content.lines().lastOrNull { it.isNotBlank() }?.trim().orEmpty()
+        latestNonBlankLine(step.content)
+    }
+    val expandedText = remember(step.content, isLive) {
+        if (isLive) boundedLiveText(step.content, LIVE_THINKING_VISIBLE_CHARS) else step.content
     }
 
     Column(
@@ -234,11 +247,35 @@ private fun ThinkingStep(
 
         if (isExpanded) {
             Text(
-                text = if (isLive) step.content + " \u25CF" else step.content,
+                text = if (isLive) "$expandedText \u25CF" else expandedText,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.82f),
                 modifier = Modifier.padding(top = 5.dp),
             )
         }
     }
+}
+
+private fun latestNonBlankLine(text: String): String {
+    if (text.isEmpty()) return ""
+
+    val scanStart = (text.length - LATEST_LINE_SCAN_CHARS).coerceAtLeast(0)
+    var end = text.length
+    while (end > scanStart && text[end - 1].isWhitespace()) {
+        end--
+    }
+    if (end <= scanStart) return ""
+
+    var start = end
+    while (start > scanStart) {
+        val ch = text[start - 1]
+        if (ch == '\n' || ch == '\r') break
+        start--
+    }
+    return text.substring(start, end).trim()
+}
+
+private fun boundedLiveText(text: String, maxChars: Int): String {
+    if (text.length <= maxChars) return text
+    return "…\n" + text.substring(text.length - maxChars)
 }

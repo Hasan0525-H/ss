@@ -76,6 +76,11 @@ import com.mikepenz.markdown.model.markdownPadding
 import com.vibe.app.R
 import java.io.File
 
+private const val LIVE_COMPACT_PREVIEW_CHARS = 1_200
+private const val FINISHED_COMPACT_PREVIEW_CHARS = 4_000
+private const val LIVE_EXPANDED_VISIBLE_CHARS = 8_000
+private const val LIVE_FULLSCREEN_VISIBLE_CHARS = 20_000
+
 @Composable
 fun UserChatBubble(
     modifier: Modifier = Modifier,
@@ -142,13 +147,15 @@ fun OpponentChatBubble(
         label = "assistant_expand_rotation",
     )
 
+    // The previous implementation rebuilt a normalized copy of the entire
+    // streamed response for every token. Long app-generation sessions can
+    // produce thousands of updates, so keep the live preview bounded.
     val compactPreview = remember(text, isLoading) {
-        text
-            .lineSequence()
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }
-            .joinToString(" ")
-            .ifBlank { if (isLoading) "…" else "" }
+        buildCompactPreview(
+            text = text,
+            maxChars = if (isLoading) LIVE_COMPACT_PREVIEW_CHARS else FINISHED_COMPACT_PREVIEW_CHARS,
+            takeTail = isLoading,
+        ).ifBlank { if (isLoading) "…" else "" }
     }
 
     Column(
@@ -233,15 +240,26 @@ fun OpponentChatBubble(
                 }
 
                 if (isExpanded) {
-                    val displayText = if (isLoading) text.trimIndent() + " ●" else text.trimIndent()
-                    Markdown(
-                        content = displayText,
-                        modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 10.dp),
-                        colors = chatMarkdownColors(),
-                        typography = chatMarkdownTypography(),
-                        padding = chatMarkdownPadding(),
-                        components = chatMarkdownComponents(),
-                    )
+                    if (isLoading) {
+                        // Markdown parsing is intentionally disabled while the
+                        // response is streaming. Parsing the full document on
+                        // every token was a major source of allocation spikes.
+                        Text(
+                            text = boundedLiveText(text, LIVE_EXPANDED_VISIBLE_CHARS) + " ●",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 10.dp),
+                        )
+                    } else {
+                        Markdown(
+                            content = text.trimIndent(),
+                            modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 10.dp),
+                            colors = chatMarkdownColors(),
+                            typography = chatMarkdownTypography(),
+                            padding = chatMarkdownPadding(),
+                            components = chatMarkdownComponents(),
+                        )
+                    }
                 } else if (compactPreview.isNotBlank()) {
                     Text(
                         text = compactPreview,
@@ -341,15 +359,23 @@ private fun FullscreenAssistantPreview(
                         .verticalScroll(rememberScrollState())
                         .padding(horizontal = 18.dp, vertical = 8.dp),
                 ) {
-                    val displayText = if (isLoading) text.trimIndent() + " ●" else text.trimIndent()
-                    Markdown(
-                        content = displayText,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = chatMarkdownColors(),
-                        typography = chatMarkdownTypography(),
-                        padding = chatMarkdownPadding(),
-                        components = chatMarkdownComponents(),
-                    )
+                    if (isLoading) {
+                        Text(
+                            text = boundedLiveText(text, LIVE_FULLSCREEN_VISIBLE_CHARS) + " ●",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    } else {
+                        Markdown(
+                            content = text.trimIndent(),
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = chatMarkdownColors(),
+                            typography = chatMarkdownTypography(),
+                            padding = chatMarkdownPadding(),
+                            components = chatMarkdownComponents(),
+                        )
+                    }
                 }
             }
         }
@@ -607,6 +633,38 @@ fun FullscreenImagePreview(
             )
         }
     }
+}
+
+private fun buildCompactPreview(
+    text: String,
+    maxChars: Int,
+    takeTail: Boolean,
+): String {
+    if (text.isBlank()) return ""
+
+    val bounded = when {
+        text.length <= maxChars -> text
+        takeTail -> text.substring(text.length - maxChars)
+        else -> text.substring(0, maxChars)
+    }
+
+    val out = StringBuilder(bounded.length.coerceAtMost(maxChars))
+    var pendingSpace = false
+    bounded.forEach { ch ->
+        if (ch.isWhitespace()) {
+            pendingSpace = out.isNotEmpty()
+        } else {
+            if (pendingSpace) out.append(' ')
+            out.append(ch)
+            pendingSpace = false
+        }
+    }
+    return out.toString().trim()
+}
+
+private fun boundedLiveText(text: String, maxChars: Int): String {
+    if (text.length <= maxChars) return text
+    return "…\n" + text.substring(text.length - maxChars)
 }
 
 private fun isImageFile(extension: String?): Boolean {

@@ -8,15 +8,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
-import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.vibe.app.presentation.ui.auth.GoogleAccountSession
 import com.vibe.app.presentation.ui.auth.WelcomeSignInScreen
 import com.vibe.app.presentation.ui.setting.LanguageViewModel
 
 /**
- * App entry point that requires a real Google account session before exposing
- * the rest of the application. GoogleSignIn persists the selected account via
- * Google Play services, so returning users do not have to choose an account on
- * every launch.
+ * App entry point. A user first chooses a real Google account from Android's
+ * system Google account picker. The selected email is then remembered locally
+ * so the welcome screen is not shown on every launch.
  */
 @Composable
 fun AuthenticatedAppRoot(
@@ -25,22 +24,21 @@ fun AuthenticatedAppRoot(
     val context = LocalContext.current
     val languageViewModel: LanguageViewModel = hiltViewModel()
 
-    var googleSignedIn by remember {
-        mutableStateOf(
-            GoogleSignIn.getLastSignedInAccount(context) != null
-        )
+    var linkedGoogleEmail by remember {
+        mutableStateOf(GoogleAccountSession.getEmail(context))
     }
 
     val languageSelected = languageViewModel.isLanguageSelected()
 
-    if (googleSignedIn && languageSelected) {
+    if (!linkedGoogleEmail.isNullOrBlank() && languageSelected) {
         SetupNavGraph(navController = navController)
     } else {
         WelcomeSignInScreen(
             languageViewModel = languageViewModel,
-            onSignedIn = {
+            onSignedIn = { email ->
+                GoogleAccountSession.save(context, email)
                 languageViewModel.confirmLanguage()
-                googleSignedIn = true
+                linkedGoogleEmail = email
             },
         )
     }

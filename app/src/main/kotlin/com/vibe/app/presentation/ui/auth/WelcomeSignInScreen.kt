@@ -1,5 +1,6 @@
 package com.vibe.app.presentation.ui.auth
 
+import android.accounts.AccountManager
 import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -23,11 +24,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -41,98 +39,80 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInAccount
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.common.AccountPicker
 import com.vibe.app.presentation.ui.setting.LanguageViewModel
 
 /**
- * First-run account screen.
+ * Minimal first-run screen.
  *
- * Google Play services owns the account chooser. That means the email list shown
- * to the user comes from real Google accounts available on the Android device;
- * the app never reads the device account list directly and never receives the
- * user's Google password.
+ * Account selection is delegated to Google's system account picker. The app
+ * only receives the email address of the account the user explicitly chooses.
  */
 @Composable
 fun WelcomeSignInScreen(
     languageViewModel: LanguageViewModel,
-    onSignedIn: (GoogleSignInAccount) -> Unit,
+    onSignedIn: (String) -> Unit,
 ) {
-    val context = LocalContext.current
     val selectedLanguage by languageViewModel.selectedLanguage.collectAsStateWithLifecycle()
     val isArabic = selectedLanguage == "ar"
     val layoutDirection = if (isArabic) LayoutDirection.Rtl else LayoutDirection.Ltr
 
-    var isSigningIn by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    val googleSignInOptions = remember {
-        GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestEmail()
-            .requestProfile()
-            .build()
-    }
-    val googleSignInClient = remember(context) {
-        GoogleSignIn.getClient(context, googleSignInOptions)
-    }
-
-    val signInLauncher = rememberLauncherForActivityResult(
+    val accountPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult(),
     ) { result ->
-        isSigningIn = false
-        if (result.resultCode != Activity.RESULT_OK || result.data == null) {
+        if (result.resultCode == Activity.RESULT_CANCELED) {
+            // Cancellation is a normal user action. Do not show a large error card.
+            return@rememberLauncherForActivityResult
+        }
+
+        if (result.resultCode != Activity.RESULT_OK) {
             errorMessage = if (isArabic) {
-                "تم إلغاء تسجيل الدخول. يمكنك المحاولة مرة أخرى."
+                "تعذر فتح حساب Google. حاول مرة أخرى."
             } else {
-                "Sign-in was cancelled. You can try again."
+                "Could not open your Google account. Please try again."
             }
             return@rememberLauncherForActivityResult
         }
 
-        try {
-            val account = GoogleSignIn
-                .getSignedInAccountFromIntent(result.data)
-                .getResult(ApiException::class.java)
+        val email = result.data
+            ?.getStringExtra(AccountManager.KEY_ACCOUNT_NAME)
+            ?.trim()
 
-            if (account.email.isNullOrBlank()) {
-                errorMessage = if (isArabic) {
-                    "تعذر قراءة البريد الإلكتروني من حساب Google المحدد."
-                } else {
-                    "Google did not return an email address for this account."
-                }
-            } else {
-                errorMessage = null
-                onSignedIn(account)
-            }
-        } catch (error: ApiException) {
+        if (email.isNullOrBlank()) {
             errorMessage = if (isArabic) {
-                "تعذر تسجيل الدخول إلى Google. رمز الخطأ: ${error.statusCode}"
+                "لم يتم تحديد حساب Google."
             } else {
-                "Google sign-in failed. Error code: ${error.statusCode}"
+                "No Google account was selected."
             }
+        } else {
+            errorMessage = null
+            onSignedIn(email)
         }
     }
 
-    fun launchGoogleAccountChooser() {
-        if (isSigningIn) return
-        isSigningIn = true
+    fun openGoogleAccountPicker() {
         errorMessage = null
 
-        // Clear only this app's previous Google session before opening the chooser.
-        // The Google accounts remain on the device. This makes Google show the
-        // account picker instead of silently reusing the last account.
-        googleSignInClient.signOut().addOnCompleteListener {
-            signInLauncher.launch(googleSignInClient.signInIntent)
-        }
+        val intent = AccountPicker.newChooseAccountIntent(
+            null,
+            null,
+            arrayOf("com.google"),
+            true,
+            null,
+            null,
+            null,
+            null,
+        )
+
+        accountPickerLauncher.launch(intent)
     }
 
     CompositionLocalProvider(LocalLayoutDirection provides layoutDirection) {
@@ -141,28 +121,27 @@ fun WelcomeSignInScreen(
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 28.dp),
+                .padding(horizontal = 24.dp, vertical = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
         ) {
-            Spacer(Modifier.height(42.dp))
-
             Surface(
-                modifier = Modifier.size(72.dp),
-                shape = RoundedCornerShape(22.dp),
+                modifier = Modifier.size(66.dp),
+                shape = RoundedCornerShape(20.dp),
                 color = MaterialTheme.colorScheme.primary,
-                shadowElevation = 4.dp,
+                shadowElevation = 3.dp,
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = Icons.Outlined.AutoAwesome,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(34.dp),
+                        modifier = Modifier.size(31.dp),
                     )
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(22.dp))
 
             Text(
                 text = if (isArabic) "مرحبًا بك في Vibe" else "Welcome to Vibe",
@@ -170,34 +149,28 @@ fun WelcomeSignInScreen(
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
             )
+
             Spacer(Modifier.height(8.dp))
+
             Text(
                 text = if (isArabic) {
-                    "اختر اللغة ثم سجّل الدخول بحساب Google للمتابعة"
+                    "اختر اللغة ثم حساب Google للمتابعة"
                 } else {
-                    "Choose your language, then sign in with Google to continue"
+                    "Choose your language and Google account to continue"
                 },
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
 
-            Spacer(Modifier.height(34.dp))
-
-            Text(
-                text = if (isArabic) "لغة التطبيق" else "App language",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(28.dp))
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(
                         color = MaterialTheme.colorScheme.surfaceContainerLow,
-                        shape = RoundedCornerShape(18.dp),
+                        shape = RoundedCornerShape(16.dp),
                     )
                     .padding(4.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -216,31 +189,14 @@ fun WelcomeSignInScreen(
                 )
             }
 
-            Spacer(Modifier.height(30.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                HorizontalDivider(modifier = Modifier.weight(1f))
-                Text(
-                    text = if (isArabic) "تسجيل الدخول" else "Sign in",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                HorizontalDivider(modifier = Modifier.weight(1f))
-            }
-
             Spacer(Modifier.height(20.dp))
 
             Button(
-                onClick = ::launchGoogleAccountChooser,
-                enabled = !isSigningIn,
+                onClick = ::openGoogleAccountPicker,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(58.dp),
-                shape = RoundedCornerShape(18.dp),
+                    .height(56.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     contentColor = MaterialTheme.colorScheme.onSurface,
@@ -248,14 +204,7 @@ fun WelcomeSignInScreen(
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 1.dp),
             ) {
-                if (isSigningIn) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(22.dp),
-                        strokeWidth = 2.dp,
-                    )
-                } else {
-                    GoogleMark()
-                }
+                GoogleMark()
                 Spacer(Modifier.size(12.dp))
                 Text(
                     text = if (isArabic) {
@@ -268,12 +217,13 @@ fun WelcomeSignInScreen(
                 )
             }
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(10.dp))
+
             Text(
                 text = if (isArabic) {
-                    "سيعرض Google الحسابات الموجودة على جهازك لتختار الحساب الذي تريد الدخول به."
+                    "ستظهر حسابات Google الموجودة على جهازك"
                 } else {
-                    "Google will show the accounts available on your device so you can choose which one to use."
+                    "Your Google accounts on this device will appear"
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -281,44 +231,12 @@ fun WelcomeSignInScreen(
             )
 
             errorMessage?.let { message ->
-                Spacer(Modifier.height(16.dp))
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    color = MaterialTheme.colorScheme.errorContainer,
-                    shape = RoundedCornerShape(14.dp),
-                ) {
-                    Text(
-                        text = message,
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(14.dp),
-                        textAlign = TextAlign.Center,
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(28.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Lock,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(18.dp),
-                )
+                Spacer(Modifier.height(12.dp))
                 Text(
-                    text = if (isArabic) {
-                        "تسجيل الدخول يتم عبر Google Play Services. التطبيق لا يرى كلمة مرور حسابك ولا يخزنها."
-                    } else {
-                        "Sign-in is handled by Google Play services. Vibe never sees or stores your Google password."
-                    },
+                    text = message,
+                    color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center,
                 )
             }
         }
@@ -334,9 +252,9 @@ private fun LanguageSegment(
 ) {
     Surface(
         modifier = modifier
-            .height(48.dp)
+            .height(46.dp)
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(13.dp),
         color = if (selected) {
             MaterialTheme.colorScheme.surface
         } else {
@@ -345,7 +263,7 @@ private fun LanguageSegment(
         tonalElevation = if (selected) 1.dp else 0.dp,
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp),
+            modifier = Modifier.padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
         ) {
@@ -356,8 +274,9 @@ private fun LanguageSegment(
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(18.dp),
                 )
-                Spacer(Modifier.size(7.dp))
+                Spacer(Modifier.size(6.dp))
             }
+
             Text(
                 text = text,
                 style = MaterialTheme.typography.titleSmall,
@@ -372,10 +291,6 @@ private fun LanguageSegment(
     }
 }
 
-/**
- * Small Google-style mark for the sign-in button. The account chooser and
- * authentication itself are provided by Google Play services.
- */
 @Composable
 private fun GoogleMark() {
     Surface(

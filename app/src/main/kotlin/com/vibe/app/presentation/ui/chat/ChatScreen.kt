@@ -202,6 +202,23 @@ fun ChatScreen(
     var isClearChatDialogOpen by remember { mutableStateOf(false) }
     var showNotificationRationale by remember { mutableStateOf(false) }
 
+    // Old project conversations stay available to the Agent immediately, but are visually
+    // collapsed when a project is reopened. This keeps the workspace clean without losing
+    // any context. The user can explicitly reveal every previous request/response.
+    var showPreviousHistory by remember(chatRoom.id) { mutableStateOf(false) }
+    val hasPreviousHistory = isLoaded && groupedMessages.userMessages.isNotEmpty()
+
+    // A live/new turn should never disappear just because the restored history was collapsed.
+    LaunchedEffect(isIdle) {
+        if (!isIdle) showPreviousHistory = true
+    }
+
+    val visibleMessageCount = if (showPreviousHistory || !isIdle) {
+        groupedMessages.userMessages.size
+    } else {
+        0
+    }
+
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { }
@@ -236,15 +253,15 @@ fun ChatScreen(
         derivedStateOf { !isNearBottom }
     }
 
-    LaunchedEffect(isLoaded) {
-        if (isLoaded) {
+    LaunchedEffect(isLoaded, visibleMessageCount) {
+        if (isLoaded && visibleMessageCount > 0) {
             snapshotFlow { listState.layoutInfo.totalItemsCount }
                 .first { it > 0 }
             scrollToBottom()
         }
     }
 
-    val messageCount = groupedMessages.userMessages.size
+    val messageCount = visibleMessageCount
     var loadedMessageCount by remember { mutableIntStateOf(-1) }
     LaunchedEffect(isLoaded) {
         if (isLoaded) {
@@ -370,8 +387,10 @@ fun ChatScreen(
                     .weight(1f)
                     .fillMaxWidth()
             ) {
-                val messageCount by remember {
-                    derivedStateOf { groupedMessages.userMessages.size }
+                val messageCount by remember(showPreviousHistory, isIdle, groupedMessages.userMessages.size) {
+                    derivedStateOf {
+                        if (showPreviousHistory || !isIdle) groupedMessages.userMessages.size else 0
+                    }
                 }
                 val stepIndicesPerTurn by remember {
                     derivedStateOf {
@@ -526,7 +545,26 @@ fun ChatScreen(
                     }
                 }
 
-                if (showScrollToBottom) {
+                if (hasPreviousHistory && !showPreviousHistory && isIdle) {
+                    FilledTonalButton(
+                        onClick = { showPreviousHistory = true },
+                        modifier = Modifier.align(Alignment.Center),
+                        shape = RoundedCornerShape(14.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.History,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(modifier = Modifier.width(7.dp))
+                        Text(
+                            text = "استرجع التعديلات السابقة",
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                    }
+                }
+
+                if (showScrollToBottom && messageCount > 0) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -562,6 +600,7 @@ fun ChatScreen(
                 },
                 onStopClick = { chatViewModel.stopResponding() }
             ) {
+                showPreviousHistory = true
                 ensureNotificationPermission()
                 chatViewModel.askQuestion()
                 focusManager.clearFocus()
@@ -576,6 +615,7 @@ fun ChatScreen(
                 confirmButton = {
                     TextButton(onClick = {
                         chatViewModel.clearChatHistory()
+                        showPreviousHistory = false
                         isClearChatDialogOpen = false
                     }) {
                         Text(stringResource(R.string.confirm))
@@ -626,6 +666,7 @@ fun ChatScreen(
                 initialQuestion = editedQuestion,
                 onDismissRequest = chatViewModel::closeEditQuestionDialog,
                 onConfirmRequest = { question ->
+                    showPreviousHistory = true
                     chatViewModel.editQuestion(question)
                     chatViewModel.closeEditQuestionDialog()
                 }

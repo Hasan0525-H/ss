@@ -77,12 +77,12 @@ class GeneratedAppReleaseManagerTest {
     private fun manifestFile(packageName: String, versionCode: Int): File {
         return temp.newFile("AndroidManifest.xml").apply {
             writeText(
-                """<?xml version=\"1.0\" encoding=\"utf-8\"?>
-                    |<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\"
-                    |    package=\"$packageName\"
-                    |    android:versionCode=\"$versionCode\"
-                    |    android:versionName=\"1.0\">
-                    |    <application android:label=\"Test\" />
+                """<?xml version="1.0" encoding="utf-8"?>
+                    |<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+                    |    package="$packageName"
+                    |    android:versionCode="$versionCode"
+                    |    android:versionName="1.0">
+                    |    <application android:label="Test" />
                     |</manifest>
                 """.trimMargin()
             )

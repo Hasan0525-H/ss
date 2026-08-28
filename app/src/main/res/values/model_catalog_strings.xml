@@ -36,4 +36,13 @@
     <string name="model_sort_price">Price</string>
     <string name="model_context_label">%1$s context</string>
     <string name="model_price_compact">$%1$s in · $%2$s out / 1M</string>
+
+    <string name="model_summary_simple">Lightweight and quick. Best for simple apps, routine coding and short tasks.</string>
+    <string name="model_summary_medium">A balanced choice for speed and quality. Suitable for most coding projects and medium-size apps.</string>
+    <string name="model_summary_complex">Designed for harder tasks, deeper reasoning and larger or more complex projects.</string>
+    <string name="model_capability_tools_explained">Supports tools and function calling</string>
+    <string name="model_capability_reasoning_explained">Supports deeper reasoning</string>
+    <string name="model_capability_structured_explained">Supports structured outputs</string>
+    <string name="model_capability_context_explained">Context window up to %1$s tokens</string>
+    <string name="model_capability_standard">Standard text generation</string>
 </resources>

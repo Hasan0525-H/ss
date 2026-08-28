@@ -55,15 +55,12 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.vibe.app.R
 import com.vibe.app.data.database.entity.PlatformV2
-import com.vibe.app.data.model.DynamicTheme
 import com.vibe.app.data.model.ThemeMode
-import com.vibe.app.presentation.common.LocalDynamicTheme
 import com.vibe.app.presentation.common.LocalThemeMode
 import com.vibe.app.presentation.common.LocalThemeViewModel
 import com.vibe.app.presentation.common.RadioItem
 import com.vibe.app.presentation.common.SettingItem
 import com.vibe.app.util.getClientTypeDisplayName
-import com.vibe.app.util.getDynamicThemeTitle
 import com.vibe.app.util.getThemeModeTitle
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -371,30 +368,12 @@ fun ThemeSettingDialog(
 
                 Spacer(Modifier.height(22.dp))
                 Text(
-                    text = stringResource(R.string.dynamic_theme),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Medium,
-                )
-                Spacer(Modifier.height(10.dp))
-                DynamicTheme.entries.forEach { theme ->
-                    RadioItem(
-                        title = getDynamicThemeTitle(theme),
-                        description = null,
-                        value = theme.name,
-                        selected = LocalDynamicTheme.current == theme,
-                    ) {
-                        themeViewModel.updateDynamicTheme(theme)
-                    }
-                }
-
-                Spacer(Modifier.height(22.dp))
-                Text(
                     text = stringResource(R.string.dark_mode),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Medium,
                 )
                 Spacer(Modifier.height(10.dp))
-                ThemeMode.entries.forEach { theme ->
+                listOf(ThemeMode.LIGHT, ThemeMode.DARK).forEach { theme ->
                     RadioItem(
                         title = getThemeModeTitle(theme),
                         description = null,

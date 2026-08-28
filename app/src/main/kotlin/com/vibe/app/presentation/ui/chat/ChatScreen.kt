@@ -202,22 +202,26 @@ fun ChatScreen(
     var isClearChatDialogOpen by remember { mutableStateOf(false) }
     var showNotificationRationale by remember { mutableStateOf(false) }
 
-    // Old project conversations stay available to the Agent immediately, but are visually
-    // collapsed when a project is reopened. This keeps the workspace clean without losing
-    // any context. The user can explicitly reveal every previous request/response.
+    // Previous turns remain in memory for the agent, but are never rendered unless the user
+    // explicitly presses the restore-history button. New turns created after reopening the
+    // project are still visible without exposing any older turns.
     var showPreviousHistory by remember(chatRoom.id) { mutableStateOf(false) }
-    val hasPreviousHistory = isLoaded && groupedMessages.userMessages.isNotEmpty()
-
-    // A live/new turn should never disappear just because the restored history was collapsed.
-    LaunchedEffect(isIdle) {
-        if (!isIdle) showPreviousHistory = true
+    var hiddenHistoryCount by remember(chatRoom.id) { mutableIntStateOf(-1) }
+    LaunchedEffect(isLoaded, chatRoom.id) {
+        if (isLoaded && hiddenHistoryCount < 0) {
+            hiddenHistoryCount = groupedMessages.userMessages.size
+        }
     }
-
-    val visibleMessageCount = if (showPreviousHistory || !isIdle) {
-        groupedMessages.userMessages.size
-    } else {
-        0
+    val hasPreviousHistory = isLoaded &&
+        hiddenHistoryCount > 0 &&
+        groupedMessages.userMessages.isNotEmpty()
+    val visibleStartIndex = when {
+        showPreviousHistory -> 0
+        hiddenHistoryCount < 0 -> groupedMessages.userMessages.size
+        else -> hiddenHistoryCount.coerceAtMost(groupedMessages.userMessages.size)
     }
+    val visibleMessageCount =
+        (groupedMessages.userMessages.size - visibleStartIndex).coerceAtLeast(0)
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -340,6 +344,8 @@ fun ChatScreen(
                 isDebugEnabled = isDebugEnabled,
                 buildProgress = buildProgress.progress,
                 isBuildProgressVisible = buildProgress.isVisible,
+                showRestoreHistoryButton = hasPreviousHistory && !showPreviousHistory,
+                onRestoreHistoryClick = { showPreviousHistory = true },
                 onBackAction,
                 scrollBehavior,
                 chatViewModel::openProjectNameDialog,
@@ -387,10 +393,8 @@ fun ChatScreen(
                     .weight(1f)
                     .fillMaxWidth()
             ) {
-                val messageCount by remember(showPreviousHistory, isIdle, groupedMessages.userMessages.size) {
-                    derivedStateOf {
-                        if (showPreviousHistory || !isIdle) groupedMessages.userMessages.size else 0
-                    }
+                val totalMessageCount by remember(groupedMessages.userMessages.size) {
+                    derivedStateOf { groupedMessages.userMessages.size }
                 }
                 val stepIndicesPerTurn by remember {
                     derivedStateOf {
@@ -416,7 +420,7 @@ fun ChatScreen(
                             )
                         }
                     }
-                    for (i in messageCount - 1 downTo 0) {
+                    for (i in totalMessageCount - 1 downTo visibleStartIndex) {
                         item(key = "assistant_$i") {
                             val platformIndexState = indexStates.getOrElse(i) { 0 }
                             val assistantContent = groupedMessages.assistantMessages.getOrNull(i)
@@ -545,26 +549,7 @@ fun ChatScreen(
                     }
                 }
 
-                if (hasPreviousHistory && !showPreviousHistory && isIdle) {
-                    FilledTonalButton(
-                        onClick = { showPreviousHistory = true },
-                        modifier = Modifier.align(Alignment.Center),
-                        shape = RoundedCornerShape(14.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.History,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                        )
-                        Spacer(modifier = Modifier.width(7.dp))
-                        Text(
-                            text = "استرجع التعديلات السابقة",
-                            style = MaterialTheme.typography.labelLarge,
-                        )
-                    }
-                }
-
-                if (showScrollToBottom && messageCount > 0) {
+                if (showScrollToBottom && visibleMessageCount > 0) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -600,7 +585,6 @@ fun ChatScreen(
                 },
                 onStopClick = { chatViewModel.stopResponding() }
             ) {
-                showPreviousHistory = true
                 ensureNotificationPermission()
                 chatViewModel.askQuestion()
                 focusManager.clearFocus()
@@ -616,6 +600,7 @@ fun ChatScreen(
                     TextButton(onClick = {
                         chatViewModel.clearChatHistory()
                         showPreviousHistory = false
+                        hiddenHistoryCount = 0
                         isClearChatDialogOpen = false
                     }) {
                         Text(stringResource(R.string.confirm))
@@ -666,7 +651,6 @@ fun ChatScreen(
                 initialQuestion = editedQuestion,
                 onDismissRequest = chatViewModel::closeEditQuestionDialog,
                 onConfirmRequest = { question ->
-                    showPreviousHistory = true
                     chatViewModel.editQuestion(question)
                     chatViewModel.closeEditQuestionDialog()
                 }
@@ -787,6 +771,8 @@ private fun ChatTopBar(
     isDebugEnabled: Boolean,
     buildProgress: Float,
     isBuildProgressVisible: Boolean,
+    showRestoreHistoryButton: Boolean,
+    onRestoreHistoryClick: () -> Unit,
     onBackAction: () -> Unit,
     scrollBehavior: TopAppBarScrollBehavior,
     onUpdateProjectNameClick: () -> Unit,
@@ -871,6 +857,28 @@ private fun ChatTopBar(
             },
             scrollBehavior = scrollBehavior
         )
+
+        if (showRestoreHistoryButton) {
+            FilledTonalButton(
+                onClick = onRestoreHistoryClick,
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .padding(top = 2.dp, bottom = 8.dp)
+                    .height(40.dp),
+                shape = RoundedCornerShape(14.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.History,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(modifier = Modifier.width(7.dp))
+                Text(
+                    text = "استرجع التعديلات السابقة",
+                    style = MaterialTheme.typography.labelLarge,
+                )
+            }
+        }
 
         LinearProgressIndicator(
             progress = { buildProgress },

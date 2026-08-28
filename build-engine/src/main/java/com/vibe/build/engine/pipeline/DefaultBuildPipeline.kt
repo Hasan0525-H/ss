@@ -183,14 +183,16 @@ class DefaultBuildPipeline(
         files.forEach { file ->
             val relative = file.relativeTo(root).invariantSeparatorsPath
             digest.update(relative.toByteArray(Charsets.UTF_8))
-            digest.update(0)
+            digest.update(0.toByte())
             digest.update(file.length().toString().toByteArray(Charsets.UTF_8))
-            digest.update(0)
+            digest.update(0.toByte())
             digest.update(file.lastModified().toString().toByteArray(Charsets.UTF_8))
-            digest.update(0)
+            digest.update(0.toByte())
         }
 
-        return digest.digest().joinToString("") { byte -> "%02x".format(byte) }
+        return digest.digest().joinToString("") { byte ->
+            (byte.toInt() and 0xff).toString(16).padStart(2, '0')
+        }
     }
 
     private companion object {

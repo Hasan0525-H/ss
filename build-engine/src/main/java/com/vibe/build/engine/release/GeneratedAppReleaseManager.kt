@@ -18,9 +18,9 @@ object GeneratedAppReleaseManager {
     private val packageRegex = Regex("""\bpackage\s*=\s*\"[^\"]*\"""")
     private val manifestTagRegex = Regex("""<manifest\b""")
 
-    data class PreparedManifest internal constructor(
+    class PreparedManifest internal constructor(
         val manifestFile: File,
-        val originalText: String,
+        private val originalText: String,
         val versionCode: Int,
         val packageName: String,
     ) {

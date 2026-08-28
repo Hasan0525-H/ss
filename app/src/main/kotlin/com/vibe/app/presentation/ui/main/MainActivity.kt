@@ -15,9 +15,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.rememberNavController
 import com.vibe.app.data.preferences.LanguageManager
 import com.vibe.app.feature.agent.service.AgentNotificationHelper
+import com.vibe.app.presentation.common.AuthenticatedAppRoot
 import com.vibe.app.presentation.common.LocalDynamicTheme
 import com.vibe.app.presentation.common.LocalThemeMode
-import com.vibe.app.presentation.common.SetupNavGraph
 import com.vibe.app.presentation.common.ThemeSettingProvider
 import com.vibe.app.presentation.theme.CleanVibeTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -85,7 +85,7 @@ class MainActivity : AppCompatActivity() {
                         dynamicTheme = LocalDynamicTheme.current,
                         themeMode = LocalThemeMode.current
                     ) {
-                        SetupNavGraph(
+                        AuthenticatedAppRoot(
                             navController = navController
                         )
                     }

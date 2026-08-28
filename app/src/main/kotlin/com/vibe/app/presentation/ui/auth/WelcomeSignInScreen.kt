@@ -6,30 +6,28 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AutoAwesome
-import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -61,33 +59,35 @@ fun WelcomeSignInScreen(
     val accountPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult(),
     ) { result ->
-        if (result.resultCode == Activity.RESULT_CANCELED) {
-            errorMessage = null
-            return@rememberLauncherForActivityResult
-        }
-
-        if (result.resultCode != Activity.RESULT_OK) {
-            errorMessage = if (isArabic) {
-                "تعذر فتح حساب Google. حاول مرة أخرى."
-            } else {
-                "Could not open your Google account. Please try again."
+        when {
+            result.resultCode == Activity.RESULT_CANCELED -> {
+                errorMessage = null
             }
-            return@rememberLauncherForActivityResult
-        }
 
-        val email = result.data
-            ?.getStringExtra(AccountManager.KEY_ACCOUNT_NAME)
-            ?.trim()
-
-        if (email.isNullOrBlank()) {
-            errorMessage = if (isArabic) {
-                "لم يتم تحديد حساب Google."
-            } else {
-                "No Google account was selected."
+            result.resultCode != Activity.RESULT_OK -> {
+                errorMessage = if (isArabic) {
+                    "تعذر تسجيل الدخول. حاول مرة أخرى."
+                } else {
+                    "Sign-in failed. Please try again."
+                }
             }
-        } else {
-            errorMessage = null
-            onSignedIn(email)
+
+            else -> {
+                val email = result.data
+                    ?.getStringExtra(AccountManager.KEY_ACCOUNT_NAME)
+                    ?.trim()
+
+                if (email.isNullOrBlank()) {
+                    errorMessage = if (isArabic) {
+                        "لم يتم اختيار حساب Google."
+                    } else {
+                        "No Google account was selected."
+                    }
+                } else {
+                    errorMessage = null
+                    onSignedIn(email)
+                }
+            }
         }
     }
 
@@ -106,173 +106,108 @@ fun WelcomeSignInScreen(
         accountPickerLauncher.launch(intent)
     }
 
+    fun switchLanguage() {
+        errorMessage = null
+        languageViewModel.selectLanguage(if (isArabic) "en" else "ar")
+    }
+
     CompositionLocalProvider(LocalLayoutDirection provides layoutDirection) {
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
+                .windowInsetsPadding(WindowInsets.safeDrawing)
+                .padding(horizontal = 24.dp, vertical = 14.dp),
         ) {
-            Surface(
-                modifier = Modifier.size(64.dp),
-                shape = RoundedCornerShape(20.dp),
-                color = MaterialTheme.colorScheme.primary,
-                shadowElevation = 3.dp,
+            TextButton(
+                onClick = ::switchLanguage,
+                modifier = Modifier.align(Alignment.TopEnd),
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Outlined.AutoAwesome,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(30.dp),
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(22.dp))
-
-            Text(
-                text = if (isArabic) "مرحبًا بك في Vibe" else "Welcome to Vibe",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-            )
-
-            Spacer(Modifier.height(8.dp))
-
-            Text(
-                text = if (isArabic) {
-                    "اختر اللغة ثم حساب Google للمتابعة"
-                } else {
-                    "Choose your language and Google account to continue"
-                },
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
-
-            Spacer(Modifier.height(28.dp))
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(
-                        color = MaterialTheme.colorScheme.surfaceContainerLow,
-                        shape = RoundedCornerShape(16.dp),
-                    )
-                    .padding(4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                LanguageSegment(
-                    text = "العربية",
-                    selected = selectedLanguage == "ar",
-                    modifier = Modifier.weight(1f),
-                    onClick = { languageViewModel.selectLanguage("ar") },
-                )
-                LanguageSegment(
-                    text = "English",
-                    selected = selectedLanguage == "en",
-                    modifier = Modifier.weight(1f),
-                    onClick = { languageViewModel.selectLanguage("en") },
-                )
-            }
-
-            Spacer(Modifier.height(20.dp))
-
-            Button(
-                onClick = ::openGoogleAccountPicker,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    contentColor = MaterialTheme.colorScheme.onSurface,
-                ),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = 1.dp),
-            ) {
-                GoogleMark()
-                Spacer(Modifier.size(10.dp))
                 Text(
-                    text = if (isArabic) {
-                        "المتابعة باستخدام Google"
-                    } else {
-                        "Continue with Google"
-                    },
-                    style = MaterialTheme.typography.titleMedium,
+                    text = if (isArabic) "English" else "العربية",
+                    style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
                 )
             }
 
-            Spacer(Modifier.height(10.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.Center),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Surface(
+                    modifier = Modifier.size(58.dp),
+                    shape = RoundedCornerShape(18.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    shadowElevation = 2.dp,
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Outlined.AutoAwesome,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(28.dp),
+                        )
+                    }
+                }
 
-            Text(
-                text = if (isArabic) {
-                    "ستظهر حسابات Google الموجودة على جهازك"
-                } else {
-                    "Your Google accounts on this device will appear"
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
+                Spacer(Modifier.height(24.dp))
 
-            errorMessage?.let { message ->
-                Spacer(Modifier.height(12.dp))
                 Text(
-                    text = message,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
+                    text = if (isArabic) "مرحبًا بك" else "Welcome",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center,
                 )
-            }
-        }
-    }
-}
 
-@Composable
-private fun LanguageSegment(
-    text: String,
-    selected: Boolean,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-) {
-    Surface(
-        modifier = modifier
-            .height(46.dp)
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(13.dp),
-        color = if (selected) MaterialTheme.colorScheme.surface else Color.Transparent,
-        tonalElevation = if (selected) 1.dp else 0.dp,
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center,
-        ) {
-            if (selected) {
-                Icon(
-                    imageVector = Icons.Outlined.Check,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(17.dp),
+                Spacer(Modifier.height(6.dp))
+
+                Text(
+                    text = if (isArabic) "سجّل الدخول للمتابعة" else "Sign in to continue",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
                 )
-                Spacer(Modifier.size(6.dp))
+
+                Spacer(Modifier.height(30.dp))
+
+                Button(
+                    onClick = ::openGoogleAccountPicker,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                    ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 1.dp),
+                ) {
+                    GoogleMark()
+                    Spacer(Modifier.size(10.dp))
+                    Text(
+                        text = if (isArabic) {
+                            "المتابعة باستخدام Google"
+                        } else {
+                            "Continue with Google"
+                        },
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+
+                errorMessage?.let { message ->
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        text = message,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        textAlign = TextAlign.Center,
+                    )
+                }
             }
-            Text(
-                text = text,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-                color = if (selected) {
-                    MaterialTheme.colorScheme.onSurface
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-            )
         }
     }
 }
